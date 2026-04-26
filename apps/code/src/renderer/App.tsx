@@ -13,6 +13,7 @@ import {
 import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { PreviewSubscriber } from "@features/preview/components/PreviewSubscriber";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
@@ -257,8 +258,12 @@ function App() {
 
   const content = renderContent();
 
+  const showPreviewSubscriber =
+    isAuthenticated && hasCompletedOnboarding && hasCodeAccess === true;
+
   return (
     <ErrorBoundary name="App">
+      {showPreviewSubscriber ? <PreviewSubscriber /> : null}
       {isAuthenticated ? (
         <AnimatePresence mode="wait">{content}</AnimatePresence>
       ) : (

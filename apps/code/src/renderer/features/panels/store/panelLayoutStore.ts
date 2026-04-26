@@ -104,6 +104,15 @@ export interface PanelLayoutStore {
       label: string;
     },
   ) => void;
+  addPreviewTab: (
+    taskId: string,
+    panelId: string,
+    preview: {
+      name: string;
+      url: string;
+      taskId: string;
+    },
+  ) => void;
   clearAllLayouts: () => void;
 }
 
@@ -889,6 +898,83 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
                   content: {
                     ...panel.content,
                     tabs: [...panel.content.tabs, newTab],
+                  },
+                };
+              },
+            );
+
+            return { panelTree: updatedTree };
+          }),
+        );
+      },
+
+      addPreviewTab: (taskId, panelId, preview) => {
+        const tabId = `preview-${preview.name}`;
+        set((state) =>
+          updateTaskLayout(state, taskId, (layout) => {
+            // If a preview tab with this name already exists, just update its URL
+            // and activate it (re-registration may have changed the port).
+            const existingTab = findTabInTree(layout.panelTree, tabId);
+            if (existingTab) {
+              const updatedTree = updateTreeNode(
+                layout.panelTree,
+                existingTab.panelId,
+                (panel) => {
+                  if (panel.type !== "leaf") return panel;
+                  return {
+                    ...panel,
+                    content: {
+                      ...panel.content,
+                      tabs: panel.content.tabs.map((tab) =>
+                        tab.id === tabId
+                          ? {
+                              ...tab,
+                              data: {
+                                type: "preview",
+                                taskId: preview.taskId,
+                                previewName: preview.name,
+                                url: preview.url,
+                              },
+                            }
+                          : tab,
+                      ),
+                      activeTabId: tabId,
+                    },
+                  };
+                },
+              );
+              return { panelTree: updatedTree };
+            }
+
+            const targetPanel = getLeafPanel(layout.panelTree, panelId);
+            if (!targetPanel) return {};
+
+            const updatedTree = updateTreeNode(
+              layout.panelTree,
+              panelId,
+              (panel) => {
+                if (panel.type !== "leaf") return panel;
+
+                const newTab: Tab = {
+                  id: tabId,
+                  label: `Preview: ${preview.name}`,
+                  data: {
+                    type: "preview",
+                    taskId: preview.taskId,
+                    previewName: preview.name,
+                    url: preview.url,
+                  },
+                  component: null,
+                  draggable: true,
+                  closeable: true,
+                };
+
+                return {
+                  ...panel,
+                  content: {
+                    ...panel.content,
+                    tabs: [...panel.content.tabs, newTab],
+                    activeTabId: tabId,
                   },
                 };
               },

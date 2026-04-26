@@ -440,6 +440,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       mode,
       branch,
       useExistingBranch,
+      scratchpad,
     } = options;
 
     const existingWorkspace = await this.getWorkspaceInfo(taskId);
@@ -462,6 +463,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         taskId,
         repositoryId,
         mode: "cloud",
+        scratchpad: scratchpad ?? false,
       });
 
       return {
@@ -503,6 +505,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         taskId,
         repositoryId,
         mode: "local",
+        scratchpad: scratchpad ?? false,
       });
 
       const localBranch = await getBranchFromPath(folderPath);
@@ -605,6 +608,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       repositoryId,
       mode: "worktree",
+      scratchpad: scratchpad ?? false,
     });
 
     this.worktreeRepo.create({
@@ -843,6 +847,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     const linkedBranchByTaskId = new Map(
       dbRows.map((row) => [row.taskId, row.linkedBranch ?? null]),
     );
+    const scratchpadByTaskId = new Map(
+      dbRows.map((row) => [row.taskId, row.scratchpad ?? false]),
+    );
     const workspaces: Record<string, Workspace> = {};
 
     for (const assoc of associations) {
@@ -858,6 +865,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
           baseBranch: null,
           linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
           createdAt: new Date().toISOString(),
+          scratchpad: scratchpadByTaskId.get(assoc.taskId) ?? false,
         };
         continue;
       }
@@ -895,6 +903,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         baseBranch: null,
         linkedBranch: linkedBranchByTaskId.get(assoc.taskId) ?? null,
         createdAt: new Date().toISOString(),
+        scratchpad: scratchpadByTaskId.get(assoc.taskId) ?? false,
       };
     }
 

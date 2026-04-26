@@ -32,6 +32,12 @@ export type TabData =
       type: "review";
     }
   | {
+      type: "preview";
+      taskId: string;
+      previewName: string;
+      url: string;
+    }
+  | {
       type: "other";
     };
 

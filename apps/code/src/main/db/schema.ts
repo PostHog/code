@@ -31,6 +31,12 @@ export const workspaces = sqliteTable(
     pinnedAt: text(),
     lastViewedAt: text(),
     lastActivityAt: text(),
+    /**
+     * Scratchpad workspaces are drafts with no git lifecycle until Publish.
+     * Stored as integer (0/1) by sqlite; surfaced to the renderer as boolean.
+     * Orthogonal to `mode`.
+     */
+    scratchpad: integer({ mode: "boolean" }).notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

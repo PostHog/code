@@ -122,6 +122,15 @@ export function getWorktreeLocation(): string {
 }
 
 /**
+ * Location for scratchpad directories (drafts of new PostHog products).
+ * Lives under the user's app data dir, separate from worktrees: scratchpads
+ * are scoped to the app installation rather than to a host repo.
+ */
+export function getScratchpadLocation(): string {
+  return path.join(getUserDataDir(), "scratchpads");
+}
+
+/**
  * Get all worktree locations to check (current + legacy).
  * Use this when searching for existing worktrees for backwards compatibility.
  */

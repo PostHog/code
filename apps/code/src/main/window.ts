@@ -170,6 +170,9 @@ export function createWindow(): void {
       preload: path.join(__dirname, "preload.js"),
       enableBlinkFeatures: "GetDisplayMedia",
       partition: "persist:main",
+      // Enables the <webview> tag used by the Preview panel to embed local
+      // dev servers (Vite, Next, etc.) inside the app.
+      webviewTag: true,
       ...(isDev && { webSecurity: false }),
     },
   });

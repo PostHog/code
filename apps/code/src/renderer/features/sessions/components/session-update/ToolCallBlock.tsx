@@ -4,6 +4,7 @@ import type {
 } from "@features/sessions/components/buildConversationItems";
 import type { ToolCall } from "@features/sessions/types";
 import { Box } from "@radix-ui/themes";
+import { ClarificationBlock } from "./ClarificationBlock";
 import { DeleteToolView } from "./DeleteToolView";
 import { EditToolView } from "./EditToolView";
 import { ExecuteToolView } from "./ExecuteToolView";
@@ -60,6 +61,14 @@ export function ToolCallBlock({
           childItems={childItems}
           turnContext={turnContext}
         />
+      </Box>
+    );
+  }
+
+  if (toolName === "mcp__posthog_code__askClarification") {
+    return (
+      <Box className="pl-3">
+        <ClarificationBlock {...props} />
       </Box>
     );
   }

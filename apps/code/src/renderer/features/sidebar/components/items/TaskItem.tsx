@@ -7,8 +7,10 @@ import {
   Circle,
   Cloud as CloudIcon,
   HandPalm,
+  NotePencil,
   Pause,
   PushPin,
+  Trash,
 } from "@phosphor-icons/react";
 import { isTerminalStatus, type TaskRunStatus } from "@shared/types";
 import { formatRelativeTimeShort } from "@utils/time";
@@ -26,6 +28,7 @@ interface TaskItemProps {
   isUnread?: boolean;
   isPinned?: boolean;
   isSuspended?: boolean;
+  isDraft?: boolean;
   needsPermission?: boolean;
   taskRunStatus?: TaskRunStatus;
   timestamp?: number;
@@ -35,6 +38,7 @@ interface TaskItemProps {
   onContextMenu: (e: React.MouseEvent) => void;
   onArchive?: () => void;
   onTogglePin?: () => void;
+  onTrash?: () => void;
   onEditSubmit?: (newTitle: string) => void;
   onEditCancel?: () => void;
 }
@@ -43,12 +47,14 @@ interface TaskHoverToolbarProps {
   isPinned: boolean;
   onTogglePin?: () => void;
   onArchive?: () => void;
+  onTrash?: () => void;
 }
 
 function TaskHoverToolbar({
   isPinned,
   onTogglePin,
   onArchive,
+  onTrash,
 }: TaskHoverToolbarProps) {
   return (
     <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
@@ -97,6 +103,30 @@ function TaskHoverToolbar({
             }}
           >
             <Archive size={12} />
+          </span>
+        </Tooltip>
+      )}
+      {onTrash && (
+        <Tooltip content="Delete draft" side="top">
+          {/* biome-ignore lint/a11y/useSemanticElements: Cannot use button inside parent button (SidebarItem) */}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-gray-10 transition-colors hover:bg-gray-4 hover:text-red-11"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTrash();
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onTrash();
+              }
+            }}
+          >
+            <Trash size={12} />
           </span>
         </Tooltip>
       )}
@@ -160,6 +190,7 @@ export function TaskItem({
   isGenerating,
   isUnread,
   isPinned = false,
+  isDraft = false,
   needsPermission = false,
   taskRunStatus,
   timestamp,
@@ -169,6 +200,7 @@ export function TaskItem({
   onContextMenu,
   onArchive,
   onTogglePin,
+  onTrash,
   onEditSubmit,
   onEditCancel,
 }: TaskItemProps) {
@@ -199,6 +231,12 @@ export function TaskItem({
     </span>
   ) : isPinned ? (
     <PushPin size={ICON_SIZE} className="text-accent-11" />
+  ) : isDraft ? (
+    <Tooltip content="Draft (unpublished)" side="right">
+      <span className="flex items-center justify-center">
+        <NotePencil size={ICON_SIZE} className="text-gray-10" />
+      </span>
+    </Tooltip>
   ) : (
     <ChatCircle size={ICON_SIZE} className="text-gray-10" />
   );
@@ -210,11 +248,12 @@ export function TaskItem({
   ) : null;
 
   const toolbar =
-    onArchive || onTogglePin ? (
+    onArchive || onTogglePin || onTrash ? (
       <TaskHoverToolbar
         isPinned={isPinned}
         onTogglePin={onTogglePin}
         onArchive={onArchive}
+        onTrash={onTrash}
       />
     ) : null;
 

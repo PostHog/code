@@ -58,6 +58,10 @@ function createDependencies() {
           (id: string) => `http://127.0.0.1:9998/${encodeURIComponent(id)}`,
         ),
     },
+    posthogCodeMcp: {
+      start: vi.fn().mockResolvedValue(undefined),
+      getServerUrl: vi.fn().mockReturnValue("http://127.0.0.1:9997/mcp"),
+    },
   };
 }
 
@@ -77,6 +81,7 @@ describe("AgentAuthAdapter", () => {
       deps.authService as never,
       deps.authProxy as never,
       deps.mcpProxy as never,
+      deps.posthogCodeMcp as never,
     );
   });
 
