@@ -123,9 +123,9 @@ export function createCodexClient(
 ): Client {
   const terminalHandles = new Map<string, TerminalHandle>();
   // Track rawInput across tool_call → tool_call_update → completed so we can
-  // fire onStructuredOutput exactly once per tool call id. Entries are
-  // removed after firing so a retry (if codex-acp ever re-emits) won't
-  // double-fire.
+  // fire onStructuredOutput exactly once per tool call id. Entries stay in
+  // the map after firing with `fired: true` so a re-emitted completion
+  // (if codex-acp ever resends one) is a no-op.
   const structuredOutputState = new Map<
     string,
     { rawInput?: Record<string, unknown>; fired: boolean }
@@ -177,7 +177,6 @@ export function createCodexClient(
 
           if (update.status === "completed" && !entry.fired && entry.rawInput) {
             entry.fired = true;
-            structuredOutputState.delete(toolCallId);
             try {
               await callbacks.onStructuredOutput(entry.rawInput);
             } catch (err) {
