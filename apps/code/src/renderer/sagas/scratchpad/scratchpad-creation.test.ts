@@ -101,6 +101,7 @@ describe("ScratchpadCreationSaga", () => {
     const result = await saga.run({
       productName: "Uber for dogs",
       initialIdea: "On-demand dog walks",
+      rounds: 3,
     });
 
     expect(result.success).toBe(true);
@@ -167,6 +168,7 @@ describe("ScratchpadCreationSaga", () => {
     const result = await saga.run({
       productName: "Uber for dogs",
       initialIdea: "On-demand dog walks",
+      rounds: 3,
       projectId: 999,
     });
 
@@ -198,6 +200,7 @@ describe("ScratchpadCreationSaga", () => {
     const result = await saga.run({
       productName: "Uber for dogs",
       initialIdea: "On-demand dog walks",
+      rounds: 3,
     });
 
     expect(result.success).toBe(false);
@@ -230,6 +233,7 @@ describe("ScratchpadCreationSaga", () => {
     const result = await saga.run({
       productName: "Uber for dogs",
       initialIdea: "On-demand dog walks",
+      rounds: 3,
     });
 
     expect(result.success).toBe(false);
@@ -264,6 +268,7 @@ describe("ScratchpadCreationSaga", () => {
     const result = await saga.run({
       productName: "Uber for dogs",
       initialIdea: "On-demand dog walks",
+      rounds: 3,
       projectId: 999,
     });
 

@@ -164,8 +164,9 @@ describe("ProductCreationDialog", () => {
     expect(
       screen.getByText(/Let's clarify, build, and deploy/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/I'll run up to/)).toBeInTheDocument();
     expect(
-      screen.getByText(/I'll ask a few quick clarifying questions/),
+      screen.getByRole("group", { name: /Clarification rounds/i }),
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Uber for dogs")).toBeInTheDocument();
     expect(
@@ -193,6 +194,7 @@ describe("ProductCreationDialog", () => {
     expect(input).toMatchObject({
       productName: "My Product",
       initialIdea: "An idea",
+      rounds: 3,
     });
     expect(input.projectId).toBeUndefined();
   });
@@ -214,6 +216,7 @@ describe("ProductCreationDialog", () => {
     expect(input).toMatchObject({
       productName: "My Product",
       initialIdea: "An idea",
+      rounds: 3,
       projectId: 42,
     });
   });

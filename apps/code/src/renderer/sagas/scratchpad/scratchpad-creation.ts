@@ -17,6 +17,12 @@ export interface ScratchpadCreationInput {
   productName: string;
   initialIdea: string;
   /**
+   * Maximum number of Socratic clarification rounds the agent runs before
+   * scaffolding. Forwarded into the scaffolding prompt as a budget hint —
+   * Claude's native `AskUserQuestion` tool drives the actual interaction.
+   */
+  rounds: number;
+  /**
    * Optional. When provided, the user picked an existing project — the saga
    * will NOT delete it on rollback. When omitted, the manifest's `projectId`
    * is `null` and the user picks/creates a project at publish time.
@@ -159,6 +165,7 @@ export class ScratchpadCreationSaga extends Saga<
       productName: input.productName,
       projectId,
       taskId: task.id,
+      rounds: input.rounds,
     });
     const initialPrompt = await buildPromptBlocks(
       scaffoldingPromptText,

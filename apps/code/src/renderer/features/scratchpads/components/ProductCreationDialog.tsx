@@ -16,6 +16,7 @@ import {
   Dialog,
   Flex,
   RadioGroup,
+  SegmentedControl,
   Text,
   TextArea,
   TextField,
@@ -29,6 +30,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePreviewConfig } from "../../task-detail/hooks/usePreviewConfig";
 
 const log = logger.scope("product-creation-dialog");
+
+const MIN_ROUNDS = 1;
+const MAX_ROUNDS = 4;
+const ROUND_OPTIONS: number[] = Array.from(
+  { length: MAX_ROUNDS },
+  (_, i) => i + 1,
+);
+const DEFAULT_ROUNDS = 3;
 
 type ProjectMode = "later" | "existing";
 
@@ -61,6 +70,7 @@ export function ProductCreationDialog() {
 
   const [productName, setProductName] = useState("");
   const [initialIdea, setInitialIdea] = useState("");
+  const [rounds, setRounds] = useState<number>(DEFAULT_ROUNDS);
   const [projectMode, setProjectMode] = useState<ProjectMode>("later");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
@@ -131,6 +141,7 @@ export function ProductCreationDialog() {
   const resetForm = () => {
     setProductName("");
     setInitialIdea("");
+    setRounds(DEFAULT_ROUNDS);
     setProjectMode("later");
     setSelectedProjectId(null);
   };
@@ -164,6 +175,7 @@ export function ProductCreationDialog() {
       const result = await saga.run({
         productName: trimmedName,
         initialIdea: trimmedIdea,
+        rounds: clampRounds(rounds),
         adapter,
         executionMode: currentExecutionMode,
         ...(currentModel ? { model: currentModel } : {}),
@@ -272,9 +284,24 @@ export function ProductCreationDialog() {
               as="div"
               className="text-(--accent-12)/85 text-[12.5px] leading-relaxed"
             >
-              I'll ask a few quick clarifying questions, then build it with a
-              live preview, then help you deploy. PostHog wired up from the
-              start.
+              I'll run up to{" "}
+              <SegmentedControl.Root
+                size="1"
+                value={String(rounds)}
+                onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+                disabled={isSubmitting}
+                aria-label="Clarification rounds"
+                className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
+              >
+                {ROUND_OPTIONS.map((n) => (
+                  <SegmentedControl.Item key={n} value={String(n)}>
+                    {n}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>{" "}
+              {rounds === 1 ? "round" : "rounds"} of clarifying questions, then
+              build it with a live preview, then help you deploy. PostHog wired
+              up from the start.
             </Text>
           </Flex>
 
@@ -421,6 +448,13 @@ export function ProductCreationDialog() {
       </Dialog.Content>
     </Dialog.Root>
   );
+}
+
+function clampRounds(value: number): number {
+  if (Number.isNaN(value)) return DEFAULT_ROUNDS;
+  if (value < MIN_ROUNDS) return MIN_ROUNDS;
+  if (value > MAX_ROUNDS) return MAX_ROUNDS;
+  return Math.floor(value);
 }
 
 const PREPARING_MESSAGES = [

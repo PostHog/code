@@ -14,6 +14,12 @@ export interface ScaffoldingPromptInput {
   /** `null` when the user opted out of linking a PostHog project. */
   projectId: number | null;
   taskId: string;
+  /**
+   * Maximum number of Socratic clarification rounds the agent should run
+   * before scaffolding. The agent uses Claude's native `AskUserQuestion`
+   * tool — there is no host-side enforcement, this is a budget hint.
+   */
+  rounds: number;
 }
 
 /**
@@ -22,7 +28,14 @@ export interface ScaffoldingPromptInput {
  * rely on structured parsing.
  */
 export function buildScaffoldingPrompt(input: ScaffoldingPromptInput): string {
-  const { scratchpadPath, initialIdea, productName, projectId, taskId } = input;
+  const {
+    scratchpadPath,
+    initialIdea,
+    productName,
+    projectId,
+    taskId,
+    rounds,
+  } = input;
 
   const instrumentationProjectNote =
     projectId === null
@@ -39,7 +52,7 @@ ${initialIdea}
 
 Follow this workflow:
 
-1. **Socratic clarification.** Before writing any code, ask a small handful of clarifying questions using your built-in \`AskUserQuestion\` tool. Cover at minimum: app type (web/mobile/CLI/etc.), stack choice (your recommendation; the user can override), and any product-specific behaviour you can't safely guess. Keep it short — three or four questions max, and skip clarification entirely when the request is already fully specified. PostHog instrumentation is implicit — don't ask about it.
+1. **Socratic clarification.** Before writing any code, run **up to ${rounds} round${rounds === 1 ? "" : "s"}** of clarifying questions using your built-in \`AskUserQuestion\` tool. One round = one \`AskUserQuestion\` call (which can bundle several related questions). Cover at minimum: app type (web/mobile/CLI/etc.), stack choice (your recommendation; the user can override), and any product-specific behaviour you can't safely guess. Stop early if you've got enough to scaffold — no need to use the full budget when the request is already fully specified. PostHog instrumentation is implicit — don't ask about it.
 
 2. **Scaffold the bare minimum that runs.** Pick a production-grade, simple, mainstream stack appropriate for the product (e.g. \`pnpm create vite\`, \`pnpm create next-app\`, \`cargo new\`, etc.) and get it to a state where \`pnpm dev\` (or equivalent) starts a working dev server — even with placeholder content. Optimize for **speed to first preview**: run the scaffolder, install dependencies, do not yet build out features or polish UI. The directory is already a fresh \`git\` repo on \`main\` with no commits — you can use \`git\` normally, but **do NOT run \`git init\`** in subdirectories or scaffolders that try to (pass \`--no-git\`/equivalent flags). Do not add deployment scripts or hosting configuration.
 
