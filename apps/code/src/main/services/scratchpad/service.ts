@@ -174,7 +174,7 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
   public async scaffoldEmpty(
     taskId: string,
     name: string,
-    projectId: number | null,
+    projectId: number | null | undefined,
   ): Promise<{ scratchpadPath: string }> {
     const sanitized = sanitizeScratchpadName(name);
     if (!sanitized) {
@@ -182,12 +182,18 @@ export class ScratchpadService extends TypedEventEmitter<ScratchpadServiceEvents
     }
     const scratchpadPath = path.join(this.getTaskDir(taskId), sanitized);
 
-    log.info("Scaffolding scratchpad", { taskId, name, sanitized, projectId });
+    const normalizedProjectId = projectId ?? null;
+    log.info("Scaffolding scratchpad", {
+      taskId,
+      name,
+      sanitized,
+      projectId: normalizedProjectId,
+    });
 
     await fsPromises.mkdir(scratchpadPath, { recursive: true });
 
     const manifest: Manifest = {
-      projectId,
+      projectId: normalizedProjectId,
       published: false,
     };
 

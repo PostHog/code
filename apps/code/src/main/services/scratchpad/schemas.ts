@@ -111,7 +111,7 @@ export const taskIdInput = z.object({
 export const createScratchpadInput = z.object({
   taskId: z.string().min(1),
   name: z.string().min(1),
-  projectId: z.number().int().nullable(),
+  projectId: z.number().int().nullish(),
 });
 
 export const createScratchpadOutput = z.object({
