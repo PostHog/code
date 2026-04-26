@@ -1,6 +1,7 @@
 import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { useScratchpadCreationStore } from "@features/scratchpads/stores/scratchpadCreationStore";
 import { useAuthenticatedClient } from "@hooks/useAuthenticatedClient";
+import { RocketIcon } from "@radix-ui/react-icons";
 import {
   Button,
   Dialog,
@@ -140,13 +141,38 @@ export function ProductCreationDialog() {
           gap="3"
           className="transition-all duration-200"
         >
-          <Dialog.Title size="3" className="m-0">
-            Create a new product
+          <Dialog.Title size="4" className="m-0">
+            <Flex align="center" gap="2">
+              <RocketIcon className="text-(--accent-11)" />
+              Create a new product
+            </Flex>
           </Dialog.Title>
+
+          <Text
+            as="div"
+            className="rounded-(--radius-2) border border-(--accent-5) bg-(--accent-2) px-3 py-2 text-(--accent-12) text-[13px] leading-6"
+          >
+            I'll ask up to{" "}
+            <SegmentedControl.Root
+              size="1"
+              value={String(rounds)}
+              onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+              disabled={isSubmitting}
+              aria-label="Clarification rounds"
+              className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
+            >
+              {ROUND_OPTIONS.map((n) => (
+                <SegmentedControl.Item key={n} value={String(n)}>
+                  {n}
+                </SegmentedControl.Item>
+              ))}
+            </SegmentedControl.Root>{" "}
+            {rounds === 1 ? "round" : "rounds"} of questions before scaffolding.
+          </Text>
 
           <Flex direction="column" gap="1">
             <Text color="gray" className="text-[13px]">
-              What's the name of your new thing?
+              What are we calling it?
             </Text>
             <TextField.Root
               value={productName}
@@ -183,58 +209,39 @@ export function ProductCreationDialog() {
               disabled={isSubmitting}
             >
               <Flex direction="column" gap="2">
-                <Text as="label" className="text-[13px]">
-                  <Flex gap="2" align="center">
-                    <RadioGroup.Item value="later" />
-                    Set up on publish later
-                  </Flex>
-                </Text>
-                <Text as="label" className="text-[13px]">
-                  <Flex gap="2" align="center">
-                    <RadioGroup.Item value="existing" />
-                    Use existing project
-                  </Flex>
-                </Text>
+                <Flex direction="column" gap="1">
+                  <Text as="label" className="text-[13px]">
+                    <Flex gap="2" align="center">
+                      <RadioGroup.Item value="later" />
+                      Set up on publish later
+                    </Flex>
+                  </Text>
+                  {projectMode === "later" && (
+                    <Text color="gray" className="pl-[26px] text-[13px]">
+                      I'll add the PostHog SDK with placeholders. You'll pick or
+                      create a PostHog project at publish time.
+                    </Text>
+                  )}
+                </Flex>
+                <Flex direction="column" gap="1">
+                  <Text as="label" className="text-[13px]">
+                    <Flex gap="2" align="center">
+                      <RadioGroup.Item value="existing" />
+                      Use existing project
+                    </Flex>
+                  </Text>
+                  {projectMode === "existing" && (
+                    <div className="pl-[26px]">
+                      <ProjectPicker
+                        value={selectedProjectId}
+                        onChange={setSelectedProjectId}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  )}
+                </Flex>
               </Flex>
             </RadioGroup.Root>
-
-            {projectMode === "later" && (
-              <Text color="gray" className="text-[13px]">
-                I'll wire up PostHog (analytics, replay, error tracking) with
-                placeholder credentials so the SDK is in place. You'll pick or
-                create a real project at publish time.
-              </Text>
-            )}
-            {projectMode === "existing" && (
-              <ProjectPicker
-                value={selectedProjectId}
-                onChange={setSelectedProjectId}
-                disabled={isSubmitting}
-              />
-            )}
-
-            <Text
-              as="div"
-              className="rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px] leading-6"
-            >
-              I'll ask up to{" "}
-              <SegmentedControl.Root
-                size="1"
-                value={String(rounds)}
-                onValueChange={(v) => setRounds(clampRounds(Number(v)))}
-                disabled={isSubmitting}
-                aria-label="Clarification rounds"
-                className="!h-[20px] mx-1 inline-flex align-middle text-[12px]"
-              >
-                {ROUND_OPTIONS.map((n) => (
-                  <SegmentedControl.Item key={n} value={String(n)}>
-                    {n}
-                  </SegmentedControl.Item>
-                ))}
-              </SegmentedControl.Root>{" "}
-              {rounds === 1 ? "round" : "rounds"} of clarifying questions to
-              shape your product.
-            </Text>
           </Flex>
 
           {lastError && (
@@ -263,7 +270,8 @@ export function ProductCreationDialog() {
               disabled={!canSubmit}
               loading={isSubmitting}
             >
-              Create product
+              <RocketIcon />
+              Start building
             </Button>
           </Flex>
         </Flex>

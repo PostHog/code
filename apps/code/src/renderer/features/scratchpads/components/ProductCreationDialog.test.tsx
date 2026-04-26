@@ -118,7 +118,7 @@ describe("ProductCreationDialog", () => {
     renderDialog();
     expect(screen.getByText(/I'll ask up to/)).toBeInTheDocument();
     expect(
-      screen.getByText(/of clarifying questions to shape your product\./),
+      screen.getByText(/of questions before scaffolding\./),
     ).toBeInTheDocument();
 
     expect(screen.getByRole("radio", { name: "3" })).toBeChecked();
@@ -138,7 +138,7 @@ describe("ProductCreationDialog", () => {
     renderDialog();
     fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: /create product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start building/i }));
 
     await waitFor(() => {
       expect(mockSagaRun).toHaveBeenCalledTimes(1);
@@ -164,7 +164,7 @@ describe("ProductCreationDialog", () => {
     // ProjectPicker mock click sets value to 42
     fireEvent.click(screen.getByTestId("project-picker"));
 
-    fireEvent.click(screen.getByRole("button", { name: /create product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start building/i }));
 
     await waitFor(() => {
       expect(mockSagaRun).toHaveBeenCalledTimes(1);
@@ -193,7 +193,7 @@ describe("ProductCreationDialog", () => {
     renderDialog();
     fillRequiredFields();
 
-    const submit = screen.getByRole("button", { name: /create product/i });
+    const submit = screen.getByRole("button", { name: /start building/i });
     fireEvent.click(submit);
 
     await waitFor(() => {
@@ -229,7 +229,7 @@ describe("ProductCreationDialog", () => {
     renderDialog();
     fillRequiredFields();
 
-    fireEvent.click(screen.getByRole("button", { name: /create product/i }));
+    fireEvent.click(screen.getByRole("button", { name: /start building/i }));
 
     await waitFor(() => {
       expect(useScratchpadCreationStore.getState().lastError).toBe(
@@ -239,7 +239,7 @@ describe("ProductCreationDialog", () => {
 
     expect(useScratchpadCreationStore.getState().step).toBe("idle");
     expect(
-      screen.getByRole("button", { name: /create product/i }),
+      screen.getByRole("button", { name: /start building/i }),
     ).not.toBeDisabled();
     expect(screen.getByRole("alert")).toHaveTextContent("things broke");
   });
@@ -247,7 +247,7 @@ describe("ProductCreationDialog", () => {
   it("submit is disabled when required fields are empty", () => {
     renderDialog();
     expect(
-      screen.getByRole("button", { name: /create product/i }),
+      screen.getByRole("button", { name: /start building/i }),
     ).toBeDisabled();
   });
 });
