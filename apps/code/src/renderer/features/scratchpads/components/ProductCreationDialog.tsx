@@ -1,9 +1,5 @@
-import { PromptInput } from "@features/message-editor/components/PromptInput";
-import type { EditorHandle } from "@features/message-editor/types";
-import {
-  contentToXml,
-  extractFilePaths,
-} from "@features/message-editor/utils/content";
+import { DotsCircleSpinner } from "@components/DotsCircleSpinner";
+import { ModeSelector } from "@features/message-editor/components/ModeSelector";
 import { ProjectPicker } from "@features/scratchpads/components/ProjectPicker";
 import { useScratchpadCreationStore } from "@features/scratchpads/stores/scratchpadCreationStore";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
@@ -21,6 +17,7 @@ import {
   RadioGroup,
   SegmentedControl,
   Text,
+  TextArea,
   TextField,
 } from "@radix-ui/themes";
 import { ScratchpadCreationSaga } from "@renderer/sagas/scratchpad/scratchpad-creation";
@@ -28,7 +25,7 @@ import type { ExecutionMode } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { logger } from "@utils/logger";
 import { toast } from "@utils/toast";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePreviewConfig } from "../../task-detail/hooks/usePreviewConfig";
 
 const log = logger.scope("product-creation-dialog");
@@ -73,10 +70,8 @@ export function ProductCreationDialog() {
     setConfigOption,
   } = usePreviewConfig(adapter);
 
-  const editorRef = useRef<EditorHandle>(null);
-  const [editorIsEmpty, setEditorIsEmpty] = useState(true);
-
   const [productName, setProductName] = useState("");
+  const [initialIdea, setInitialIdea] = useState("");
   const [rounds, setRounds] = useState<number>(DEFAULT_ROUNDS);
   const [projectMode, setProjectMode] = useState<ProjectMode>("later");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
@@ -86,12 +81,13 @@ export function ProductCreationDialog() {
   const isSubmitting = step === "submitting";
 
   const trimmedName = productName.trim();
+  const trimmedIdea = initialIdea.trim();
   const projectChoiceValid =
     projectMode === "later" || selectedProjectId !== null;
   const canSubmit =
     !isSubmitting &&
     trimmedName.length > 0 &&
-    !editorIsEmpty &&
+    trimmedIdea.length > 0 &&
     projectChoiceValid;
 
   const handleModeChange = useCallback(
@@ -113,7 +109,7 @@ export function ProductCreationDialog() {
     [thoughtOption, setConfigOption],
   );
 
-  const adapterDefault = adapter === "codex" ? "auto" : "plan";
+  const adapterDefault = "auto";
   const modeFallback =
     defaultInitialTaskMode === "last_used"
       ? (lastUsedInitialTaskMode ?? adapterDefault)
@@ -127,12 +123,11 @@ export function ProductCreationDialog() {
     thoughtOption?.type === "select" ? thoughtOption.currentValue : undefined;
 
   const resetForm = () => {
-    editorRef.current?.clear();
     setProductName("");
+    setInitialIdea("");
     setRounds(DEFAULT_ROUNDS);
     setProjectMode("later");
     setSelectedProjectId(null);
-    setEditorIsEmpty(true);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -151,14 +146,6 @@ export function ProductCreationDialog() {
     setStep("submitting");
 
     try {
-      const editor = editorRef.current;
-      if (!editor) throw new Error("Editor unavailable");
-
-      const content = editor.getContent();
-      const initialIdea = contentToXml(content).trim();
-      if (!initialIdea) throw new Error("Tell me what to build");
-      const filePaths = extractFilePaths(content);
-
       let projectId: number | undefined;
       if (projectMode === "existing") {
         if (selectedProjectId === null) {
@@ -171,7 +158,7 @@ export function ProductCreationDialog() {
 
       const result = await saga.run({
         productName: trimmedName,
-        initialIdea,
+        initialIdea: trimmedIdea,
         rounds: clampRounds(rounds),
         adapter,
         executionMode: currentExecutionMode as ExecutionMode | undefined,
@@ -179,7 +166,6 @@ export function ProductCreationDialog() {
         ...(currentReasoningLevel
           ? { reasoningLevel: currentReasoningLevel }
           : {}),
-        ...(filePaths.length > 0 ? { filePaths } : {}),
         ...(projectId !== undefined ? { projectId } : {}),
       });
 
@@ -194,14 +180,11 @@ export function ProductCreationDialog() {
       }
 
       // Prime the tasks-list cache so the sidebar shows the new task
-      // immediately.
+      // immediately, then navigate while the dialog is still open as a
+      // loading curtain — closing first reveals the empty TaskInput
+      // underneath for a frame before navigation lands on task-detail.
       invalidateTasks(result.data.task);
-
-      closeDialog();
-      reset();
-      resetForm();
-
-      void navigateToTask(result.data.task);
+      await navigateToTask(result.data.task);
 
       void getSessionService()
         .connectToTask({
@@ -222,6 +205,10 @@ export function ProductCreationDialog() {
               err instanceof Error ? err.message : "Unknown connection error.",
           });
         });
+
+      closeDialog();
+      reset();
+      resetForm();
     } catch (error) {
       log.error("Scratchpad creation threw", { error });
       const message =
@@ -231,9 +218,25 @@ export function ProductCreationDialog() {
     }
   };
 
+  if (isSubmitting) {
+    return (
+      <Dialog.Root open={open} onOpenChange={() => {}}>
+        <Dialog.Content maxWidth="560px" size="2">
+          <Dialog.Title size="4" className="m-0">
+            <Flex align="center" gap="2">
+              <RocketIcon className="text-(--accent-11)" />
+              Preparing your product
+            </Flex>
+          </Dialog.Title>
+          <PreparingMessages />
+        </Dialog.Content>
+      </Dialog.Root>
+    );
+  }
+
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
-      <Dialog.Content maxWidth="640px" size="2">
+      <Dialog.Content maxWidth="560px" size="2">
         <Flex
           direction="column"
           gap="3"
@@ -286,44 +289,13 @@ export function ProductCreationDialog() {
             <Text color="gray" className="text-[13px]">
               What would you like me to build?
             </Text>
-            <PromptInput
-              ref={editorRef}
-              sessionId="product-creation-dialog"
+            <TextArea
+              value={initialIdea}
+              onChange={(e) => setInitialIdea(e.target.value)}
               placeholder="Web app to get a dog delivered on demand, or something."
+              size="2"
+              rows={5}
               disabled={isSubmitting}
-              isLoading={isSubmitting}
-              clearOnSubmit={false}
-              submitDisabledExternal={!canSubmit}
-              modeOption={modeOption}
-              onModeChange={handleModeChange}
-              allowBypassPermissions={allowBypassPermissions}
-              enableCommands
-              enableBashMode={false}
-              modelSelector={
-                <UnifiedModelSelector
-                  modelOption={modelOption}
-                  adapter={adapter}
-                  onAdapterChange={setLastUsedAdapter}
-                  disabled={isSubmitting}
-                  isConnecting={isPreviewLoading}
-                  onModelChange={handleModelChange}
-                />
-              }
-              reasoningSelector={
-                !isPreviewLoading && (
-                  <ReasoningLevelSelector
-                    thoughtOption={thoughtOption}
-                    adapter={adapter}
-                    onChange={handleThoughtChange}
-                    disabled={isSubmitting}
-                  />
-                )
-              }
-              onEmptyChange={setEditorIsEmpty}
-              onSubmitClick={handleSubmit}
-              onSubmit={() => {
-                if (canSubmit) handleSubmit();
-              }}
             />
           </Flex>
 
@@ -383,7 +355,38 @@ export function ProductCreationDialog() {
             </Text>
           )}
 
-          <Flex gap="2" justify="end">
+          <Flex
+            wrap="wrap"
+            align="center"
+            justify="end"
+            gap="2"
+            aria-label="Mode and model"
+          >
+            <ModeSelector
+              modeOption={modeOption}
+              onChange={handleModeChange}
+              allowBypassPermissions={allowBypassPermissions}
+              disabled={isSubmitting}
+            />
+            <UnifiedModelSelector
+              modelOption={modelOption}
+              adapter={adapter}
+              onAdapterChange={setLastUsedAdapter}
+              disabled={isSubmitting}
+              isConnecting={isPreviewLoading}
+              onModelChange={handleModelChange}
+            />
+            {!isPreviewLoading && (
+              <ReasoningLevelSelector
+                thoughtOption={thoughtOption}
+                adapter={adapter}
+                onChange={handleThoughtChange}
+                disabled={isSubmitting}
+              />
+            )}
+          </Flex>
+
+          <Flex gap="2" justify="end" align="center">
             <Button
               size="2"
               variant="soft"
@@ -414,4 +417,50 @@ function clampRounds(value: number): number {
   if (value < MIN_ROUNDS) return MIN_ROUNDS;
   if (value > MAX_ROUNDS) return MAX_ROUNDS;
   return Math.floor(value);
+}
+
+const PREPARING_MESSAGES = [
+  "Convincing the silicon to think...",
+  "Negotiating with git...",
+  "Bribing the file system...",
+  "Reticulating splines...",
+  "Whispering sweet nothings to electrons...",
+  "Asking the cloud nicely...",
+  "Brewing your scratchpad...",
+  "Summoning the agent from the ether...",
+  "Translating English into intent...",
+  "Untangling some yarn...",
+  "Polishing the bits...",
+  "Pretending to be a 10x engineer...",
+  "Putting the laundry in the dryer...",
+  "Looking for the semicolons...",
+  "Adopting a stray feature flag...",
+];
+
+function PreparingMessages() {
+  const [index, setIndex] = useState(() =>
+    Math.floor(Math.random() * PREPARING_MESSAGES.length),
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((i) => (i + 1) % PREPARING_MESSAGES.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Flex
+      direction="column"
+      align="center"
+      justify="center"
+      gap="3"
+      className="min-h-[180px] py-6"
+    >
+      <DotsCircleSpinner size={24} className="text-(--accent-11)" />
+      <Text className="text-(--gray-12) text-[13px]" aria-live="polite">
+        {PREPARING_MESSAGES[index]}
+      </Text>
+    </Flex>
+  );
 }

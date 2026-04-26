@@ -1,6 +1,5 @@
 import { Theme } from "@radix-ui/themes";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { forwardRef, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // --- Hoisted mocks ------------------------------------------------------
@@ -110,49 +109,8 @@ vi.mock("@features/sessions/stores/sessionStore", () => ({
   getCurrentModeFromConfigOptions: () => undefined,
 }));
 
-// Stub PromptInput with a minimal textarea + ref handle so tests can drive
-// the editor via fireEvent + the editorRef contract the dialog uses.
-vi.mock("@features/message-editor/components/PromptInput", () => ({
-  PromptInput: forwardRef<unknown, Record<string, unknown>>((props, ref) => {
-    const onEmptyChange = props.onEmptyChange as
-      | ((isEmpty: boolean) => void)
-      | undefined;
-    const placeholder = props.placeholder as string | undefined;
-    const disabled = props.disabled as boolean | undefined;
-    const modelSelector = props.modelSelector as React.ReactNode;
-    const reasoningSelector = props.reasoningSelector as React.ReactNode;
-    let text = "";
-    useImperativeHandle(ref, () => ({
-      getContent: () => ({ type: "doc", content: [] }) as unknown,
-      getText: () => text,
-      clear: () => {
-        text = "";
-        onEmptyChange?.(true);
-      },
-      focus: () => {},
-      addAttachment: () => {},
-    }));
-    return (
-      <div>
-        <textarea
-          data-testid="prompt-input"
-          placeholder={placeholder}
-          disabled={disabled}
-          onChange={(e) => {
-            text = e.target.value;
-            onEmptyChange?.(text.trim().length === 0);
-          }}
-        />
-        {modelSelector}
-        {reasoningSelector}
-      </div>
-    );
-  }),
-}));
-
-vi.mock("@features/message-editor/utils/content", () => ({
-  contentToXml: () => "An idea",
-  extractFilePaths: () => [],
+vi.mock("@features/message-editor/components/ModeSelector", () => ({
+  ModeSelector: () => <div data-testid="mode-selector" />,
 }));
 
 import { useScratchpadCreationStore } from "../stores/scratchpadCreationStore";
@@ -171,9 +129,12 @@ function fillRequiredFields() {
   fireEvent.change(screen.getByPlaceholderText("Uber for dogs"), {
     target: { value: "My Product" },
   });
-  fireEvent.change(screen.getByTestId("prompt-input"), {
-    target: { value: "An idea" },
-  });
+  fireEvent.change(
+    screen.getByPlaceholderText(/Web app to get a dog delivered/i),
+    {
+      target: { value: "An idea" },
+    },
+  );
 }
 
 describe("ProductCreationDialog", () => {
@@ -205,7 +166,9 @@ describe("ProductCreationDialog", () => {
       screen.getByText(/of questions before scaffolding\./),
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Uber for dogs")).toBeInTheDocument();
-    expect(screen.getByTestId("prompt-input")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/Web app to get a dog delivered/i),
+    ).toBeInTheDocument();
     expect(
       screen.getByLabelText(/Set up on publish later/i),
     ).toBeInTheDocument();
