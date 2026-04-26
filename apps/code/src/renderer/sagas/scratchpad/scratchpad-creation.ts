@@ -71,13 +71,15 @@ export class ScratchpadCreationSaga extends Saga<
   ): Promise<ScratchpadCreationOutput> {
     const projectId: number | null = input.projectId ?? null;
 
-    // Step 1: Task creation. The product name is the title verbatim.
+    // Step 1: Task creation. Title is fixed; the product name lives in the
+    // scratchpad directory and the agent's first message, so the sidebar
+    // doesn't need to repeat it.
     const task = await this.step({
       name: "task_creation",
       execute: async () => {
         const result = await this.deps.posthogClient.createTask({
           description: input.initialIdea,
-          title: input.productName,
+          title: "Building from scratch",
           repository: undefined,
         });
         return result as unknown as Task;

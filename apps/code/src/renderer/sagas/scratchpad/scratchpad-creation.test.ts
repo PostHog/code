@@ -109,7 +109,7 @@ describe("ScratchpadCreationSaga", () => {
 
     expect(createTaskFn).toHaveBeenCalledWith({
       description: "On-demand dog walks",
-      title: "Uber for dogs",
+      title: "Building from scratch",
       repository: undefined,
     });
 
