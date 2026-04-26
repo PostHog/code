@@ -6,7 +6,6 @@ import {
   Dialog,
   Flex,
   RadioGroup,
-  SegmentedControl,
   Text,
   TextArea,
   TextField,
@@ -18,9 +17,9 @@ import { useState } from "react";
 
 const log = logger.scope("product-creation-dialog");
 
-const ROUND_OPTIONS = [3, 4, 5] as const;
 const MIN_ROUNDS = 1;
 const MAX_ROUNDS = 5;
+const DEFAULT_ROUNDS = 3;
 
 type ProjectMode = "auto" | "existing";
 
@@ -38,7 +37,7 @@ export function ProductCreationDialog() {
 
   const [productName, setProductName] = useState("");
   const [initialIdea, setInitialIdea] = useState("");
-  const [rounds, setRounds] = useState<number>(3);
+  const [rounds, setRounds] = useState<number>(DEFAULT_ROUNDS);
   const [projectMode, setProjectMode] = useState<ProjectMode>("auto");
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
@@ -63,7 +62,7 @@ export function ProductCreationDialog() {
       // Reset form state for next time the user opens.
       setProductName("");
       setInitialIdea("");
-      setRounds(3);
+      setRounds(DEFAULT_ROUNDS);
       setProjectMode("auto");
       setSelectedProjectId(null);
       reset();
@@ -130,7 +129,7 @@ export function ProductCreationDialog() {
       reset();
       setProductName("");
       setInitialIdea("");
-      setRounds(3);
+      setRounds(DEFAULT_ROUNDS);
       setProjectMode("auto");
       setSelectedProjectId(null);
     } catch (error) {
@@ -156,21 +155,20 @@ export function ProductCreationDialog() {
 
           <Text
             as="div"
-            className="flex flex-wrap items-center gap-2 rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px]"
+            className="rounded-(--radius-2) border border-(--gray-5) bg-(--gray-2) px-3 py-2 text-(--gray-12) text-[13px] leading-6"
           >
-            We'll ask up to
-            <SegmentedControl.Root
-              size="1"
-              value={String(rounds)}
-              onValueChange={(v) => setRounds(clampRounds(Number(v)))}
+            We'll ask up to{" "}
+            <input
+              type="number"
+              min={MIN_ROUNDS}
+              max={MAX_ROUNDS}
+              step={1}
+              value={rounds}
+              onChange={(e) => setRounds(clampRounds(Number(e.target.value)))}
+              disabled={isSubmitting}
               aria-label="Clarification rounds"
-            >
-              {ROUND_OPTIONS.map((n) => (
-                <SegmentedControl.Item key={n} value={String(n)}>
-                  {n}
-                </SegmentedControl.Item>
-              ))}
-            </SegmentedControl.Root>
+              className="inline-block w-9 rounded-(--radius-2) border border-(--gray-6) bg-(--gray-1) px-1 py-0 text-center align-middle text-(--gray-12) text-[12px] focus:border-(--accent-8) focus:outline-none"
+            />{" "}
             {rounds === 1 ? "round" : "rounds"} of clarifying questions to shape
             your product.
           </Text>
