@@ -17,6 +17,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 const ICON_SIZE = 16;
 const MOD_KEY = isMac ? "Meta" : "Control";
+const HOLD_DELAY_MS = 1000;
 const ITEM_HEIGHT = 64;
 const ITEM_GAP = 4;
 const ITEM_STRIDE = ITEM_HEIGHT + ITEM_GAP;
@@ -318,7 +319,7 @@ export function SpaceSwitcher({
           if (metaHeldRef.current && !otherKeyRef.current) {
             show();
           }
-        }, 500);
+        }, HOLD_DELAY_MS);
       } else if (metaHeldRef.current && !e.repeat) {
         // Any key during hold cancels the show timer.
         // Minimap only appears from a pure Cmd hold with no other keys.
@@ -401,6 +402,7 @@ export function SpaceSwitcher({
 
   return (
     <div
+      data-overlay="space-switcher"
       className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200 ease-out ${
         animIn ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
