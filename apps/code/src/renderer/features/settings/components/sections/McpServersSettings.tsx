@@ -33,6 +33,10 @@ export function McpServersSettings() {
     useState<Parameters<typeof MarketplaceView>[0]["category"]>("all");
   const [uninstallTarget, setUninstallTarget] =
     useState<McpServerInstallation | null>(null);
+  const [pendingCustomUrl, setPendingCustomUrl] = useState<string | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
+    null,
+  );
 
   const {
     installations,
@@ -87,6 +91,7 @@ export function McpServersSettings() {
 
   const handleConnect = useCallback(
     (template: McpRecommendedServer) => {
+      setPendingTemplateId(template.id);
       installTemplate(template);
     },
     [installTemplate],
@@ -124,6 +129,32 @@ export function McpServersSettings() {
     }
   }, [view, installationList]);
 
+  // After a custom server install resolves, jump to its detail panel once the
+  // installation appears in the list.
+  useEffect(() => {
+    if (!pendingCustomUrl) return;
+    const installation = installationList.find(
+      (i) => i.url === pendingCustomUrl,
+    );
+    if (installation) {
+      setPendingCustomUrl(null);
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [pendingCustomUrl, installationList]);
+
+  // After a template install resolves, jump to the new installation's detail
+  // panel. Stays put if the install fails (no matching installation appears).
+  useEffect(() => {
+    if (!pendingTemplateId) return;
+    const installation = installationList.find(
+      (i) => i.template_id === pendingTemplateId,
+    );
+    if (installation) {
+      setPendingTemplateId(null);
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [pendingTemplateId, installationList]);
+
   const selectedInstallationId =
     view.kind === "detail-installation" ? view.installationId : null;
 
@@ -134,8 +165,9 @@ export function McpServersSettings() {
           pending={installCustomPending}
           onBack={() => setView({ kind: "marketplace" })}
           onSubmit={(values) => {
+            setPendingCustomUrl(values.url);
             installCustom(values, {
-              onSuccess: () => setView({ kind: "marketplace" }),
+              onError: () => setPendingCustomUrl(null),
             });
           }}
         />
@@ -173,7 +205,10 @@ export function McpServersSettings() {
           isReauthorizing={reauthorizePending}
           onBack={() => setView({ kind: "marketplace" })}
           onConnect={() => {
-            if (template) installTemplate(template);
+            if (template) {
+              setPendingTemplateId(template.id);
+              installTemplate(template);
+            }
           }}
           onReauthorize={() => {
             if (install) reauthorize(install.id);

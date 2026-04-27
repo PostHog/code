@@ -86,6 +86,7 @@ export function ServerDetailView({
     refreshPending,
   } = useMcpInstallationTools(installation?.id ?? null, {
     includeRemoved: showRemoved,
+    autoRefreshIfEmpty: true,
   });
 
   const status = installation ? getInstallationStatus(installation) : null;
@@ -316,12 +317,18 @@ export function ServerDetailView({
               py="6"
               className="rounded border border-gray-6 border-dashed"
             >
-              <Text className="font-medium text-sm">
-                No tools discovered yet.
-              </Text>
-              <Text color="gray" className="text-[13px]">
-                Try refreshing, or check that the server is online.
-              </Text>
+              {refreshPending ? (
+                <Spinner size="1" />
+              ) : (
+                <>
+                  <Text className="font-medium text-sm">
+                    No tools discovered yet.
+                  </Text>
+                  <Text color="gray" className="text-[13px]">
+                    Try refreshing, or check that the server is online.
+                  </Text>
+                </>
+              )}
             </Flex>
           ) : (
             <Flex direction="column" gap="2">

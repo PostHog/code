@@ -7,14 +7,17 @@ import type {
 import { useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { dispatchBulkApproval } from "./mcpToolBulk";
 import { mcpKeys } from "./useMcpServers";
 
 interface UseMcpInstallationToolsOptions {
   includeRemoved?: boolean;
+  autoRefreshIfEmpty?: boolean;
 }
+
+const autoRefreshedInstallations = new Set<string>();
 
 export function useMcpInstallationTools(
   installationId: string | null,
@@ -92,6 +95,8 @@ export function useMcpInstallationTools(
     },
   );
 
+  const silentRefreshRef = useRef(false);
+
   const refreshMutation = useAuthenticatedMutation(
     (client) => {
       if (!installationId) {
@@ -101,14 +106,37 @@ export function useMcpInstallationTools(
     },
     {
       onSuccess: () => {
-        toast.success("Tools refreshed");
+        const silent = silentRefreshRef.current;
+        silentRefreshRef.current = false;
+        if (!silent) toast.success("Tools refreshed");
         invalidate();
+        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
       },
       onError: (error: Error) => {
-        toast.error(error.message || "Failed to refresh tools");
+        const silent = silentRefreshRef.current;
+        silentRefreshRef.current = false;
+        if (!silent) toast.error(error.message || "Failed to refresh tools");
       },
     },
   );
+
+  useEffect(() => {
+    if (!options.autoRefreshIfEmpty) return;
+    if (!installationId) return;
+    if (isLoading) return;
+    if ((tools ?? []).length > 0) return;
+    if (autoRefreshedInstallations.has(installationId)) return;
+    if (refreshMutation.isPending) return;
+    autoRefreshedInstallations.add(installationId);
+    silentRefreshRef.current = true;
+    refreshMutation.mutate(undefined);
+  }, [
+    options.autoRefreshIfEmpty,
+    installationId,
+    isLoading,
+    tools,
+    refreshMutation,
+  ]);
 
   useSubscription(
     trpcReact.mcpCallback.onOAuthComplete.subscriptionOptions(undefined, {
