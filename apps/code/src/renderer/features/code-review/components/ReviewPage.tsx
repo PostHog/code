@@ -1,5 +1,10 @@
 import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
-import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
+import {
+  useBranchChangedFiles,
+  useGitQueries,
+  usePrChangedFiles,
+} from "@features/git-interaction/hooks/useGitQueries";
+import { useLinkedBranchPrUrl } from "@features/git-interaction/hooks/useLinkedBranchPrUrl";
 import { makeFileKey } from "@features/git-interaction/utils/fileKey";
 import { usePanelLayoutStore } from "@features/panels/store/panelLayoutStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
@@ -19,7 +24,7 @@ import {
 } from "../utils/resolveDiffSource";
 import { InteractiveFileDiff } from "./InteractiveFileDiff";
 import { LazyDiff } from "./LazyDiff";
-import { PatchedFileDiff } from "./PatchedFileDiff";
+import { RemoteDiffList } from "./RemoteDiffList";
 import {
   DeferredDiffPlaceholder,
   type DeferredReason,
@@ -30,6 +35,7 @@ import {
 } from "./ReviewShell";
 
 const EMPTY_BRANCH_FILES: ChangedFile[] = [];
+const EMPTY_PR_FILES: ChangedFile[] = [];
 
 interface ReviewPageProps {
   task: Task;
@@ -56,14 +62,17 @@ export function ReviewPage({ task }: ReviewPageProps) {
     defaultBranch,
     changedFiles: workspaceFiles,
   } = useGitQueries(repoPath);
+  const prUrl = useLinkedBranchPrUrl(taskId);
   const hasLocalChanges = workspaceFiles.length > 0;
   const branchSourceAvailable = !!linkedBranch && aheadOfDefault > 0;
+  const prSourceAvailable = !!prUrl;
 
   const effectiveSource = resolveDiffSource({
     configured: configuredSource,
     hasLocalChanges,
     linkedBranch,
     aheadOfDefault,
+    prSourceAvailable,
   });
 
   const isLocalActive = isReviewOpen && effectiveSource === "local";
@@ -119,6 +128,21 @@ export function ReviewPage({ task }: ReviewPageProps) {
         isReviewOpen={isReviewOpen}
         effectiveSource={effectiveSource}
         branchSourceAvailable={branchSourceAvailable}
+        prSourceAvailable={prSourceAvailable}
+      />
+    );
+  }
+
+  if (effectiveSource === "pr") {
+    return (
+      <PrReviewPage
+        task={task}
+        prUrl={prUrl as string}
+        defaultBranch={defaultBranch}
+        isReviewOpen={isReviewOpen}
+        effectiveSource={effectiveSource}
+        branchSourceAvailable={branchSourceAvailable}
+        prSourceAvailable={prSourceAvailable}
       />
     );
   }
@@ -149,6 +173,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
       onRefresh={refetch}
       effectiveSource={effectiveSource}
       branchSourceAvailable={branchSourceAvailable}
+      prSourceAvailable={prSourceAvailable}
       defaultBranch={defaultBranch}
     >
       {hasStagedFiles && stagedParsedFiles.length > 0 && (
@@ -196,6 +221,7 @@ function BranchReviewPage({
   isReviewOpen,
   effectiveSource,
   branchSourceAvailable,
+  prSourceAvailable,
 }: {
   task: Task;
   branch: string;
@@ -204,93 +230,108 @@ function BranchReviewPage({
   isReviewOpen: boolean;
   effectiveSource: ResolvedDiffSource;
   branchSourceAvailable: boolean;
+  prSourceAvailable: boolean;
 }) {
   const taskId = task.id;
-  const trpc = useTRPC();
-
   const repoSlug = repoInfo
     ? `${repoInfo.organization}/${repoInfo.repository}`
     : null;
 
-  const { data: files = EMPTY_BRANCH_FILES, isLoading } = useQuery(
-    trpc.git.getBranchChangedFiles.queryOptions(
-      { repo: repoSlug as string, branch },
-      {
-        enabled: isReviewOpen && !!repoSlug,
-        staleTime: 30_000,
-        refetchInterval: 30_000,
-        retry: 1,
-      },
-    ),
+  const { data: files = EMPTY_BRANCH_FILES, isLoading } = useBranchChangedFiles(
+    isReviewOpen ? repoSlug : null,
+    isReviewOpen ? branch : null,
   );
 
   const allPaths = useMemo(() => files.map((f) => f.path), [files]);
 
-  const {
-    diffOptions,
-    linesAdded,
-    linesRemoved,
-    collapsedFiles,
-    toggleFile,
-    expandAll,
-    collapseAll,
-    uncollapseFile,
-    revealFile,
-    getDeferredReason,
-  } = useReviewState(files, allPaths);
+  const reviewState = useReviewState(files, allPaths);
 
   return (
     <ReviewShell
       task={task}
       fileCount={files.length}
-      linesAdded={linesAdded}
-      linesRemoved={linesRemoved}
+      linesAdded={reviewState.linesAdded}
+      linesRemoved={reviewState.linesRemoved}
       isLoading={
         (isLoading || (!repoSlug && isReviewOpen)) && files.length === 0
       }
       isEmpty={files.length === 0}
-      allExpanded={collapsedFiles.size === 0}
-      onExpandAll={expandAll}
-      onCollapseAll={collapseAll}
-      onUncollapseFile={uncollapseFile}
+      allExpanded={reviewState.collapsedFiles.size === 0}
+      onExpandAll={reviewState.expandAll}
+      onCollapseAll={reviewState.collapseAll}
+      onUncollapseFile={reviewState.uncollapseFile}
       effectiveSource={effectiveSource}
       branchSourceAvailable={branchSourceAvailable}
+      prSourceAvailable={prSourceAvailable}
       defaultBranch={defaultBranch}
     >
-      {files.map((file) => {
-        const isCollapsed = collapsedFiles.has(file.path);
-        const deferredReason = getDeferredReason(file.path);
+      <RemoteDiffList
+        files={files}
+        taskId={taskId}
+        options={reviewState.diffOptions}
+        collapsedFiles={reviewState.collapsedFiles}
+        toggleFile={reviewState.toggleFile}
+        revealFile={reviewState.revealFile}
+        getDeferredReason={reviewState.getDeferredReason}
+      />
+    </ReviewShell>
+  );
+}
 
-        if (deferredReason) {
-          return (
-            <div key={file.path} data-file-path={file.path}>
-              <DeferredDiffPlaceholder
-                filePath={file.path}
-                linesAdded={file.linesAdded ?? 0}
-                linesRemoved={file.linesRemoved ?? 0}
-                reason={deferredReason}
-                collapsed={isCollapsed}
-                onToggle={() => toggleFile(file.path)}
-                onShow={() => revealFile(file.path)}
-              />
-            </div>
-          );
-        }
+function PrReviewPage({
+  task,
+  prUrl,
+  defaultBranch,
+  isReviewOpen,
+  effectiveSource,
+  branchSourceAvailable,
+  prSourceAvailable,
+}: {
+  task: Task;
+  prUrl: string;
+  defaultBranch: string | null;
+  isReviewOpen: boolean;
+  effectiveSource: ResolvedDiffSource;
+  branchSourceAvailable: boolean;
+  prSourceAvailable: boolean;
+}) {
+  const taskId = task.id;
 
-        return (
-          <div key={file.path} data-file-path={file.path}>
-            <LazyDiff>
-              <PatchedFileDiff
-                file={file}
-                taskId={taskId}
-                options={diffOptions}
-                collapsed={isCollapsed}
-                onToggle={() => toggleFile(file.path)}
-              />
-            </LazyDiff>
-          </div>
-        );
-      })}
+  const { data: files = EMPTY_PR_FILES, isLoading } = usePrChangedFiles(
+    isReviewOpen ? prUrl : null,
+  );
+
+  const allPaths = useMemo(() => files.map((f) => f.path), [files]);
+
+  const reviewState = useReviewState(files, allPaths);
+
+  return (
+    <ReviewShell
+      task={task}
+      fileCount={files.length}
+      linesAdded={reviewState.linesAdded}
+      linesRemoved={reviewState.linesRemoved}
+      isLoading={isLoading && files.length === 0}
+      isEmpty={files.length === 0}
+      allExpanded={reviewState.collapsedFiles.size === 0}
+      onExpandAll={reviewState.expandAll}
+      onCollapseAll={reviewState.collapseAll}
+      onUncollapseFile={reviewState.uncollapseFile}
+      effectiveSource={effectiveSource}
+      branchSourceAvailable={branchSourceAvailable}
+      prSourceAvailable={prSourceAvailable}
+      defaultBranch={defaultBranch}
+    >
+      <RemoteDiffList
+        files={files}
+        taskId={taskId}
+        prUrl={prUrl}
+        options={reviewState.diffOptions}
+        collapsedFiles={reviewState.collapsedFiles}
+        toggleFile={reviewState.toggleFile}
+        revealFile={reviewState.revealFile}
+        getDeferredReason={reviewState.getDeferredReason}
+      />
     </ReviewShell>
   );
 }

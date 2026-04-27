@@ -298,6 +298,7 @@ export interface ReviewShellProps {
   onRefresh?: () => void;
   effectiveSource?: ResolvedDiffSource;
   branchSourceAvailable?: boolean;
+  prSourceAvailable?: boolean;
   defaultBranch?: string | null;
 }
 
@@ -316,6 +317,7 @@ export function ReviewShell({
   onRefresh,
   effectiveSource,
   branchSourceAvailable,
+  prSourceAvailable,
   defaultBranch,
 }: ReviewShellProps) {
   const taskId = task.id;
@@ -424,6 +426,7 @@ export function ReviewShell({
           onRefresh={onRefresh}
           effectiveSource={effectiveSource}
           branchSourceAvailable={branchSourceAvailable}
+          prSourceAvailable={prSourceAvailable}
           defaultBranch={defaultBranch}
         />
         <Flex className="min-h-0 flex-1">
