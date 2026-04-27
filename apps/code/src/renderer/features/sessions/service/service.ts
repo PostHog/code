@@ -2888,38 +2888,11 @@ export class SessionService {
       }
     }
 
-    const isTerminalUpdate =
-      (update.kind === "status" || update.kind === "snapshot") &&
-      isTerminalStatus(update.status);
-
-    // Once the agent's turn ends, dispatch any queued follow-ups by creating
-    // a fresh task run via resumeCloudRun. Sending user_message commands to
-    // a winding-down run is unreliable — the cloud may accept and silently
-    // drop them when the run terminates. Resume always works: the cloud
-    // loads the prior conversation state and carries our prompt as
-    // `pending_user_message`. Skip when this update brings the run terminal
-    // — the terminal-status block below handles that path.
-    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
-    if (
-      !isTerminalUpdate &&
-      sessionAfterLogs &&
-      !sessionAfterLogs.isPromptPending &&
-      sessionAfterLogs.messageQueue.length > 0
-    ) {
-      const dequeued = sessionStoreSetters.dequeueMessages(
-        sessionAfterLogs.taskId,
-      );
-      const combinedPrompt = combineQueuedCloudPrompts(dequeued);
-      if (combinedPrompt) {
-        this.resumeCloudRun(sessionAfterLogs, combinedPrompt).catch((err) => {
-          log.error("Failed to resume with queued cloud messages", {
-            taskId: sessionAfterLogs.taskId,
-            error: err,
-          });
-          toast.error("Failed to send follow-up message. Please try again.");
-        });
-      }
-    }
+    // Queued cloud follow-ups are dispatched only once the cloud confirms
+    // the prior run is fully terminal — resumeCloudRun's runTaskInCloud
+    // requires a terminal previous run, and end_turn alone in the log
+    // stream doesn't guarantee that yet. The terminal-status block below
+    // does the dispatch when the status update lands.
 
     // Update cloud status fields if present
     if (update.kind === "status" || update.kind === "snapshot") {
