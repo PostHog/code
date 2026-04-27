@@ -2896,11 +2896,14 @@ export class SessionService {
       (update.kind === "status" || update.kind === "snapshot") &&
       isTerminalStatus(update.status);
 
-    // Auto-flush queued cloud follow-ups once the agent's turn ends. We
-    // dispatch via sendCloudPrompt's normal mutate path; if the cloud
-    // rejects because the run is winding down, sendCloudPrompt's catch
-    // falls back to resumeCloudRun. Skip when this same update brings the
-    // run terminal — the terminal-status block below handles that path.
+    // Auto-flush queued cloud follow-ups once the agent's turn ends. The
+    // `user_message` command path turned out to be unreliable for this
+    // cloud — accepted during in_progress (preempting the prior turn),
+    // rejected or silently dropped after end_turn. resumeCloudRun creates
+    // a fresh task run that inherits the prior conversation state and
+    // processes the queued prompt as `pending_user_message` — the same
+    // path the initial run uses. Skip when this update brings the run
+    // terminal; the terminal-status block below handles that path.
     const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
     if (
       !isTerminalUpdate &&
@@ -2913,12 +2916,15 @@ export class SessionService {
       );
       const combinedPrompt = combineQueuedCloudPrompts(dequeued);
       if (combinedPrompt) {
-        log.info("Auto-flushing queued cloud messages after turn end", {
-          taskId: sessionAfterLogs.taskId,
-          queuedCount: dequeued.length,
-        });
-        this.sendCloudPrompt(sessionAfterLogs, combinedPrompt).catch((err) => {
-          log.error("Failed to flush queued cloud messages", {
+        log.info(
+          "Auto-flushing queued cloud messages via resume after turn end",
+          {
+            taskId: sessionAfterLogs.taskId,
+            queuedCount: dequeued.length,
+          },
+        );
+        this.resumeCloudRun(sessionAfterLogs, combinedPrompt).catch((err) => {
+          log.error("Failed to resume with queued cloud messages", {
             taskId: sessionAfterLogs.taskId,
             error: err,
           });
