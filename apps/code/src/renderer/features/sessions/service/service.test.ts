@@ -1113,7 +1113,7 @@ describe("SessionService", () => {
       );
     });
 
-    it("sends a cloud follow-up to the cloud immediately and adds a queued bubble when a prior turn is in flight", async () => {
+    it("queues a cloud follow-up locally without dispatching while a prior turn is in flight", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1122,26 +1122,22 @@ describe("SessionService", () => {
           isPromptPending: true,
         }),
       );
-      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
-        success: true,
-        result: { stopReason: "end_turn" },
-      });
 
-      await service.sendPrompt("task-123", "Hello cloud");
+      const result = await service.sendPrompt("task-123", "Hello cloud");
 
+      expect(result.stopReason).toBe("queued");
       // Queued bubble shown via the local messageQueue.
       expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
         "task-123",
         "Hello cloud",
         "Hello cloud",
       );
-      // No optimistic bubble — the queued bubble owns the visual.
+      // The dispatch waits for the prior turn's end_turn — handleCloudTaskUpdate
+      // auto-flushes then. So no mutate yet, no optimistic bubble.
+      expect(mockTrpcCloudTask.sendCommand.mutate).not.toHaveBeenCalled();
       expect(
         mockSessionStoreSetters.appendOptimisticItem,
       ).not.toHaveBeenCalled();
-      // The user_message command goes straight to cloud rather than waiting
-      // for the prior turn to end.
-      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
     });
 
     it("sends prompt via tRPC when session is ready", async () => {

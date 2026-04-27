@@ -1503,20 +1503,21 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    // The run is in_progress: the cloud accepts user_message commands at any
-    // time and queues them server-side until the current turn ends. Show the
-    // bubble immediately — as a queued bubble (via messageQueue) when a prior
-    // turn is in flight, otherwise as an optimistic regular bubble. Either
-    // way the mutate goes straight to the cloud below; when the cloud emits
-    // the session/prompt echo for our message, handleCloudTaskUpdate clears
-    // the placeholder and the real event takes over.
-    const showAsQueued = session.isPromptPending;
-    if (showAsQueued) {
+    // Mirror the local agent: hold the follow-up locally as a queued bubble
+    // until the current turn ends. handleCloudTaskUpdate auto-flushes the
+    // queue once the agent emits end_turn, at which point we re-enter this
+    // function with isPromptPending=false and dispatch.
+    if (session.isPromptPending) {
       sessionStoreSetters.enqueueMessage(
         session.taskId,
         transport.promptText,
         prompt,
       );
+      log.info("Cloud message queued (prior turn in flight)", {
+        taskId: session.taskId,
+        queueLength: session.messageQueue.length + 1,
+      });
+      return { stopReason: "queued" };
     }
 
     const [auth, cloudCommandAuth] = await Promise.all([
@@ -1540,16 +1541,14 @@ export class SessionService {
       params.artifact_ids = artifactIds;
     }
 
-    if (!showAsQueued) {
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        isPromptPending: true,
-      });
-      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-        type: "user_message",
-        content: transport.promptText,
-        timestamp: Date.now(),
-      });
-    }
+    sessionStoreSetters.updateSession(session.taskRunId, {
+      isPromptPending: true,
+    });
+    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+      type: "user_message",
+      content: transport.promptText,
+      timestamp: Date.now(),
+    });
 
     track(ANALYTICS_EVENTS.PROMPT_SENT, {
       task_id: session.taskId,
@@ -2865,19 +2864,7 @@ export class SessionService {
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
         this.updatePromptStateFromEvents(taskRunId, newEvents);
         if (newEvents.some(isUserPromptEcho)) {
-          // The agent has just started processing a user message. Drop any
-          // optimistic placeholder, and pop the oldest queued message if we
-          // were holding one for the visual queued affordance — its real
-          // session/prompt event has just landed in the events list.
           sessionStoreSetters.clearOptimisticItems(taskRunId);
-          const sessionAfterAppend =
-            sessionStoreSetters.getSessions()[taskRunId];
-          if (sessionAfterAppend?.messageQueue.length) {
-            sessionStoreSetters.removeQueuedMessage(
-              sessionAfterAppend.taskId,
-              sessionAfterAppend.messageQueue[0].id,
-            );
-          }
         }
       } else {
         // Gap in data — append everything we have but don't jump processedLineCount
@@ -2900,20 +2887,39 @@ export class SessionService {
         );
         this.updatePromptStateFromEvents(taskRunId, newEvents);
         if (newEvents.some(isUserPromptEcho)) {
-          // The agent has just started processing a user message. Drop any
-          // optimistic placeholder, and pop the oldest queued message if we
-          // were holding one for the visual queued affordance — its real
-          // session/prompt event has just landed in the events list.
           sessionStoreSetters.clearOptimisticItems(taskRunId);
-          const sessionAfterAppend =
-            sessionStoreSetters.getSessions()[taskRunId];
-          if (sessionAfterAppend?.messageQueue.length) {
-            sessionStoreSetters.removeQueuedMessage(
-              sessionAfterAppend.taskId,
-              sessionAfterAppend.messageQueue[0].id,
-            );
-          }
         }
+      }
+    }
+
+    const isTerminalUpdate =
+      (update.kind === "status" || update.kind === "snapshot") &&
+      isTerminalStatus(update.status);
+
+    // Mid-run auto-flush: when the agent's turn just ended, dispatch any
+    // messages the user queued during that turn. Skip if this update is
+    // bringing the run terminal — the terminal-status block below replays
+    // through resumeCloudRun instead.
+    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
+    if (
+      !isTerminalUpdate &&
+      sessionAfterLogs &&
+      !sessionAfterLogs.isPromptPending &&
+      sessionAfterLogs.messageQueue.length > 0 &&
+      sessionAfterLogs.cloudStatus === "in_progress"
+    ) {
+      const dequeued = sessionStoreSetters.dequeueMessages(
+        sessionAfterLogs.taskId,
+      );
+      const combinedPrompt = combineQueuedCloudPrompts(dequeued);
+      if (combinedPrompt) {
+        this.sendCloudPrompt(sessionAfterLogs, combinedPrompt).catch((err) => {
+          log.error("Failed to flush queued cloud messages after turn end", {
+            taskId: sessionAfterLogs.taskId,
+            error: err,
+          });
+          toast.error("Failed to send follow-up message. Please try again.");
+        });
       }
     }
 
