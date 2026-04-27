@@ -36,6 +36,10 @@ import {
 import type { PermissionMode } from "../../execution-mode";
 import type { Logger } from "../../utils/logger";
 import type { CodexSessionState } from "./session-state";
+import {
+  STRUCTURED_OUTPUT_MCP_NAME,
+  STRUCTURED_OUTPUT_TOOL_NAME,
+} from "./structured-output-constants";
 
 export interface CodexClientCallbacks {
   /** Called when a usage_update session notification is received */
@@ -50,17 +54,20 @@ export interface CodexClientCallbacks {
   onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
 }
 
-const STRUCTURED_OUTPUT_TOOL_NAME = "create_output";
-
 /**
  * Tool calls for our injected MCP server surface in ACP `tool_call` /
  * `tool_call_update` notifications. The `title` from codex-acp can be
  * either the bare tool name or prefixed (`mcp__<server>__<tool>`); match
- * permissively so behavior is stable across codex-acp versions.
+ * both forms but require the server name on prefixed titles so an unrelated
+ * user tool happening to contain `create_output` doesn't trigger us.
  */
 function isStructuredOutputToolCall(title: string | undefined | null): boolean {
   if (!title) return false;
-  return title.includes(STRUCTURED_OUTPUT_TOOL_NAME);
+  if (title === STRUCTURED_OUTPUT_TOOL_NAME) return true;
+  return (
+    title.includes(STRUCTURED_OUTPUT_MCP_NAME) &&
+    title.includes(STRUCTURED_OUTPUT_TOOL_NAME)
+  );
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

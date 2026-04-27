@@ -74,6 +74,15 @@ import {
   type CodexProcessOptions,
   spawnCodexProcess,
 } from "./spawn";
+import {
+  STRUCTURED_OUTPUT_MCP_NAME,
+  STRUCTURED_OUTPUT_TOOL_NAME,
+} from "./structured-output-constants";
+
+export {
+  STRUCTURED_OUTPUT_MCP_NAME,
+  STRUCTURED_OUTPUT_TOOL_NAME,
+} from "./structured-output-constants";
 
 interface NewSessionMeta {
   taskRunId?: string;
@@ -156,13 +165,6 @@ function getCurrentPermissionMode(
 
   return toCodexPermissionMode(fallbackMode);
 }
-
-/**
- * Name of the injected stdio MCP server that exposes `create_output`.
- * Kept stable so tool-call updates can be matched to our server.
- */
-export const STRUCTURED_OUTPUT_MCP_NAME = "posthog_output";
-export const STRUCTURED_OUTPUT_TOOL_NAME = "create_output";
 
 const STRUCTURED_OUTPUT_INSTRUCTIONS = `\n\nWhen you have completed the task, call the \`${STRUCTURED_OUTPUT_TOOL_NAME}\` tool with the final structured result. The tool's input schema matches the required output format for this task. Do not describe the result in a plain message — submitting it via the tool is required for the task to be considered complete.`;
 

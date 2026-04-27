@@ -684,9 +684,6 @@ importers:
       '@types/jsonwebtoken':
         specifier: ^9.0.10
         version: 9.0.10
-      ajv:
-        specifier: ^8.17.1
-        version: 8.17.1
       commander:
         specifier: ^14.0.2
         version: 14.0.3
