@@ -228,7 +228,7 @@ export function ActionSelector({
         )}
 
         {title && (
-          <Text className="font-medium text-[13px] text-blue-11" title={title}>
+          <Text className="font-medium text-[13px] text-primary" title={title}>
             {compactHomePath(title)}
           </Text>
         )}
@@ -240,7 +240,7 @@ export function ActionSelector({
             {question}
           </Text>
 
-          <Flex direction="column" gap="1">
+          <Flex direction="column" gap="1" px="2">
             {allOptions.map((option, index) => {
               if (isSubmitOption(option.id) || isCancelOption(option.id)) {
                 return null;
