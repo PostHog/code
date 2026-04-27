@@ -1,6 +1,6 @@
 import { useDiffViewerStore } from "@features/code-editor/stores/diffViewerStore";
 import {
-  useBranchChangedFiles,
+  useLocalBranchChangedFiles,
   usePrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
 import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
@@ -52,7 +52,6 @@ export function ReviewPage({ task }: ReviewPageProps) {
     prUrl,
     linkedBranch,
     defaultBranch,
-    repoSlug,
     branchSourceAvailable,
     prSourceAvailable,
   } = useEffectiveDiffSource(taskId);
@@ -113,7 +112,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
       <BranchReviewPage
         task={task}
         branch={linkedBranch as string}
-        repoSlug={repoSlug}
+        repoPath={repoPath}
         defaultBranch={defaultBranch}
         isReviewOpen={isReviewOpen}
         effectiveSource={effectiveSource}
@@ -211,7 +210,7 @@ export function ReviewPage({ task }: ReviewPageProps) {
 function BranchReviewPage({
   task,
   branch,
-  repoSlug,
+  repoPath,
   defaultBranch,
   isReviewOpen,
   effectiveSource,
@@ -222,7 +221,7 @@ function BranchReviewPage({
 }: {
   task: Task;
   branch: string;
-  repoSlug: string | null;
+  repoPath: string | null;
   defaultBranch: string | null;
   isReviewOpen: boolean;
   effectiveSource: ResolvedDiffSource;
@@ -233,10 +232,11 @@ function BranchReviewPage({
 }) {
   const taskId = task.id;
 
-  const { data: files = EMPTY_BRANCH_FILES, isLoading } = useBranchChangedFiles(
-    isReviewOpen ? repoSlug : null,
-    isReviewOpen ? branch : null,
-  );
+  const { data: files = EMPTY_BRANCH_FILES, isLoading } =
+    useLocalBranchChangedFiles(
+      isReviewOpen ? repoPath : null,
+      isReviewOpen ? branch : null,
+    );
 
   const allPaths = useMemo(() => files.map((f) => f.path), [files]);
 
@@ -249,7 +249,7 @@ function BranchReviewPage({
       linesAdded={reviewState.linesAdded}
       linesRemoved={reviewState.linesRemoved}
       isLoading={
-        (isLoading || (!repoSlug && isReviewOpen)) && files.length === 0
+        (isLoading || (!repoPath && isReviewOpen)) && files.length === 0
       }
       isEmpty={files.length === 0}
       allExpanded={reviewState.collapsedFiles.size === 0}

@@ -581,6 +581,58 @@ export async function getChangedFilesBetweenBranches(
   );
 }
 
+/**
+ * Splits a unified `git diff` string into per-file patches, keyed by the `b/`
+ * (post-rename) path, which is the shape `ChangedFileInfo.path` uses. Each
+ * returned patch string begins with its own `diff --git ...` header and is a
+ * valid standalone unified diff.
+ */
+export function splitUnifiedDiffByFile(raw: string): Map<string, string> {
+  const patches = new Map<string, string>();
+  if (!raw) return patches;
+
+  const headerRegex = /^diff --git a\/.+? b\/(.+)$/gm;
+  const matches: Array<{ path: string; start: number }> = [];
+  let match = headerRegex.exec(raw);
+  while (match !== null) {
+    matches.push({ path: match[1], start: match.index });
+    match = headerRegex.exec(raw);
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const { path, start } = matches[i];
+    const end = i + 1 < matches.length ? matches[i + 1].start : raw.length;
+    patches.set(path, raw.slice(start, end));
+  }
+  return patches;
+}
+
+export async function getBranchDiffPatchesByPath(
+  baseDir: string,
+  baseBranch: string,
+  headBranch: string,
+  options?: CreateGitClientOptions,
+): Promise<Map<string, string>> {
+  const manager = getGitOperationManager();
+  return manager.executeRead(
+    baseDir,
+    async (git) => {
+      try {
+        const raw = await git.diff([
+          "-M",
+          "--patch",
+          "--no-color",
+          `origin/${baseBranch}...${headBranch}`,
+        ]);
+        return splitUnifiedDiffByFile(raw);
+      } catch {
+        return new Map<string, string>();
+      }
+    },
+    { signal: options?.abortSignal },
+  );
+}
+
 export interface DiffStats {
   filesChanged: number;
   linesAdded: number;

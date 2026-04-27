@@ -1,12 +1,13 @@
 import { Tooltip } from "@components/ui/Tooltip";
 import {
-  useBranchChangedFiles,
+  useLocalBranchChangedFiles,
   usePrChangedFiles,
 } from "@features/git-interaction/hooks/useGitQueries";
 import {
   computeDiffStats,
   type DiffStats,
 } from "@features/git-interaction/utils/diffStats";
+import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
 import { GitDiff } from "@phosphor-icons/react";
@@ -44,16 +45,16 @@ function CloudDiffStatsBadge({ task }: { task: Task }) {
 
 function LocalDiffStatsBadge({ task }: { task: Task }) {
   const taskId = task.id;
+  const repoPath = useCwd(taskId);
   const {
     effectiveSource,
-    repoSlug,
     linkedBranch,
     prUrl,
     diffStats: localDiffStats,
   } = useEffectiveDiffSource(taskId);
 
-  const { data: branchFiles } = useBranchChangedFiles(
-    effectiveSource === "branch" ? repoSlug : null,
+  const { data: branchFiles } = useLocalBranchChangedFiles(
+    effectiveSource === "branch" ? (repoPath ?? null) : null,
     effectiveSource === "branch" ? linkedBranch : null,
   );
   const { data: prFiles } = usePrChangedFiles(
