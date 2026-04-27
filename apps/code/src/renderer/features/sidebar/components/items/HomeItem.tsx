@@ -72,7 +72,7 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
           }
           isActive={isActive}
           onClick={onClick}
-          endContent={<Badge color="amber">Beta</Badge>}
+          endContent={<Badge color="amber">Alpha</Badge>}
         />
       </div>
     </Tooltip>
