@@ -1113,7 +1113,7 @@ describe("SessionService", () => {
       );
     });
 
-    it("preserves cloud attachment prompts when queueing a follow-up", async () => {
+    it("sends cloud follow-up straight through and marks the optimistic bubble as queued when a prior turn is in flight", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1122,24 +1122,22 @@ describe("SessionService", () => {
           isPromptPending: true,
         }),
       );
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+        result: { stopReason: "end_turn" },
+      });
 
-      const prompt: ContentBlock[] = [
-        { type: "text", text: "read this" },
-        {
-          type: "resource_link",
-          uri: "file:///tmp/test.txt",
-          name: "test.txt",
-          mimeType: "text/plain",
-        },
-      ];
+      await service.sendPrompt("task-123", "Hello cloud");
 
-      const result = await service.sendPrompt("task-123", prompt);
-
-      expect(result.stopReason).toBe("queued");
-      expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
-        "task-123",
-        "read this\n\nAttached files: test.txt",
-        prompt,
+      expect(mockSessionStoreSetters.enqueueMessage).not.toHaveBeenCalled();
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
+      expect(mockSessionStoreSetters.appendOptimisticItem).toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({
+          type: "user_message",
+          content: "Hello cloud",
+          isQueued: true,
+        }),
       );
     });
 

@@ -1474,7 +1474,6 @@ export class SessionService {
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
-    options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
     const transport = getCloudPromptTransport(prompt);
     if (!transport.messageText && transport.filePaths.length === 0) {
@@ -1486,7 +1485,14 @@ export class SessionService {
     }
 
     if (session.cloudStatus !== "in_progress") {
-      sessionStoreSetters.enqueueMessage(session.taskId, transport.promptText);
+      // Sandbox isn't accepting commands yet — keep the message in a local
+      // queue and let the in_progress handler in handleCloudTaskUpdate flush
+      // it once the run is ready.
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
       sessionStoreSetters.updateSession(session.taskRunId, {
         isPromptPending: true,
       });
@@ -1497,18 +1503,12 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(
-        session.taskId,
-        transport.promptText,
-        prompt,
-      );
-      log.info("Cloud message queued", {
-        taskId: session.taskId,
-        queueLength: session.messageQueue.length + 1,
-      });
-      return { stopReason: "queued" };
-    }
+    // Once the run is in_progress the cloud accepts user_message commands at
+    // any time and queues them server-side until the current turn ends. Send
+    // straight through; the optimistic bubble below shows the message in chat
+    // immediately, with a "queued" affordance while a prior turn is still in
+    // flight.
+    const priorTurnInFlight = session.isPromptPending;
 
     const [auth, cloudCommandAuth] = await Promise.all([
       this.getAuthCredentials(),
@@ -1535,16 +1535,12 @@ export class SessionService {
       isPromptPending: true,
     });
 
-    // Show the bubble immediately while we wait for the cloud log stream to
-    // echo the user_message back. Without this the user sees a gap between
-    // submit (or queue drain) and the agent's response.
-    if (!options?.skipQueueGuard) {
-      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-        type: "user_message",
-        content: transport.promptText,
-        timestamp: Date.now(),
-      });
-    }
+    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+      type: "user_message",
+      content: transport.promptText,
+      timestamp: Date.now(),
+      isQueued: priorTurnInFlight,
+    });
 
     track(ANALYTICS_EVENTS.PROMPT_SENT, {
       task_id: session.taskId,
@@ -1574,20 +1570,6 @@ export class SessionService {
       const stopReason =
         (result.result as { stopReason?: string })?.stopReason ?? "end_turn";
 
-      const freshSession = sessionStoreSetters.getSessionByTaskId(
-        session.taskId,
-      );
-      if (freshSession && freshSession.messageQueue.length > 0) {
-        setTimeout(() => {
-          this.sendQueuedCloudMessages(session.taskId).catch((err) => {
-            log.error("Failed to send queued cloud messages", {
-              taskId: session.taskId,
-              error: err,
-            });
-          });
-        }, 0);
-      }
-
       return { stopReason };
     } catch (error) {
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1596,7 +1578,7 @@ export class SessionService {
       // If the run terminated while our user_message was in flight, the
       // cloud rejects the command. Re-read the session: if it has gone
       // terminal, replay the prompt through resumeCloudRun so the user's
-      // message still lands instead of being eaten by retry exhaustion.
+      // message still lands instead of being eaten.
       const fresh = sessionStoreSetters.getSessionByTaskId(session.taskId);
       if (fresh && isTerminalStatus(fresh.cloudStatus)) {
         log.warn("Cloud user_message rejected after run terminated; resuming", {
@@ -1606,104 +1588,8 @@ export class SessionService {
         sessionStoreSetters.clearOptimisticItems(session.taskRunId);
         return this.resumeCloudRun(fresh, prompt);
       }
-      // Drop optimistic items so a failed send doesn't leave a ghost bubble.
-      // The combined-prompt path (skipQueueGuard) clears its own optimistic
-      // items in sendQueuedCloudMessages on retry exhaustion.
-      if (!options?.skipQueueGuard) {
-        sessionStoreSetters.clearOptimisticItems(session.taskRunId);
-      }
+      sessionStoreSetters.clearOptimisticItems(session.taskRunId);
       throw error;
-    }
-  }
-
-  private async sendQueuedCloudMessages(
-    taskId: string,
-    attempt = 0,
-    pendingPrompt?: string | ContentBlock[],
-  ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue and convert each entry into an
-    // optimistic bubble. Retries reuse the already-dequeued prompt and must
-    // not stack additional bubbles.
-    let combinedPrompt: string | ContentBlock[] | null;
-    if (pendingPrompt) {
-      combinedPrompt = pendingPrompt;
-    } else {
-      const dequeued = sessionStoreSetters.dequeueMessages(taskId);
-      combinedPrompt = combineQueuedCloudPrompts(dequeued);
-      if (combinedPrompt) {
-        const taskRunId =
-          sessionStoreSetters.getSessionByTaskId(taskId)?.taskRunId;
-        if (taskRunId) {
-          for (const msg of dequeued) {
-            sessionStoreSetters.appendOptimisticItem(taskRunId, {
-              type: "user_message",
-              content: msg.content,
-              timestamp: msg.queuedAt,
-            });
-          }
-        }
-      }
-    }
-    if (!combinedPrompt) return { stopReason: "skipped" };
-
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) {
-      log.warn("No session found for queued cloud messages, message lost", {
-        taskId,
-      });
-      return { stopReason: "no_session" };
-    }
-
-    log.info("Sending queued cloud messages", {
-      taskId,
-      promptLength: combinedPrompt.length,
-      attempt,
-    });
-
-    try {
-      return await this.sendCloudPrompt(session, combinedPrompt, {
-        skipQueueGuard: true,
-      });
-    } catch (error) {
-      const maxRetries = 5;
-      if (attempt < maxRetries) {
-        const delayMs = Math.min(1000 * 2 ** attempt, 10_000);
-        log.warn("Cloud message send failed, scheduling retry", {
-          taskId,
-          attempt,
-          delayMs,
-          error: String(error),
-        });
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(
-              this.sendQueuedCloudMessages(
-                taskId,
-                attempt + 1,
-                combinedPrompt,
-              ).catch((err) => {
-                log.error("Queued cloud message retry failed", {
-                  taskId,
-                  attempt: attempt + 1,
-                  error: err,
-                });
-                return { stopReason: "error" };
-              }),
-            );
-          }, delayMs);
-        });
-      }
-
-      log.error("Queued cloud message send failed after max retries", {
-        taskId,
-        attempts: attempt + 1,
-      });
-      const failedSession = sessionStoreSetters.getSessionByTaskId(taskId);
-      if (failedSession) {
-        sessionStoreSetters.clearOptimisticItems(failedSession.taskRunId);
-      }
-      toast.error("Failed to send follow-up message. Please try again.");
-      return { stopReason: "error" };
     }
   }
 
@@ -3000,29 +2886,6 @@ export class SessionService {
       }
     }
 
-    const isTerminalUpdate =
-      (update.kind === "status" || update.kind === "snapshot") &&
-      isTerminalStatus(update.status);
-
-    // Flush queued messages when a cloud turn completes mid-run. Skip when
-    // the same update brings the run to a terminal status: queued commands
-    // cannot be delivered to a finished run, so the terminal-status block
-    // below replays them via resumeCloudRun instead.
-    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
-    if (
-      !isTerminalUpdate &&
-      sessionAfterLogs &&
-      !sessionAfterLogs.isPromptPending &&
-      sessionAfterLogs.messageQueue.length > 0
-    ) {
-      this.sendQueuedCloudMessages(sessionAfterLogs.taskId).catch((err) => {
-        log.error("Failed to send queued cloud messages after turn complete", {
-          taskId: sessionAfterLogs.taskId,
-          error: err,
-        });
-      });
-    }
-
     // Update cloud status fields if present
     if (update.kind === "status" || update.kind === "snapshot") {
       sessionStoreSetters.updateCloudStatus(taskRunId, {
@@ -3033,31 +2896,39 @@ export class SessionService {
         branch: update.branch,
       });
 
-      // Auto-send queued messages when a resumed run becomes active
+      // The local messageQueue only ever holds messages submitted before the
+      // sandbox was ready (cloudStatus !== "in_progress"). Once the run goes
+      // in_progress, drain them through the regular send path — the cloud
+      // accepts user_message commands at any time once the sandbox is up.
       if (update.status === "in_progress") {
         const session = sessionStoreSetters.getSessions()[taskRunId];
         if (session && session.messageQueue.length > 0) {
-          // Clear the pending flag first — resumeCloudRun sets it as a guard
-          // while waiting for the run to start. Now that the run is active,
-          // sendCloudPrompt needs the flag clear to actually send.
+          const dequeued = sessionStoreSetters.dequeueMessages(session.taskId);
+          const combinedPrompt = combineQueuedCloudPrompts(dequeued);
           sessionStoreSetters.updateSession(taskRunId, {
             isPromptPending: false,
           });
-          this.sendQueuedCloudMessages(session.taskId).catch(() => {
-            // Retries exhausted — message was re-enqueued by
-            // sendQueuedCloudMessages, future stream-based completion detection
-            // will keep trying
-          });
+          if (combinedPrompt) {
+            this.sendCloudPrompt(session, combinedPrompt).catch((err) => {
+              log.error("Failed to flush sandbox-ready queue", {
+                taskId: session.taskId,
+                error: err,
+              });
+              toast.error(
+                "Failed to send follow-up message. Please try again.",
+              );
+            });
+          }
         }
       }
 
       if (isTerminalStatus(update.status)) {
         const session = sessionStoreSetters.getSessions()[taskRunId];
-        // A user message that was queued during the final turn — or whose
-        // user_message command was sent but never echoed back before the run
-        // terminated — cannot be delivered to a finished run. Replay through
-        // resumeCloudRun, which spins up a fresh task run carrying the prompt
-        // as `pending_user_message`.
+        // Anything still local (sandbox-not-ready queue or an optimistic
+        // bubble whose user_message command never echoed back) cannot be
+        // delivered to a finished run. Replay through resumeCloudRun, which
+        // spins up a fresh task run carrying the prompt as
+        // `pending_user_message`.
         const queuedPrompt =
           session && session.messageQueue.length > 0
             ? combineQueuedCloudPrompts(
