@@ -51,8 +51,12 @@ export async function resolveAgentshRuntimeInfo({
   let sessionId: string;
   try {
     sessionId = (await readSessionId(sessionIdPath)).trim();
-  } catch {
-    return null;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      return null;
+    }
+    throw error;
   }
 
   if (!sessionId) {
@@ -76,11 +80,18 @@ export async function resolveAgentshRuntimeInfo({
 
 export async function logAgentshRuntimeInfo(
   logger: Pick<Logger, "debug">,
+  options?: ResolveAgentshRuntimeInfoOptions,
 ): Promise<void> {
-  const agentsh = await resolveAgentshRuntimeInfo();
+  const agentsh = await resolveAgentshRuntimeInfo(options);
   if (!agentsh) {
     return;
   }
 
+  logger.debug(`Agentsh session ID: ${agentsh.sessionId}`);
   logger.debug(`Agentsh hardening version: ${agentsh.version ?? "unknown"}`);
+  if (agentsh.versionLookupError) {
+    logger.debug(
+      `Agentsh version lookup failed: ${agentsh.versionLookupError}`,
+    );
+  }
 }
