@@ -2924,9 +2924,17 @@ export class SessionService {
       }
     }
 
-    // Flush queued messages when a cloud turn completes (detected via live log updates)
+    const isTerminalUpdate =
+      (update.kind === "status" || update.kind === "snapshot") &&
+      isTerminalStatus(update.status);
+
+    // Flush queued messages when a cloud turn completes mid-run. Skip when
+    // the same update brings the run to a terminal status: queued commands
+    // cannot be delivered to a finished run, so the terminal-status block
+    // below replays them via resumeCloudRun instead.
     const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
     if (
+      !isTerminalUpdate &&
       sessionAfterLogs &&
       !sessionAfterLogs.isPromptPending &&
       sessionAfterLogs.messageQueue.length > 0
@@ -2968,13 +2976,28 @@ export class SessionService {
       }
 
       if (isTerminalStatus(update.status)) {
-        // Clean up any pending resume messages that couldn't be sent
         const session = sessionStoreSetters.getSessions()[taskRunId];
-        if (
-          session &&
-          (session.messageQueue.length > 0 || session.isPromptPending)
-        ) {
-          sessionStoreSetters.clearMessageQueue(session.taskId);
+        // A user message queued during the final turn cannot be delivered to
+        // a finished run. Replay it through resumeCloudRun, which spins up a
+        // fresh task run carrying the prompt as `pending_user_message`.
+        if (session && session.messageQueue.length > 0) {
+          const queued = sessionStoreSetters.dequeueMessages(session.taskId);
+          const combinedPrompt = combineQueuedCloudPrompts(queued);
+          sessionStoreSetters.updateSession(taskRunId, {
+            isPromptPending: false,
+          });
+          if (combinedPrompt) {
+            this.resumeCloudRun(session, combinedPrompt).catch((err) => {
+              log.error("Failed to resume cloud run with queued messages", {
+                taskId: session.taskId,
+                error: err,
+              });
+              toast.error(
+                "Failed to send follow-up message. Please try again.",
+              );
+            });
+          }
+        } else if (session?.isPromptPending) {
           sessionStoreSetters.updateSession(taskRunId, {
             isPromptPending: false,
           });

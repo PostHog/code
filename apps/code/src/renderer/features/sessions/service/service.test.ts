@@ -70,6 +70,7 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   appendOptimisticItem: vi.fn(),
   clearOptimisticItems: vi.fn(),
   replaceOptimisticWithEvent: vi.fn(),
+  updateCloudStatus: vi.fn(),
 }));
 
 const mockGetConfigOptionByCategory = vi.hoisted(() =>
@@ -912,6 +913,68 @@ describe("SessionService", () => {
         taskId: "task-123",
         runId: "run-123",
       });
+    });
+  });
+
+  describe("handleCloudTaskUpdate terminal-status routing", () => {
+    it("dequeues queued messages instead of clearing them when the run reaches a terminal status", async () => {
+      const service = getSessionService();
+      let capturedOnData:
+        | ((payload: Record<string, unknown>) => void)
+        | undefined;
+      mockTrpcCloudTask.onUpdate.subscribe.mockImplementation(
+        (
+          _input: unknown,
+          opts: { onData: (p: Record<string, unknown>) => void },
+        ) => {
+          capturedOnData = opts.onData;
+          return { unsubscribe: vi.fn() };
+        },
+      );
+
+      const queuedMessage = {
+        id: "queue-1",
+        content: "gimme a joke",
+        queuedAt: Date.now(),
+      };
+      const session = createMockSession({
+        isCloud: true,
+        cloudStatus: "in_progress",
+        cloudBranch: "main",
+        messageQueue: [queuedMessage],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(session);
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": session,
+      });
+      mockSessionStoreSetters.dequeueMessages.mockReturnValue([
+        queuedMessage,
+      ] as never);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      expect(capturedOnData).toBeDefined();
+      capturedOnData?.({
+        kind: "status",
+        taskId: "task-123",
+        status: "completed",
+        stage: undefined,
+        output: undefined,
+        errorMessage: undefined,
+        branch: "main",
+      });
+
+      // Queue is drained via dequeueMessages (so resumeCloudRun can replay it),
+      // not silently dropped via clearMessageQueue.
+      expect(mockSessionStoreSetters.dequeueMessages).toHaveBeenCalledWith(
+        "task-123",
+      );
+      expect(mockSessionStoreSetters.clearMessageQueue).not.toHaveBeenCalled();
     });
   });
 
