@@ -1113,7 +1113,7 @@ describe("SessionService", () => {
       );
     });
 
-    it("queues a cloud follow-up locally and dispatches to the cloud immediately while a prior turn is in flight", async () => {
+    it("queues a cloud follow-up locally without dispatching while a prior turn is in flight", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1122,24 +1122,20 @@ describe("SessionService", () => {
           isPromptPending: true,
         }),
       );
-      mockSessionStoreSetters.enqueueMessage.mockReturnValue("queue-id-1");
-      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
-        success: true,
-        result: { stopReason: "end_turn" },
-      });
 
-      await service.sendPrompt("task-123", "Hello cloud");
+      const result = await service.sendPrompt("task-123", "Hello cloud");
 
-      // Queued bubble shown via the local messageQueue.
+      expect(result.stopReason).toBe("queued");
+      // Held in the local messageQueue (queued bubble visible).
       expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
         "task-123",
         "Hello cloud",
         "Hello cloud",
       );
-      // Mutate fires immediately; the cloud queues server-side until the
-      // prior turn ends. No optimistic bubble — the queued bubble owns the
-      // visual until handleCloudTaskUpdate pops the queue at end_turn.
-      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
+      // user_message during a running turn would preempt the prior turn on
+      // the cloud — handleCloudTaskUpdate dispatches via the auto-flush
+      // once end_turn lands.
+      expect(mockTrpcCloudTask.sendCommand.mutate).not.toHaveBeenCalled();
       expect(
         mockSessionStoreSetters.appendOptimisticItem,
       ).not.toHaveBeenCalled();
