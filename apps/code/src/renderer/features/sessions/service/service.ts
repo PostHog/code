@@ -2542,12 +2542,17 @@ export class SessionService {
         return;
       }
 
+      const events = convertStoredEntriesToEvents(rawEntries);
       sessionStoreSetters.updateSession(taskRunId, {
-        events: convertStoredEntriesToEvents(rawEntries),
+        events,
         isCloud: true,
         logUrl: logUrl ?? session.logUrl,
         processedLineCount: rawEntries.length,
       });
+      // Without this the "Galumphing…" indicator stays hidden when the hydrated
+      // baseline already contains an in-flight session/prompt — the live delta
+      // path otherwise sees delta <= 0 and never re-evaluates the tail.
+      this.updatePromptStateFromEvents(taskRunId, events);
     })().catch((err: unknown) => {
       log.warn("Failed to hydrate cloud task session from logs", {
         taskId,
