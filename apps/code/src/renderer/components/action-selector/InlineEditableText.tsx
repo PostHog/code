@@ -41,10 +41,14 @@ export function InlineEditableText({
     }
   }, [active]);
 
+  // Re-run on external value changes so the height tracks parent-driven
+  // updates (e.g. clearing after submit). `value` isn't referenced in the
+  // body — we read it via the DOM — so silence the exhaustive-deps lint.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: value drives autosize via the rendered DOM
   useEffect(() => {
     const el = textareaRef.current;
     if (el) autosize(el);
-  }, []);
+  }, [value]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -89,7 +93,7 @@ export function InlineEditableText({
       onKeyDown={handleKeyDown}
       onClick={(e) => e.stopPropagation()}
       rows={1}
-      className="block max-h-[200px] w-full cursor-text resize-none overflow-y-hidden break-words border-0 bg-transparent p-0 font-medium text-[13px] text-gray-12 leading-4 outline-none placeholder:text-gray-10 focus:outline-none"
+      className="block w-full cursor-text resize-none overflow-y-hidden break-words border-0 bg-transparent p-0 font-medium text-[13px] text-gray-12 leading-4 outline-none placeholder:text-gray-10 focus:outline-none"
       style={{
         userSelect: active ? "auto" : "none",
         pointerEvents: active ? "auto" : "none",
