@@ -60,7 +60,7 @@ export function ServerIcon({ iconKey, size = 32, className }: ServerIconProps) {
     <Flex
       align="center"
       justify="center"
-      className={`shrink-0 overflow-hidden bg-gray-3 ${className ?? ""}`}
+      className={`shrink-0 overflow-hidden ${className ?? ""}`}
       style={{ width: dimension, height: dimension, borderRadius: radius }}
     >
       {src ? (
