@@ -58,7 +58,7 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   removeSession: vi.fn(),
   updateSession: vi.fn(),
   appendEvents: vi.fn(),
-  enqueueMessage: vi.fn(),
+  enqueueMessage: vi.fn(() => "queue-id-default"),
   removeQueuedMessage: vi.fn(),
   clearMessageQueue: vi.fn(),
   dequeueMessagesAsText: vi.fn(() => null),
@@ -1113,7 +1113,7 @@ describe("SessionService", () => {
       );
     });
 
-    it("queues a cloud follow-up locally without dispatching while a prior turn is in flight", async () => {
+    it("queues a cloud follow-up locally and dispatches to the cloud immediately while a prior turn is in flight", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1122,19 +1122,24 @@ describe("SessionService", () => {
           isPromptPending: true,
         }),
       );
+      mockSessionStoreSetters.enqueueMessage.mockReturnValue("queue-id-1");
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+        result: { stopReason: "end_turn" },
+      });
 
-      const result = await service.sendPrompt("task-123", "Hello cloud");
+      await service.sendPrompt("task-123", "Hello cloud");
 
-      expect(result.stopReason).toBe("queued");
       // Queued bubble shown via the local messageQueue.
       expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
         "task-123",
         "Hello cloud",
         "Hello cloud",
       );
-      // The dispatch waits for the prior turn's end_turn — handleCloudTaskUpdate
-      // auto-flushes then. So no mutate yet, no optimistic bubble.
-      expect(mockTrpcCloudTask.sendCommand.mutate).not.toHaveBeenCalled();
+      // Mutate fires immediately; the cloud queues server-side until the
+      // prior turn ends. No optimistic bubble — the queued bubble owns the
+      // visual until handleCloudTaskUpdate pops the queue at end_turn.
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
       expect(
         mockSessionStoreSetters.appendOptimisticItem,
       ).not.toHaveBeenCalled();

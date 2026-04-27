@@ -1503,21 +1503,20 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    // Mirror the local agent: hold the follow-up locally as a queued bubble
-    // until the current turn ends. handleCloudTaskUpdate auto-flushes the
-    // queue once the agent emits end_turn, at which point we re-enter this
-    // function with isPromptPending=false and dispatch.
-    if (session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(
+    // The cloud accepts user_message commands while a turn is in flight and
+    // queues them server-side. Match the local agent's UX by also keeping
+    // the message in our messageQueue (queued bubble visible at the bottom)
+    // until the prior turn's end_turn arrives — handleCloudTaskUpdate pops
+    // one entry per turn boundary so the bubble disappears exactly when the
+    // cloud picks our message up.
+    const priorTurnInFlight = session.isPromptPending;
+    let queuedMessageId: string | undefined;
+    if (priorTurnInFlight) {
+      queuedMessageId = sessionStoreSetters.enqueueMessage(
         session.taskId,
         transport.promptText,
         prompt,
       );
-      log.info("Cloud message queued (prior turn in flight)", {
-        taskId: session.taskId,
-        queueLength: session.messageQueue.length + 1,
-      });
-      return { stopReason: "queued" };
     }
 
     const [auth, cloudCommandAuth] = await Promise.all([
@@ -1525,6 +1524,12 @@ export class SessionService {
       this.getCloudCommandAuth(),
     ]);
     if (!auth || !cloudCommandAuth) {
+      if (queuedMessageId) {
+        sessionStoreSetters.removeQueuedMessage(
+          session.taskId,
+          queuedMessageId,
+        );
+      }
       throw new Error("Authentication required for cloud commands");
     }
     const artifactIds = await uploadRunAttachments(
@@ -1541,14 +1546,18 @@ export class SessionService {
       params.artifact_ids = artifactIds;
     }
 
-    sessionStoreSetters.updateSession(session.taskRunId, {
-      isPromptPending: true,
-    });
-    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-      type: "user_message",
-      content: transport.promptText,
-      timestamp: Date.now(),
-    });
+    if (!priorTurnInFlight) {
+      // Idle agent — the queued bubble would look strange so add an
+      // optimistic regular bubble that the session/prompt echo replaces.
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: true,
+      });
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "user_message",
+        content: transport.promptText,
+        timestamp: Date.now(),
+      });
+    }
 
     track(ANALYTICS_EVENTS.PROMPT_SENT, {
       task_id: session.taskId,
@@ -1579,7 +1588,9 @@ export class SessionService {
       // If the run terminated while our user_message was in flight, the
       // cloud rejects the command. Re-read the session: if it has gone
       // terminal, replay the prompt through resumeCloudRun so the user's
-      // message still lands instead of being eaten.
+      // message still lands instead of being eaten. resumeCloudRun replaces
+      // the session entirely so any queued bubble on the old session is
+      // dropped naturally.
       const fresh = sessionStoreSetters.getSessionByTaskId(session.taskId);
       if (fresh && isTerminalStatus(fresh.cloudStatus)) {
         log.warn("Cloud user_message rejected after run terminated; resuming", {
@@ -1587,14 +1598,22 @@ export class SessionService {
           error: String(error),
         });
         sessionStoreSetters.clearOptimisticItems(session.taskRunId);
-        // resumeCloudRun replaces the session entirely so any queued bubble
-        // on the old session is dropped.
         return this.resumeCloudRun(fresh, prompt);
       }
+      // Non-terminal failure: clean up the placeholder we added so a stuck
+      // bubble doesn't outlive the failure toast.
+      if (queuedMessageId) {
+        sessionStoreSetters.removeQueuedMessage(
+          session.taskId,
+          queuedMessageId,
+        );
+      }
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        isPromptPending: false,
-      });
+      if (!priorTurnInFlight) {
+        sessionStoreSetters.updateSession(session.taskRunId, {
+          isPromptPending: false,
+        });
+      }
       throw error;
     }
   }
@@ -2852,74 +2871,77 @@ export class SessionService {
 
       if (delta <= 0) {
         // Already caught up — skip duplicate entries
-      } else if (delta <= update.newEntries.length) {
-        // Normal case: append only the tail (last `delta` entries)
-        const entriesToAppend = update.newEntries.slice(-delta);
+      } else {
+        const isGap = delta > update.newEntries.length;
+        const entriesToAppend = isGap
+          ? update.newEntries
+          : update.newEntries.slice(-delta);
+        const nextProcessedCount = isGap
+          ? currentCount + update.newEntries.length
+          : expectedCount;
+        if (isGap) {
+          log.warn("Cloud task log count inconsistency", {
+            taskRunId,
+            currentCount,
+            expectedCount,
+            entriesReceived: update.newEntries.length,
+          });
+        }
+
         let newEvents = convertStoredEntriesToEvents(entriesToAppend);
         newEvents = this.filterSkippedPromptEvents(
           taskRunId,
           session,
           newEvents,
         );
-        sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
-        this.updatePromptStateFromEvents(taskRunId, newEvents);
-        if (newEvents.some(isUserPromptEcho)) {
-          sessionStoreSetters.clearOptimisticItems(taskRunId);
+
+        // Walk the batch tracking when turns start (session/prompt request)
+        // and end (matching response with stopReason). Each completed turn
+        // implicitly advances one queued message — the cloud has just picked
+        // it up and its real session/prompt event is in this same batch.
+        let walkingPromptId = session?.currentPromptId;
+        let turnsCompleted = 0;
+        for (const event of newEvents) {
+          const m = event.message;
+          if (isJsonRpcRequest(m) && m.method === "session/prompt") {
+            walkingPromptId = m.id;
+            continue;
+          }
+          if (
+            "id" in m &&
+            "result" in m &&
+            typeof m.result === "object" &&
+            m.result !== null &&
+            "stopReason" in m.result &&
+            m.id === walkingPromptId
+          ) {
+            turnsCompleted++;
+            walkingPromptId = undefined;
+          }
         }
-      } else {
-        // Gap in data — append everything we have but don't jump processedLineCount
-        log.warn("Cloud task log count inconsistency", {
-          taskRunId,
-          currentCount,
-          expectedCount,
-          entriesReceived: update.newEntries.length,
-        });
-        let newEvents = convertStoredEntriesToEvents(update.newEntries);
-        newEvents = this.filterSkippedPromptEvents(
-          taskRunId,
-          session,
-          newEvents,
-        );
+
         sessionStoreSetters.appendEvents(
           taskRunId,
           newEvents,
-          currentCount + update.newEntries.length,
+          nextProcessedCount,
         );
         this.updatePromptStateFromEvents(taskRunId, newEvents);
+
         if (newEvents.some(isUserPromptEcho)) {
           sessionStoreSetters.clearOptimisticItems(taskRunId);
         }
-      }
-    }
 
-    const isTerminalUpdate =
-      (update.kind === "status" || update.kind === "snapshot") &&
-      isTerminalStatus(update.status);
-
-    // Mid-run auto-flush: when the agent's turn just ended, dispatch any
-    // messages the user queued during that turn. Skip if this update is
-    // bringing the run terminal — the terminal-status block below replays
-    // through resumeCloudRun instead.
-    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
-    if (
-      !isTerminalUpdate &&
-      sessionAfterLogs &&
-      !sessionAfterLogs.isPromptPending &&
-      sessionAfterLogs.messageQueue.length > 0 &&
-      sessionAfterLogs.cloudStatus === "in_progress"
-    ) {
-      const dequeued = sessionStoreSetters.dequeueMessages(
-        sessionAfterLogs.taskId,
-      );
-      const combinedPrompt = combineQueuedCloudPrompts(dequeued);
-      if (combinedPrompt) {
-        this.sendCloudPrompt(sessionAfterLogs, combinedPrompt).catch((err) => {
-          log.error("Failed to flush queued cloud messages after turn end", {
-            taskId: sessionAfterLogs.taskId,
-            error: err,
-          });
-          toast.error("Failed to send follow-up message. Please try again.");
-        });
+        if (turnsCompleted > 0) {
+          const sessionAfter = sessionStoreSetters.getSessions()[taskRunId];
+          if (sessionAfter) {
+            const idsToPop = sessionAfter.messageQueue
+              .slice(0, turnsCompleted)
+              .map((m) => m.id);
+            for (const id of idsToPop) {
+              sessionStoreSetters.removeQueuedMessage(sessionAfter.taskId, id);
+            }
+          }
+        }
       }
     }
 

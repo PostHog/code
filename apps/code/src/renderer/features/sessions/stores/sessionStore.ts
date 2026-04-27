@@ -317,7 +317,7 @@ export const sessionStoreSetters = {
     taskId: string,
     content: string,
     rawPrompt?: string | ContentBlock[],
-  ) => {
+  ): string => {
     const id = `queue-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     useSessionStore.setState((state) => {
       const taskRunId = state.taskIdIndex[taskId];
@@ -333,6 +333,7 @@ export const sessionStoreSetters = {
         });
       }
     });
+    return id;
   },
 
   removeQueuedMessage: (taskId: string, messageId: string) => {
