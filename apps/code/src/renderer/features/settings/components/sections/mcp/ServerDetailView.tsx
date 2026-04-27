@@ -73,7 +73,7 @@ export function ServerDetailView({
     "Server";
   const description = installation?.description || template?.description || "";
   const docsUrl = template?.docs_url || null;
-  const iconKey = installation?.icon_key ?? template?.icon_key ?? null;
+  const iconKey = installation?.icon_key || template?.icon_key || null;
   const authType = installation?.auth_type || template?.auth_type;
 
   const {
