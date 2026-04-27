@@ -99,6 +99,16 @@ function isUserPromptEcho(acpMsg: AcpMessage): boolean {
   );
 }
 
+function extractOptimisticUserMessage(session: AgentSession): string | null {
+  const parts: string[] = [];
+  for (const item of session.optimisticItems) {
+    if (item.type === "user_message" && item.content.length > 0) {
+      parts.push(item.content);
+    }
+  }
+  return parts.length > 0 ? parts.join("\n\n") : null;
+}
+
 /**
  * Build default configOptions for cloud sessions so the mode switcher
  * is available in the UI even without a local agent connection.
@@ -1583,6 +1593,19 @@ export class SessionService {
       sessionStoreSetters.updateSession(session.taskRunId, {
         isPromptPending: false,
       });
+      // If the run terminated while our user_message was in flight, the
+      // cloud rejects the command. Re-read the session: if it has gone
+      // terminal, replay the prompt through resumeCloudRun so the user's
+      // message still lands instead of being eaten by retry exhaustion.
+      const fresh = sessionStoreSetters.getSessionByTaskId(session.taskId);
+      if (fresh && isTerminalStatus(fresh.cloudStatus)) {
+        log.warn("Cloud user_message rejected after run terminated; resuming", {
+          taskId: session.taskId,
+          error: String(error),
+        });
+        sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+        return this.resumeCloudRun(fresh, prompt);
+      }
       // Drop optimistic items so a failed send doesn't leave a ghost bubble.
       // The combined-prompt path (skipQueueGuard) clears its own optimistic
       // items in sendQueuedCloudMessages on retry exhaustion.
@@ -3030,27 +3053,34 @@ export class SessionService {
 
       if (isTerminalStatus(update.status)) {
         const session = sessionStoreSetters.getSessions()[taskRunId];
-        // A user message queued during the final turn cannot be delivered to
-        // a finished run. Replay it through resumeCloudRun, which spins up a
-        // fresh task run carrying the prompt as `pending_user_message`.
-        if (session && session.messageQueue.length > 0) {
-          const queued = sessionStoreSetters.dequeueMessages(session.taskId);
-          const combinedPrompt = combineQueuedCloudPrompts(queued);
+        // A user message that was queued during the final turn — or whose
+        // user_message command was sent but never echoed back before the run
+        // terminated — cannot be delivered to a finished run. Replay through
+        // resumeCloudRun, which spins up a fresh task run carrying the prompt
+        // as `pending_user_message`.
+        const queuedPrompt =
+          session && session.messageQueue.length > 0
+            ? combineQueuedCloudPrompts(
+                sessionStoreSetters.dequeueMessages(session.taskId),
+              )
+            : null;
+        const optimisticPrompt =
+          !queuedPrompt && session
+            ? extractOptimisticUserMessage(session)
+            : null;
+        const replayPrompt = queuedPrompt ?? optimisticPrompt;
+        if (session && replayPrompt) {
           sessionStoreSetters.clearOptimisticItems(taskRunId);
           sessionStoreSetters.updateSession(taskRunId, {
             isPromptPending: false,
           });
-          if (combinedPrompt) {
-            this.resumeCloudRun(session, combinedPrompt).catch((err) => {
-              log.error("Failed to resume cloud run with queued messages", {
-                taskId: session.taskId,
-                error: err,
-              });
-              toast.error(
-                "Failed to send follow-up message. Please try again.",
-              );
+          this.resumeCloudRun(session, replayPrompt).catch((err) => {
+            log.error("Failed to resume cloud run with queued messages", {
+              taskId: session.taskId,
+              error: err,
             });
-          }
+            toast.error("Failed to send follow-up message. Please try again.");
+          });
         } else if (session?.isPromptPending) {
           sessionStoreSetters.clearOptimisticItems(taskRunId);
           sessionStoreSetters.updateSession(taskRunId, {
