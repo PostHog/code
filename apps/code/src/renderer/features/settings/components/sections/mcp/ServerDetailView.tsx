@@ -73,7 +73,7 @@ export function ServerDetailView({
     "Server";
   const description = installation?.description || template?.description || "";
   const docsUrl = template?.docs_url || null;
-  const iconKey = template?.icon_key || name;
+  const iconKey = installation?.icon_key ?? template?.icon_key ?? null;
   const authType = installation?.auth_type || template?.auth_type;
 
   const {
@@ -130,7 +130,7 @@ export function ServerDetailView({
       </Flex>
 
       <Flex align="start" gap="3">
-        <ServerIcon iconKey={iconKey} name={name} size={56} />
+        <ServerIcon iconKey={iconKey} size={56} />
         <Flex direction="column" gap="1" className="min-w-0 flex-1">
           <Flex align="center" gap="2">
             <Text truncate className="font-bold text-xl">

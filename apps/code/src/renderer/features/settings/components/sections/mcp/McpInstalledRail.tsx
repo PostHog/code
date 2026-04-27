@@ -175,8 +175,7 @@ export function McpInstalledRail({
                   }`}
                 >
                   <ServerIcon
-                    iconKey={template?.icon_key}
-                    name={name}
+                    iconKey={installation.icon_key ?? template?.icon_key}
                     size={28}
                   />
                   <Flex direction="column" className="min-w-0 leading-[1.2]">
