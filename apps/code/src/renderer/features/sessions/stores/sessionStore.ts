@@ -32,10 +32,6 @@ export type OptimisticItem =
       id: string;
       content: string;
       timestamp: number;
-      // True when this bubble was added while a prior agent turn was still
-      // running. The renderer shows it with the queued affordance until the
-      // cloud's session/prompt echo replaces it.
-      isQueued?: boolean;
     }
   | {
       type: "skill_button_action";

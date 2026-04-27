@@ -154,21 +154,6 @@ export function ConversationView({
     (item: ConversationItem) => {
       switch (item.type) {
         case "user_message":
-          if (item.isQueued) {
-            // Optimistic bubble for a cloud user_message that was sent while
-            // a prior agent turn was still in flight. The message is already
-            // on the server; this just shows the queued affordance until the
-            // cloud's session/prompt echo replaces the optimistic item.
-            return (
-              <QueuedMessageView
-                message={{
-                  id: item.id,
-                  content: item.content,
-                  queuedAt: item.timestamp,
-                }}
-              />
-            );
-          }
           return (
             <UserMessage
               content={item.content}

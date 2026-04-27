@@ -1113,7 +1113,7 @@ describe("SessionService", () => {
       );
     });
 
-    it("sends cloud follow-up straight through and marks the optimistic bubble as queued when a prior turn is in flight", async () => {
+    it("sends a cloud follow-up to the cloud immediately and adds a queued bubble when a prior turn is in flight", async () => {
       const service = getSessionService();
       mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
         createMockSession({
@@ -1129,16 +1129,19 @@ describe("SessionService", () => {
 
       await service.sendPrompt("task-123", "Hello cloud");
 
-      expect(mockSessionStoreSetters.enqueueMessage).not.toHaveBeenCalled();
-      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
-      expect(mockSessionStoreSetters.appendOptimisticItem).toHaveBeenCalledWith(
-        "run-123",
-        expect.objectContaining({
-          type: "user_message",
-          content: "Hello cloud",
-          isQueued: true,
-        }),
+      // Queued bubble shown via the local messageQueue.
+      expect(mockSessionStoreSetters.enqueueMessage).toHaveBeenCalledWith(
+        "task-123",
+        "Hello cloud",
+        "Hello cloud",
       );
+      // No optimistic bubble — the queued bubble owns the visual.
+      expect(
+        mockSessionStoreSetters.appendOptimisticItem,
+      ).not.toHaveBeenCalled();
+      // The user_message command goes straight to cloud rather than waiting
+      // for the prior turn to end.
+      expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
     });
 
     it("sends prompt via tRPC when session is ready", async () => {

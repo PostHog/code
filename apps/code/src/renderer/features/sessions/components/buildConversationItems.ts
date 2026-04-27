@@ -37,7 +37,6 @@ export type ConversationItem =
       content: string;
       timestamp: number;
       attachments?: UserMessageAttachment[];
-      isQueued?: boolean;
     }
   | { type: "git_action"; id: string; actionType: GitActionType }
   | { type: "skill_button_action"; id: string; buttonId: SkillButtonId }

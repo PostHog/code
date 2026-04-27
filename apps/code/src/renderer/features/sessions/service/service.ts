@@ -1503,12 +1503,21 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    // Once the run is in_progress the cloud accepts user_message commands at
-    // any time and queues them server-side until the current turn ends. Send
-    // straight through; the optimistic bubble below shows the message in chat
-    // immediately, with a "queued" affordance while a prior turn is still in
-    // flight.
-    const priorTurnInFlight = session.isPromptPending;
+    // The run is in_progress: the cloud accepts user_message commands at any
+    // time and queues them server-side until the current turn ends. Show the
+    // bubble immediately — as a queued bubble (via messageQueue) when a prior
+    // turn is in flight, otherwise as an optimistic regular bubble. Either
+    // way the mutate goes straight to the cloud below; when the cloud emits
+    // the session/prompt echo for our message, handleCloudTaskUpdate clears
+    // the placeholder and the real event takes over.
+    const showAsQueued = session.isPromptPending;
+    if (showAsQueued) {
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
+    }
 
     const [auth, cloudCommandAuth] = await Promise.all([
       this.getAuthCredentials(),
@@ -1531,16 +1540,16 @@ export class SessionService {
       params.artifact_ids = artifactIds;
     }
 
-    sessionStoreSetters.updateSession(session.taskRunId, {
-      isPromptPending: true,
-    });
-
-    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-      type: "user_message",
-      content: transport.promptText,
-      timestamp: Date.now(),
-      isQueued: priorTurnInFlight,
-    });
+    if (!showAsQueued) {
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: true,
+      });
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "user_message",
+        content: transport.promptText,
+        timestamp: Date.now(),
+      });
+    }
 
     track(ANALYTICS_EVENTS.PROMPT_SENT, {
       task_id: session.taskId,
@@ -1559,10 +1568,6 @@ export class SessionService {
         params,
       });
 
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        isPromptPending: false,
-      });
-
       if (!result.success) {
         throw new Error(result.error ?? "Failed to send cloud command");
       }
@@ -1572,9 +1577,6 @@ export class SessionService {
 
       return { stopReason };
     } catch (error) {
-      sessionStoreSetters.updateSession(session.taskRunId, {
-        isPromptPending: false,
-      });
       // If the run terminated while our user_message was in flight, the
       // cloud rejects the command. Re-read the session: if it has gone
       // terminal, replay the prompt through resumeCloudRun so the user's
@@ -1586,9 +1588,14 @@ export class SessionService {
           error: String(error),
         });
         sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+        // resumeCloudRun replaces the session entirely so any queued bubble
+        // on the old session is dropped.
         return this.resumeCloudRun(fresh, prompt);
       }
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: false,
+      });
       throw error;
     }
   }
@@ -2858,7 +2865,19 @@ export class SessionService {
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
         this.updatePromptStateFromEvents(taskRunId, newEvents);
         if (newEvents.some(isUserPromptEcho)) {
+          // The agent has just started processing a user message. Drop any
+          // optimistic placeholder, and pop the oldest queued message if we
+          // were holding one for the visual queued affordance — its real
+          // session/prompt event has just landed in the events list.
           sessionStoreSetters.clearOptimisticItems(taskRunId);
+          const sessionAfterAppend =
+            sessionStoreSetters.getSessions()[taskRunId];
+          if (sessionAfterAppend?.messageQueue.length) {
+            sessionStoreSetters.removeQueuedMessage(
+              sessionAfterAppend.taskId,
+              sessionAfterAppend.messageQueue[0].id,
+            );
+          }
         }
       } else {
         // Gap in data — append everything we have but don't jump processedLineCount
@@ -2881,7 +2900,19 @@ export class SessionService {
         );
         this.updatePromptStateFromEvents(taskRunId, newEvents);
         if (newEvents.some(isUserPromptEcho)) {
+          // The agent has just started processing a user message. Drop any
+          // optimistic placeholder, and pop the oldest queued message if we
+          // were holding one for the visual queued affordance — its real
+          // session/prompt event has just landed in the events list.
           sessionStoreSetters.clearOptimisticItems(taskRunId);
+          const sessionAfterAppend =
+            sessionStoreSetters.getSessions()[taskRunId];
+          if (sessionAfterAppend?.messageQueue.length) {
+            sessionStoreSetters.removeQueuedMessage(
+              sessionAfterAppend.taskId,
+              sessionAfterAppend.messageQueue[0].id,
+            );
+          }
         }
       }
     }
