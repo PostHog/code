@@ -2892,9 +2892,13 @@ export class SessionService {
       (update.kind === "status" || update.kind === "snapshot") &&
       isTerminalStatus(update.status);
 
-    // Auto-flush queued messages once the agent's turn ends mid-run. Skip
-    // if this update is bringing the run to a terminal status — the
-    // terminal-status block below replays through resumeCloudRun instead.
+    // Once the agent's turn ends, dispatch any queued follow-ups by creating
+    // a fresh task run via resumeCloudRun. Sending user_message commands to
+    // a winding-down run is unreliable — the cloud may accept and silently
+    // drop them when the run terminates. Resume always works: the cloud
+    // loads the prior conversation state and carries our prompt as
+    // `pending_user_message`. Skip when this update brings the run terminal
+    // — the terminal-status block below handles that path.
     const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
     if (
       !isTerminalUpdate &&
@@ -2907,8 +2911,8 @@ export class SessionService {
       );
       const combinedPrompt = combineQueuedCloudPrompts(dequeued);
       if (combinedPrompt) {
-        this.sendCloudPrompt(sessionAfterLogs, combinedPrompt).catch((err) => {
-          log.error("Failed to flush queued cloud messages after turn end", {
+        this.resumeCloudRun(sessionAfterLogs, combinedPrompt).catch((err) => {
+          log.error("Failed to resume with queued cloud messages", {
             taskId: sessionAfterLogs.taskId,
             error: err,
           });
