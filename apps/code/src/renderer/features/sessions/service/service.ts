@@ -92,6 +92,13 @@ const LOCAL_SESSION_RECOVERY_MESSAGE =
 const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
   "Connecting to to the agent has been lost. Retry, or start a new session.";
 
+function isUserPromptEcho(acpMsg: AcpMessage): boolean {
+  return (
+    isJsonRpcRequest(acpMsg.message) &&
+    acpMsg.message.method === "session/prompt"
+  );
+}
+
 /**
  * Build default configOptions for cloud sessions so the mode switcher
  * is available in the UI even without a local agent connection.
@@ -1518,6 +1525,17 @@ export class SessionService {
       isPromptPending: true,
     });
 
+    // Show the bubble immediately while we wait for the cloud log stream to
+    // echo the user_message back. Without this the user sees a gap between
+    // submit (or queue drain) and the agent's response.
+    if (!options?.skipQueueGuard) {
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "user_message",
+        content: transport.promptText,
+        timestamp: Date.now(),
+      });
+    }
+
     track(ANALYTICS_EVENTS.PROMPT_SENT, {
       task_id: session.taskId,
       is_initial: session.events.length === 0,
@@ -1565,6 +1583,12 @@ export class SessionService {
       sessionStoreSetters.updateSession(session.taskRunId, {
         isPromptPending: false,
       });
+      // Drop optimistic items so a failed send doesn't leave a ghost bubble.
+      // The combined-prompt path (skipQueueGuard) clears its own optimistic
+      // items in sendQueuedCloudMessages on retry exhaustion.
+      if (!options?.skipQueueGuard) {
+        sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+      }
       throw error;
     }
   }
@@ -1574,10 +1598,29 @@ export class SessionService {
     attempt = 0,
     pendingPrompt?: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue. Retries reuse the already-dequeued prompt.
-    const combinedPrompt =
-      pendingPrompt ??
-      combineQueuedCloudPrompts(sessionStoreSetters.dequeueMessages(taskId));
+    // First attempt: atomically dequeue and convert each entry into an
+    // optimistic bubble. Retries reuse the already-dequeued prompt and must
+    // not stack additional bubbles.
+    let combinedPrompt: string | ContentBlock[] | null;
+    if (pendingPrompt) {
+      combinedPrompt = pendingPrompt;
+    } else {
+      const dequeued = sessionStoreSetters.dequeueMessages(taskId);
+      combinedPrompt = combineQueuedCloudPrompts(dequeued);
+      if (combinedPrompt) {
+        const taskRunId =
+          sessionStoreSetters.getSessionByTaskId(taskId)?.taskRunId;
+        if (taskRunId) {
+          for (const msg of dequeued) {
+            sessionStoreSetters.appendOptimisticItem(taskRunId, {
+              type: "user_message",
+              content: msg.content,
+              timestamp: msg.queuedAt,
+            });
+          }
+        }
+      }
+    }
     if (!combinedPrompt) return { stopReason: "skipped" };
 
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
@@ -1632,6 +1675,10 @@ export class SessionService {
         taskId,
         attempts: attempt + 1,
       });
+      const failedSession = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (failedSession) {
+        sessionStoreSetters.clearOptimisticItems(failedSession.taskRunId);
+      }
       toast.error("Failed to send follow-up message. Please try again.");
       return { stopReason: "error" };
     }
@@ -2901,6 +2948,9 @@ export class SessionService {
         );
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
         this.updatePromptStateFromEvents(taskRunId, newEvents);
+        if (newEvents.some(isUserPromptEcho)) {
+          sessionStoreSetters.clearOptimisticItems(taskRunId);
+        }
       } else {
         // Gap in data — append everything we have but don't jump processedLineCount
         log.warn("Cloud task log count inconsistency", {
@@ -2921,6 +2971,9 @@ export class SessionService {
           currentCount + update.newEntries.length,
         );
         this.updatePromptStateFromEvents(taskRunId, newEvents);
+        if (newEvents.some(isUserPromptEcho)) {
+          sessionStoreSetters.clearOptimisticItems(taskRunId);
+        }
       }
     }
 
@@ -2983,6 +3036,7 @@ export class SessionService {
         if (session && session.messageQueue.length > 0) {
           const queued = sessionStoreSetters.dequeueMessages(session.taskId);
           const combinedPrompt = combineQueuedCloudPrompts(queued);
+          sessionStoreSetters.clearOptimisticItems(taskRunId);
           sessionStoreSetters.updateSession(taskRunId, {
             isPromptPending: false,
           });
@@ -2998,6 +3052,7 @@ export class SessionService {
             });
           }
         } else if (session?.isPromptPending) {
+          sessionStoreSetters.clearOptimisticItems(taskRunId);
           sessionStoreSetters.updateSession(taskRunId, {
             isPromptPending: false,
           });
