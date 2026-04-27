@@ -33,6 +33,15 @@ export function McpServersSettings() {
     useState<Parameters<typeof MarketplaceView>[0]["category"]>("all");
   const [uninstallTarget, setUninstallTarget] =
     useState<McpServerInstallation | null>(null);
+  // Snapshot of installation IDs taken when the user submits the Add Custom
+  // form. The new installation is whichever id appears that wasn't in the
+  // snapshot — robust against backend URL normalisation that would break a
+  // string-equality match on `installation.url`.
+  const [pendingCustomKnownIds, setPendingCustomKnownIds] =
+    useState<Set<string> | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
+    null,
+  );
 
   const {
     installations,
@@ -87,6 +96,7 @@ export function McpServersSettings() {
 
   const handleConnect = useCallback(
     (template: McpRecommendedServer) => {
+      setPendingTemplateId(template.id);
       installTemplate(template);
     },
     [installTemplate],
@@ -124,6 +134,33 @@ export function McpServersSettings() {
     }
   }, [view, installationList]);
 
+  // After a custom server install resolves, jump to its detail panel once the
+  // new installation appears in the list. Identifies the new one as any id
+  // not present in the pre-submit snapshot — does not rely on URL equality.
+  useEffect(() => {
+    if (!pendingCustomKnownIds) return;
+    const newOne = installationList.find(
+      (i) => !pendingCustomKnownIds.has(i.id),
+    );
+    if (newOne) {
+      setPendingCustomKnownIds(null);
+      setView({ kind: "detail-installation", installationId: newOne.id });
+    }
+  }, [pendingCustomKnownIds, installationList]);
+
+  // After a template install resolves, jump to the new installation's detail
+  // panel. Stays put if the install fails (no matching installation appears).
+  useEffect(() => {
+    if (!pendingTemplateId) return;
+    const installation = installationList.find(
+      (i) => i.template_id === pendingTemplateId,
+    );
+    if (installation) {
+      setPendingTemplateId(null);
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [pendingTemplateId, installationList]);
+
   const selectedInstallationId =
     view.kind === "detail-installation" ? view.installationId : null;
 
@@ -134,8 +171,11 @@ export function McpServersSettings() {
           pending={installCustomPending}
           onBack={() => setView({ kind: "marketplace" })}
           onSubmit={(values) => {
+            setPendingCustomKnownIds(
+              new Set(installationList.map((i) => i.id)),
+            );
             installCustom(values, {
-              onSuccess: () => setView({ kind: "marketplace" }),
+              onError: () => setPendingCustomKnownIds(null),
             });
           }}
         />
@@ -173,7 +213,10 @@ export function McpServersSettings() {
           isReauthorizing={reauthorizePending}
           onBack={() => setView({ kind: "marketplace" })}
           onConnect={() => {
-            if (template) installTemplate(template);
+            if (template) {
+              setPendingTemplateId(template.id);
+              installTemplate(template);
+            }
           }}
           onReauthorize={() => {
             if (install) reauthorize(install.id);
