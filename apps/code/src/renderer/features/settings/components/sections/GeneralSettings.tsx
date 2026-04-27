@@ -328,6 +328,7 @@ export function GeneralSettings() {
               <Select.Item value="shoot">Shoot</Select.Item>
               <Select.Item value="slide">Slide</Select.Item>
               <Select.Item value="switch">Switch</Select.Item>
+              <Select.Item value="wilhelm">Wilhelm scream</Select.Item>
             </Select.Content>
           </Select.Root>
           {completionSound !== "none" && (

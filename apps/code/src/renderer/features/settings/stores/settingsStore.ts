@@ -19,7 +19,8 @@ export type CompletionSound =
   | "ring"
   | "shoot"
   | "slide"
-  | "switch";
+  | "switch"
+  | "wilhelm";
 export type AgentAdapter = "claude" | "codex";
 export type AutoConvertLongText = "off" | "1000" | "2500" | "5000" | "10000";
 export type DefaultInitialTaskMode = "plan" | "last_used";
