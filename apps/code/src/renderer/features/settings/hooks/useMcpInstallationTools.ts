@@ -127,6 +127,20 @@ export function useMcpInstallationTools(
   const refreshIsPending = refreshMutation.isPending;
   const refreshMutate = refreshMutation.mutate;
 
+  // Auto-fire the same call as the manual Refresh button when the detail
+  // panel opens to a freshly-connected installation that hasn't synced its
+  // tools yet. The guards exist because each one stops a different misfire:
+  //   - autoRefreshIfEmpty: opt-in; only the detail view passes it
+  //   - installationId:     nothing to refresh without one
+  //   - isLoading:          tools query hasn't settled — wait, we don't
+  //                         know yet whether it's empty
+  //   - toolsLength > 0:    tools already synced; no refresh needed
+  //   - autoRefreshedInstallations.has(...): already auto-refreshed this
+  //                         installation in this session — don't re-fire
+  //                         on every revisit (covers genuinely-empty
+  //                         servers too)
+  //   - refreshIsPending:   refresh already in flight (e.g. user clicked
+  //                         the manual button in the same render cycle)
   useEffect(() => {
     if (!options.autoRefreshIfEmpty) return;
     if (!installationId) return;
