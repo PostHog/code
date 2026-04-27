@@ -17,6 +17,9 @@ interface UseMcpInstallationToolsOptions {
   autoRefreshIfEmpty?: boolean;
 }
 
+// Module-scoped on purpose: state must survive remounts of this hook so a
+// detail-page revisit doesn't re-fire the auto-refresh. Tests that exercise
+// auto-refresh need to clear this in beforeEach.
 const autoRefreshedInstallations = new Set<string>();
 
 export function useMcpInstallationTools(
@@ -120,22 +123,27 @@ export function useMcpInstallationTools(
     },
   );
 
+  const toolsLength = (tools ?? []).length;
+  const refreshIsPending = refreshMutation.isPending;
+  const refreshMutate = refreshMutation.mutate;
+
   useEffect(() => {
     if (!options.autoRefreshIfEmpty) return;
     if (!installationId) return;
     if (isLoading) return;
-    if ((tools ?? []).length > 0) return;
+    if (toolsLength > 0) return;
     if (autoRefreshedInstallations.has(installationId)) return;
-    if (refreshMutation.isPending) return;
+    if (refreshIsPending) return;
     autoRefreshedInstallations.add(installationId);
     silentRefreshRef.current = true;
-    refreshMutation.mutate(undefined);
+    refreshMutate(undefined);
   }, [
     options.autoRefreshIfEmpty,
     installationId,
     isLoading,
-    tools,
-    refreshMutation,
+    toolsLength,
+    refreshIsPending,
+    refreshMutate,
   ]);
 
   useSubscription(
