@@ -40,6 +40,7 @@ import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
+import type { AgentService } from "../agent/service";
 import type { LlmGatewayService } from "../llm-gateway/service";
 import { CreatePrSaga } from "./create-pr-saga";
 import type {
@@ -117,8 +118,29 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   constructor(
     @inject(MAIN_TOKENS.LlmGatewayService)
     private readonly llmGateway: LlmGatewayService,
+    @inject(MAIN_TOKENS.AgentService)
+    private readonly agentService: AgentService,
   ) {
     super();
+  }
+
+  /**
+   * Resolve env-var overrides set by the agent's SessionStart hooks for the
+   * given task. Used so UI-triggered git/gh operations (Commit, Create PR)
+   * see the same env (notably `SSH_AUTH_SOCK` re-pointed at Secretive) as
+   * the agent's bash tool. Returns `undefined` if there's nothing to apply.
+   */
+  private async getSessionEnv(
+    taskId: string | undefined,
+  ): Promise<Record<string, string> | undefined> {
+    if (!taskId) return undefined;
+    try {
+      const env = await this.agentService.getSessionEnvForTask(taskId);
+      return Object.keys(env).length > 0 ? env : undefined;
+    } catch (err) {
+      log.warn("Failed to load session env for task", { taskId, err });
+      return undefined;
+    }
   }
 
   private async getStateSnapshot(
@@ -438,6 +460,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     branch?: string,
     setUpstream = false,
     signal?: AbortSignal,
+    env?: Record<string, string>,
   ): Promise<PushOutput> {
     const saga = new PushSaga();
     const result = await saga.run({
@@ -446,6 +469,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       branch: branch || undefined,
       setUpstream,
       signal,
+      env,
     });
     if (!result.success) {
       return { success: false, message: result.error };
@@ -495,6 +519,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     directoryPath: string,
     remote = "origin",
     signal?: AbortSignal,
+    env?: Record<string, string>,
   ): Promise<PublishOutput> {
     const currentBranch = await getCurrentBranch(directoryPath);
     if (!currentBranch) {
@@ -507,6 +532,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       currentBranch,
       true,
       signal,
+      env,
     );
     return {
       success: pushResult.success,
@@ -580,6 +606,8 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       });
     };
 
+    const sessionEnv = await this.getSessionEnv(input.taskId);
+
     const saga = new CreatePrSaga(
       {
         getCurrentBranch: (dir) => getCurrentBranch(dir),
@@ -588,14 +616,16 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         getChangedFilesHead: (dir) => this.getChangedFilesHead(dir),
         generateCommitMessage: (dir) =>
           this.generateCommitMessage(dir, input.conversationContext),
-        commit: (dir, msg, opts) => this.commit(dir, msg, opts),
+        commit: (dir, msg, opts) =>
+          this.commit(dir, msg, { ...opts, envOverride: sessionEnv }),
         getSyncStatus: (dir) => this.getGitSyncStatus(dir),
-        push: (dir) => this.push(dir),
-        publish: (dir) => this.publish(dir),
+        push: (dir) =>
+          this.push(dir, "origin", undefined, false, undefined, sessionEnv),
+        publish: (dir) => this.publish(dir, "origin", undefined, sessionEnv),
         generatePrTitleAndBody: (dir) =>
           this.generatePrTitleAndBody(dir, input.conversationContext),
         createPr: (dir, title, body, draft) =>
-          this.createPrViaGh(dir, title, body, draft),
+          this.createPrViaGh(dir, title, body, draft, sessionEnv),
         onProgress: emitProgress,
       },
       log,
@@ -678,6 +708,8 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       allowEmpty?: boolean;
       stagedOnly?: boolean;
       taskId?: string;
+      /** Pre-resolved session env. Internal — used by createPr to avoid re-loading. */
+      envOverride?: Record<string, string>;
     },
   ): Promise<CommitOutput> {
     const fail = (msg: string): CommitOutput => ({
@@ -689,11 +721,15 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
     if (!message.trim()) return fail("Commit message is required");
 
+    const { envOverride, ...sagaOptions } = options ?? {};
+    const env = envOverride ?? (await this.getSessionEnv(options?.taskId));
+
     const saga = new CommitSaga();
     const result = await saga.run({
       baseDir: directoryPath,
       message: message.trim(),
-      ...options,
+      env,
+      ...sagaOptions,
     });
 
     if (!result.success) return fail(result.error);
@@ -905,6 +941,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     title?: string,
     body?: string,
     draft?: boolean,
+    env?: Record<string, string>,
   ): Promise<{ success: boolean; message: string; prUrl: string | null }> {
     const prFooter =
       "\n\n---\n*Created with [PostHog Code](https://posthog.com/code?ref=pr)*";
@@ -918,7 +955,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     }
     if (draft) args.push("--draft");
 
-    const result = await execGh(args, { cwd: directoryPath });
+    const result = await execGh(args, { cwd: directoryPath, env });
     if (result.exitCode !== 0) {
       return {
         success: false,
