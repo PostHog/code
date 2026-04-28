@@ -403,8 +403,8 @@ export function TaskListView({
         </DragDropProvider>
       ) : (
         <Flex direction="column" gap="1px">
-          {dateGroupedTasks.map((group) => (
-            <Fragment key={group.label ?? "today"}>
+          {dateGroupedTasks.map((group, groupIndex) => (
+            <Fragment key={`${group.label ?? "today"}-${groupIndex}`}>
               {group.label && <SectionLabel label={group.label} />}
               {group.tasks.map((task) => (
                 <TaskRow

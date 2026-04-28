@@ -54,8 +54,7 @@ export function formatRelativeTimeLong(timestamp: number | string): string {
 export function getRelativeDateGroup(
   timestamp: number | string,
 ): string | null {
-  const date =
-    typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const date = new Date(timestamp);
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const startOfDate = new Date(date);
