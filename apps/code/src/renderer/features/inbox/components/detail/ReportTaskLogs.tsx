@@ -318,34 +318,49 @@ function BarRow({
     </>
   );
 
-  // Render every interactive bar as a <div role="button"> rather than a
-  // <button> so the implementation row can legally nest the run-action
-  // <button> when present (HTML disallows nested buttons), and so the
-  // click-to-toggle behavior stays uniform across all states. Non-interactive
-  // bars (no task) render as a plain <div>.
-  const row = isInteractive ? (
-    // biome-ignore lint/a11y/useSemanticElements: see comment above
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onToggle}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onToggle();
-        }
-      }}
-      className={className}
-      style={{ height: BAR_HEIGHT }}
-    >
-      {inner}
-    </div>
-  ) : (
-    <div className={className} style={{ height: BAR_HEIGHT }}>
-      {inner}
-    </div>
-  );
+  // Use a real <button> when interactive and there is no nested run-action
+  // <button> (HTML disallows nested <button>s). When a run button is nested
+  // we have to fall back to <div role="button">. Non-interactive rows render
+  // as a plain <div>.
+  let row: React.ReactNode;
+  if (isInteractive && !showRunAction) {
+    row = (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={className}
+        style={{ height: BAR_HEIGHT }}
+      >
+        {inner}
+      </button>
+    );
+  } else if (isInteractive) {
+    row = (
+      // biome-ignore lint/a11y/useSemanticElements: needs to nest the run-action <button>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className={className}
+        style={{ height: BAR_HEIGHT }}
+      >
+        {inner}
+      </div>
+    );
+  } else {
+    row = (
+      <div className={className} style={{ height: BAR_HEIGHT }}>
+        {inner}
+      </div>
+    );
+  }
 
   return tooltip ? <Tooltip content={tooltip}>{row}</Tooltip> : row;
 }

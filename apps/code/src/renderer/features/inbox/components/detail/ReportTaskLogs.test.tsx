@@ -80,7 +80,11 @@ describe("ReportTaskLogs", () => {
       "logs for research-1",
     );
 
-    await user.click(researchBar);
+    // After expansion, the same bar should still be in the DOM and clickable.
+    const expandedResearchBar = screen.getByRole("button", {
+      name: /Research task/i,
+    });
+    await user.click(expandedResearchBar);
     expect(screen.queryByTestId("task-logs-panel")).not.toBeInTheDocument();
   });
 
