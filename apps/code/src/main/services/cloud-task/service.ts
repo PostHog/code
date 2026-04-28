@@ -92,6 +92,7 @@ interface WatcherState {
   isBootstrapping: boolean;
   hasEmittedSnapshot: boolean;
   bufferedLogBatches: StoredLogEntry[][];
+  emittedLogEntries: StoredLogEntry[];
   failed: boolean;
   needsPostBootstrapReconnect: boolean;
   needsStopAfterBootstrap: boolean;
@@ -224,6 +225,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         key,
         subscribers: existing.subscriberCount,
       });
+      void this.emitCurrentSnapshot(key);
       return;
     }
 
@@ -399,6 +401,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       isBootstrapping: false,
       hasEmittedSnapshot: false,
       bufferedLogBatches: [],
+      emittedLogEntries: [],
       failed: false,
       needsPostBootstrapReconnect: false,
       needsStopAfterBootstrap: false,
@@ -767,6 +770,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
 
     watcher.totalEntryCount += entries.length;
+    this.rememberEmittedLogEntries(watcher, entries);
 
     this.emit(CloudTaskEvent.Update, {
       taskId: watcher.taskId,
@@ -812,6 +816,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       }
 
       watcher.totalEntryCount += dedupedEntries.length;
+      this.rememberEmittedLogEntries(watcher, dedupedEntries);
       this.emit(CloudTaskEvent.Update, {
         taskId: watcher.taskId,
         runId: watcher.runId,
@@ -822,6 +827,84 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }
 
     watcher.bufferedLogBatches = [];
+  }
+
+  private rememberEmittedLogEntries(
+    watcher: WatcherState,
+    entries: StoredLogEntry[],
+  ): void {
+    watcher.emittedLogEntries.push(...entries);
+  }
+
+  private mergeHistoricalAndEmittedEntries(
+    historicalEntries: StoredLogEntry[],
+    emittedEntries: StoredLogEntry[],
+  ): StoredLogEntry[] {
+    if (emittedEntries.length === 0) {
+      return historicalEntries;
+    }
+
+    const historicalCounts = new Map<string, number>();
+    for (const entry of historicalEntries) {
+      const serialized = JSON.stringify(entry);
+      historicalCounts.set(
+        serialized,
+        (historicalCounts.get(serialized) ?? 0) + 1,
+      );
+    }
+
+    const missingEmittedEntries = emittedEntries.filter((entry) => {
+      const serialized = JSON.stringify(entry);
+      const remaining = historicalCounts.get(serialized) ?? 0;
+      if (remaining <= 0) {
+        return true;
+      }
+
+      historicalCounts.set(serialized, remaining - 1);
+      return false;
+    });
+
+    return [...historicalEntries, ...missingEmittedEntries];
+  }
+
+  private async emitCurrentSnapshot(key: string): Promise<void> {
+    const watcher = this.watchers.get(key);
+    if (!watcher || watcher.failed) return;
+
+    const historicalEntries = await this.fetchAllSessionLogs(watcher);
+    const currentWatcher = this.watchers.get(key);
+    if (!currentWatcher || currentWatcher !== watcher || watcher.failed) {
+      return;
+    }
+
+    if (!historicalEntries) {
+      log.warn("Cloud task snapshot replay failed", {
+        taskId: watcher.taskId,
+        runId: watcher.runId,
+      });
+      return;
+    }
+
+    const snapshotEntries = this.mergeHistoricalAndEmittedEntries(
+      historicalEntries,
+      watcher.emittedLogEntries,
+    );
+    if (snapshotEntries.length > watcher.totalEntryCount) {
+      watcher.totalEntryCount = snapshotEntries.length;
+    }
+
+    this.emit(CloudTaskEvent.Update, {
+      taskId: watcher.taskId,
+      runId: watcher.runId,
+      kind: "snapshot",
+      newEntries: snapshotEntries,
+      totalEntryCount: snapshotEntries.length,
+      status: watcher.lastStatus ?? undefined,
+      stage: watcher.lastStage,
+      output: watcher.lastOutput,
+      errorMessage: watcher.lastErrorMessage,
+      branch: watcher.lastBranch,
+    });
   }
 
   private failWatcher(key: string, error: CloudTaskConnectionError): void {

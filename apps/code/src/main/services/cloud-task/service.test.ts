@@ -328,6 +328,111 @@ describe("CloudTaskService", () => {
     );
   });
 
+  it("replays a current snapshot when a subscriber attaches to an existing watcher", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    const historicalEntry = {
+      type: "notification",
+      timestamp: "2026-01-01T00:00:00Z",
+      notification: {
+        jsonrpc: "2.0",
+        method: "_posthog/console",
+        params: {
+          sessionId: "run-1",
+          level: "info",
+          message: "older history",
+        },
+      },
+    };
+    const liveEntry = {
+      type: "notification",
+      timestamp: "2026-01-01T00:00:01Z",
+      notification: {
+        jsonrpc: "2.0",
+        method: "_posthog/console",
+        params: {
+          sessionId: "run-1",
+          level: "info",
+          message: "live tail",
+        },
+      },
+    };
+
+    const runResponse = {
+      id: "run-1",
+      status: "in_progress",
+      stage: "build",
+      output: null,
+      error_message: null,
+      branch: "main",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    mockNetFetch
+      .mockResolvedValueOnce(createJsonResponse(runResponse))
+      .mockResolvedValueOnce(
+        createJsonResponse([historicalEntry], 200, { "X-Has-More": "false" }),
+      )
+      .mockResolvedValueOnce(createJsonResponse(runResponse))
+      .mockResolvedValueOnce(
+        createJsonResponse([historicalEntry], 200, { "X-Has-More": "false" }),
+      );
+
+    mockStreamFetch.mockResolvedValueOnce(
+      createOpenSseResponse(`id: 1\ndata: ${JSON.stringify(liveEntry)}\n\n`),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => updates.length >= 2);
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() =>
+      updates.some(
+        (update) =>
+          typeof update === "object" &&
+          update !== null &&
+          (update as { kind?: string; totalEntryCount?: number }).kind ===
+            "snapshot" &&
+          (update as { totalEntryCount?: number }).totalEntryCount === 2,
+      ),
+    );
+
+    const replayedSnapshot = updates.find(
+      (update) =>
+        typeof update === "object" &&
+        update !== null &&
+        (update as { kind?: string; totalEntryCount?: number }).kind ===
+          "snapshot" &&
+        (update as { totalEntryCount?: number }).totalEntryCount === 2,
+    );
+
+    expect(replayedSnapshot).toEqual({
+      taskId: "task-1",
+      runId: "run-1",
+      kind: "snapshot",
+      newEntries: [historicalEntry, liveEntry],
+      totalEntryCount: 2,
+      status: "in_progress",
+      stage: "build",
+      output: null,
+      errorMessage: null,
+      branch: "main",
+    });
+  });
+
   it("ignores keepalive SSE events while keeping the stream open", async () => {
     const updates: unknown[] = [];
     service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));

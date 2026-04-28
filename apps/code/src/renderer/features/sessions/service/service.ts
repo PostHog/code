@@ -161,6 +161,14 @@ function buildCloudDefaultConfigOptions(
   ];
 }
 
+function isCloudTurnCompleteEvent(event: AcpMessage): boolean {
+  const msg = event.message;
+  return (
+    "method" in msg &&
+    isNotification(msg.method, POSTHOG_NOTIFICATIONS.TURN_COMPLETE)
+  );
+}
+
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
@@ -225,6 +233,7 @@ export class SessionService {
       onStatusChange?: () => void;
     }
   >();
+  private cloudLogGapReconciles = new Set<string>();
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
@@ -979,6 +988,7 @@ export class SessionService {
     this.localRepoPaths.clear();
     this.localRecoveryAttempts.clear();
     this.cloudPermissionRequestIds.clear();
+    this.cloudLogGapReconciles.clear();
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -1011,6 +1021,13 @@ export class SessionService {
         if (session && session.currentPromptId !== msg.id) {
           continue;
         }
+        sessionStoreSetters.updateSession(taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+          currentPromptId: null,
+        });
+      }
+      if (isCloudTurnCompleteEvent(acpMsg)) {
         sessionStoreSetters.updateSession(taskRunId, {
           isPromptPending: false,
           promptStartedAt: null,
@@ -2393,7 +2410,6 @@ export class SessionService {
     initialModel?: string,
   ): () => void {
     const taskRunId = runId;
-    const startToken = ++this.nextCloudTaskWatchToken;
     const existingWatcher = this.cloudTaskWatchers.get(taskId);
 
     // Resuming same run — reuse the existing watcher.
@@ -2435,6 +2451,8 @@ export class SessionService {
     if (existingWatcher) {
       this.stopCloudTaskWatch(taskId);
     }
+
+    const startToken = ++this.nextCloudTaskWatchToken;
 
     // Create session in the store
     const existing = sessionStoreSetters.getSessionByTaskId(taskId);
@@ -2615,8 +2633,9 @@ export class SessionService {
   }
 
   /**
-   * Fully stop a cloud task watcher — unsubscribe, unwatch, remove from map.
-   * Called on terminal status or when a new run replaces the old one.
+   * Fully stop a cloud task watcher. The tRPC subscription unwatches from the
+   * main process in its finally handler; the in-flight watch path below sends a
+   * compensating unwatch if teardown wins before watch.mutate lands.
    */
   stopCloudTaskWatch(taskId: string): void {
     const watcher = this.cloudTaskWatchers.get(taskId);
@@ -2624,11 +2643,6 @@ export class SessionService {
 
     watcher.subscription.unsubscribe();
     this.cloudTaskWatchers.delete(taskId);
-    trpcClient.cloudTask.unwatch
-      .mutate({ taskId, runId: watcher.runId })
-      .catch((err: unknown) =>
-        log.warn("Failed to unwatch cloud task", { taskId, err }),
-      );
   }
 
   async preflightToLocal(taskId: string, repoPath: string) {
@@ -2964,25 +2978,14 @@ export class SessionService {
         sessionStoreSetters.appendEvents(taskRunId, newEvents, expectedCount);
         this.updatePromptStateFromEvents(taskRunId, newEvents);
       } else {
-        // Gap in data — append everything we have but don't jump processedLineCount
-        log.warn("Cloud task log count inconsistency", {
+        this.reconcileCloudLogGap({
+          taskId: update.taskId,
           taskRunId,
-          currentCount,
           expectedCount,
-          entriesReceived: update.newEntries.length,
+          currentCount,
+          newEntries: update.newEntries,
+          logUrl: session?.logUrl,
         });
-        let newEvents = convertStoredEntriesToEvents(update.newEntries);
-        newEvents = this.filterSkippedPromptEvents(
-          taskRunId,
-          session,
-          newEvents,
-        );
-        sessionStoreSetters.appendEvents(
-          taskRunId,
-          newEvents,
-          currentCount + update.newEntries.length,
-        );
-        this.updatePromptStateFromEvents(taskRunId, newEvents);
       }
     }
 
@@ -3217,6 +3220,78 @@ export class SessionService {
     } catch {
       return { rawEntries: [] };
     }
+  }
+
+  private reconcileCloudLogGap({
+    taskId,
+    taskRunId,
+    expectedCount,
+    currentCount,
+    newEntries,
+    logUrl,
+  }: {
+    taskId: string;
+    taskRunId: string;
+    expectedCount: number;
+    currentCount: number;
+    newEntries: StoredLogEntry[];
+    logUrl?: string;
+  }): void {
+    const reconcileKey = `${taskId}:${taskRunId}`;
+    if (this.cloudLogGapReconciles.has(reconcileKey)) {
+      return;
+    }
+
+    this.cloudLogGapReconciles.add(reconcileKey);
+    void (async () => {
+      const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
+      const session = sessionStoreSetters.getSessions()[taskRunId];
+      if (!session || session.taskId !== taskId) {
+        return;
+      }
+
+      const latestCount = session.processedLineCount ?? 0;
+      if (latestCount >= expectedCount) {
+        return;
+      }
+
+      if (rawEntries.length >= expectedCount) {
+        const events = convertStoredEntriesToEvents(rawEntries);
+        sessionStoreSetters.updateSession(taskRunId, {
+          events,
+          isCloud: true,
+          logUrl: logUrl ?? session.logUrl,
+          processedLineCount: rawEntries.length,
+        });
+        this.updatePromptStateFromEvents(taskRunId, events);
+        return;
+      }
+
+      log.warn("Cloud task log count inconsistency", {
+        taskRunId,
+        currentCount,
+        expectedCount,
+        entriesReceived: newEntries.length,
+      });
+      let newEvents = convertStoredEntriesToEvents(newEntries);
+      newEvents = this.filterSkippedPromptEvents(taskRunId, session, newEvents);
+      sessionStoreSetters.appendEvents(
+        taskRunId,
+        newEvents,
+        latestCount + newEntries.length,
+      );
+      this.updatePromptStateFromEvents(taskRunId, newEvents);
+    })()
+      .catch((err: unknown) => {
+        log.warn("Failed to reconcile cloud task log gap", {
+          taskId,
+          taskRunId,
+          err,
+        });
+      })
+      .finally(() => {
+        this.cloudLogGapReconciles.delete(reconcileKey);
+      });
   }
 
   private createBaseSession(
