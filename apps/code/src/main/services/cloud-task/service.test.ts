@@ -431,6 +431,32 @@ describe("CloudTaskService", () => {
       errorMessage: null,
       branch: "main",
     });
+
+    const getWatcherEmittedEntryCount = (): number => {
+      const watcher = (
+        service as unknown as {
+          watchers: Map<string, { emittedLogEntries: unknown[] }>;
+        }
+      ).watchers.get("task-1:run-1");
+      return watcher?.emittedLogEntries.length ?? 0;
+    };
+
+    expect(getWatcherEmittedEntryCount()).toBe(1);
+
+    mockNetFetch.mockResolvedValueOnce(
+      createJsonResponse([historicalEntry, liveEntry], 200, {
+        "X-Has-More": "false",
+      }),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => getWatcherEmittedEntryCount() === 0);
   });
 
   it("ignores keepalive SSE events while keeping the stream open", async () => {

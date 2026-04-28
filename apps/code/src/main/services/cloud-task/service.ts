@@ -839,9 +839,12 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   private mergeHistoricalAndEmittedEntries(
     historicalEntries: StoredLogEntry[],
     emittedEntries: StoredLogEntry[],
-  ): StoredLogEntry[] {
+  ): {
+    snapshotEntries: StoredLogEntry[];
+    missingEmittedEntries: StoredLogEntry[];
+  } {
     if (emittedEntries.length === 0) {
-      return historicalEntries;
+      return { snapshotEntries: historicalEntries, missingEmittedEntries: [] };
     }
 
     const historicalCounts = new Map<string, number>();
@@ -864,7 +867,10 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return false;
     });
 
-    return [...historicalEntries, ...missingEmittedEntries];
+    return {
+      snapshotEntries: [...historicalEntries, ...missingEmittedEntries],
+      missingEmittedEntries,
+    };
   }
 
   private async emitCurrentSnapshot(key: string): Promise<void> {
@@ -885,10 +891,12 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return;
     }
 
-    const snapshotEntries = this.mergeHistoricalAndEmittedEntries(
-      historicalEntries,
-      watcher.emittedLogEntries,
-    );
+    const { snapshotEntries, missingEmittedEntries } =
+      this.mergeHistoricalAndEmittedEntries(
+        historicalEntries,
+        watcher.emittedLogEntries,
+      );
+    watcher.emittedLogEntries = missingEmittedEntries;
     if (snapshotEntries.length > watcher.totalEntryCount) {
       watcher.totalEntryCount = snapshotEntries.length;
     }
