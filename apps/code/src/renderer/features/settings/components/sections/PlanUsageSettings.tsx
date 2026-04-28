@@ -1,3 +1,4 @@
+import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
@@ -45,6 +46,8 @@ export function PlanUsageSettings() {
   } = useSeat();
   const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
+  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
+  const billingUrl = getPostHogUrl("/organization/billing", cloudRegion);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
@@ -274,9 +277,9 @@ export function PlanUsageSettings() {
             <Button
               size="1"
               variant="outline"
+              disabled={!billingUrl}
               onClick={() => {
-                const url = getPostHogUrl("/organization/billing");
-                window.open(url, "_blank");
+                if (billingUrl) window.open(billingUrl, "_blank");
               }}
             >
               Open
