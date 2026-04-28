@@ -491,7 +491,12 @@ export function TaskInput({
       className="relative h-full w-full"
     >
       <DropZoneOverlay isVisible={isDraggingFile} />
-      <Flex align="center" justify="center" height="100%" className="relative">
+      <Flex
+        align="center"
+        justify="center"
+        height="100%"
+        className="relative px-4"
+      >
         <DotPatternBackground className="h-[100.333%]" />
         <Flex
           direction="column"
