@@ -47,21 +47,26 @@ function GridCell({
   cell,
   zoom,
   isDragActive,
-  activeTaskId,
+  isActive,
 }: {
   cell: CommandCenterCellData;
   zoom: number;
   isDragActive: boolean;
-  activeTaskId: string | null;
+  isActive: boolean;
 }) {
   const cellRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const setActiveTask = useCommandCenterStore((s) => s.setActiveTask);
-  const isActive = !!cell.taskId && activeTaskId === cell.taskId;
+  const setActiveCell = useCommandCenterStore((s) => s.setActiveCell);
+
+  const markActive = useCallback(() => {
+    setActiveCell(cell.cellIndex);
+    setActiveTask(cell.taskId);
+  }, [cell.cellIndex, cell.taskId, setActiveCell, setActiveTask]);
 
   const handleCellClick = useCallback(
     (e: React.MouseEvent) => {
-      setActiveTask(cell.taskId);
+      markActive();
       const target = e.target as HTMLElement;
       // Don't redirect focus when the click already lands on a real control,
       // or when it bubbled in from a portaled popover whose DOM target is
@@ -77,16 +82,8 @@ function GridCell({
       if (selection && !selection.isCollapsed) return;
       cellRef.current?.querySelector<HTMLElement>("[tabindex='0']")?.focus();
     },
-    [cell.taskId, setActiveTask],
+    [markActive],
   );
-
-  const handleCellPointerDownCapture = useCallback(() => {
-    setActiveTask(cell.taskId);
-  }, [cell.taskId, setActiveTask]);
-
-  const handleCellFocusCapture = useCallback(() => {
-    setActiveTask(cell.taskId);
-  }, [cell.taskId, setActiveTask]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes("text/x-task-id")) {
@@ -119,8 +116,8 @@ function GridCell({
       data-grid-cell
       className="relative overflow-hidden bg-gray-1"
       onClick={handleCellClick}
-      onPointerDownCapture={handleCellPointerDownCapture}
-      onFocusCapture={handleCellFocusCapture}
+      onPointerDownCapture={markActive}
+      onFocusCapture={markActive}
     >
       <div
         className="h-full w-full origin-top-left"
@@ -153,7 +150,7 @@ function GridCell({
 export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
   const { cols, rows } = getGridDimensions(layout);
   const zoom = useCommandCenterStore((s) => s.zoom);
-  const activeTaskId = useCommandCenterStore((s) => s.activeTaskId);
+  const activeCellIndex = useCommandCenterStore((s) => s.activeCellIndex);
   const isDragActive = useTaskDragActive();
 
   return (
@@ -170,7 +167,7 @@ export function CommandCenterGrid({ layout, cells }: CommandCenterGridProps) {
           cell={cell}
           zoom={zoom}
           isDragActive={isDragActive}
-          activeTaskId={activeTaskId}
+          isActive={activeCellIndex === cell.cellIndex}
         />
       ))}
     </div>
