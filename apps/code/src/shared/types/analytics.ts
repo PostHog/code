@@ -30,6 +30,7 @@ type SkillButtonSource = "primary" | "dropdown";
 export type CommandMenuAction =
   | "home"
   | "new-task"
+  | "new-app"
   | "settings"
   | "logout"
   | "toggle-theme"

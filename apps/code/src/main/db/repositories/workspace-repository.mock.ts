@@ -42,6 +42,7 @@ export function createMockWorkspaceRepository(): MockWorkspaceRepository {
         lastViewedAt: null,
         lastActivityAt: null,
         linkedBranch: null,
+        scratchpad: data.scratchpad ?? false,
         createdAt: now,
         updatedAt: now,
       };

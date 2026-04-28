@@ -573,6 +573,36 @@ export class PostHogAPIClient {
     return data as Schemas.Team;
   }
 
+  async createProject(input: {
+    name: string;
+    organizationId: string;
+  }): Promise<Schemas.Team> {
+    const data = await this.api.post(
+      // @ts-expect-error this endpoint is not in the generated client
+      "/api/organizations/{organization_id}/projects/",
+      {
+        path: { organization_id: input.organizationId },
+        body: { name: input.name } as unknown,
+      },
+    );
+    return data as Schemas.Team;
+  }
+
+  async updateProject(
+    projectId: number,
+    patch: { name?: string },
+  ): Promise<Schemas.Team> {
+    const data = await this.api.patch(
+      // @ts-expect-error this endpoint is not in the generated client
+      "/api/projects/{project_id}/",
+      {
+        path: { project_id: projectId.toString() },
+        body: patch as unknown,
+      },
+    );
+    return data as Schemas.Team;
+  }
+
   async listSignalSourceConfigs(
     projectId: number,
   ): Promise<SignalSourceConfig[]> {

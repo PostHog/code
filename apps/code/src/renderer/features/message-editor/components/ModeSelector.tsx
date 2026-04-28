@@ -13,12 +13,14 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
   MenuLabel,
 } from "@posthog/quill";
 import { flattenSelectOptions } from "@renderer/features/sessions/stores/sessionStore";
+import type { RefObject } from "react";
 
 interface ModeStyle {
   icon: React.ReactNode;
@@ -70,6 +72,13 @@ interface ModeSelectorProps {
   onChange: (value: string) => void;
   allowBypassPermissions: boolean;
   disabled?: boolean;
+  /**
+   * When set, the dropdown content is portaled into this container instead of
+   * `<body>`. Required when the trigger sits inside a Radix Themes Dialog,
+   * whose `FocusScope` would otherwise yank focus out of the menu the moment
+   * Base UI tries to focus an item.
+   */
+  portalContainer?: RefObject<HTMLElement | null>;
 }
 
 export function ModeSelector({
@@ -77,6 +86,7 @@ export function ModeSelector({
   onChange,
   allowBypassPermissions,
   disabled,
+  portalContainer,
 }: ModeSelectorProps) {
   if (!modeOption || modeOption.type !== "select") return null;
 
@@ -95,7 +105,7 @@ export function ModeSelector({
     options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -115,25 +125,27 @@ export function ModeSelector({
           </Button>
         }
       />
-      <DropdownMenuContent
-        align="start"
-        side="top"
-        sideOffset={6}
-        className={allowBypassPermissions ? "min-w-[220px]" : "min-w-[200px]"}
-      >
-        <MenuLabel>Mode</MenuLabel>
-        <DropdownMenuRadioGroup value={currentValue} onValueChange={onChange}>
-          {options.map((option) => {
-            const style = getStyle(option.value);
-            return (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                <span className={`${style.className}`}>{style.icon}</span>
-                <span className="whitespace-nowrap">{option.name}</span>
-              </DropdownMenuRadioItem>
-            );
-          })}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
+      <DropdownMenuPortal container={portalContainer}>
+        <DropdownMenuContent
+          align="start"
+          side="top"
+          sideOffset={6}
+          className={allowBypassPermissions ? "min-w-[220px]" : "min-w-[200px]"}
+        >
+          <MenuLabel>Mode</MenuLabel>
+          <DropdownMenuRadioGroup value={currentValue} onValueChange={onChange}>
+            {options.map((option) => {
+              const style = getStyle(option.value);
+              return (
+                <DropdownMenuRadioItem key={option.value} value={option.value}>
+                  <span className={`${style.className}`}>{style.icon}</span>
+                  <span className="whitespace-nowrap">{option.name}</span>
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
     </DropdownMenu>
   );
 }

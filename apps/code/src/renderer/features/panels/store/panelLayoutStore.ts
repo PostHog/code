@@ -104,6 +104,15 @@ export interface PanelLayoutStore {
       label: string;
     },
   ) => void;
+  addPreviewTab: (
+    taskId: string,
+    panelId: string,
+    preview: {
+      name: string;
+      url: string;
+      taskId: string;
+    },
+  ) => void;
   clearAllLayouts: () => void;
 }
 
@@ -895,6 +904,115 @@ export const usePanelLayoutStore = createWithEqualityFn<PanelLayoutStore>()(
             );
 
             return { panelTree: updatedTree };
+          }),
+        );
+      },
+
+      addPreviewTab: (taskId, _panelId, preview) => {
+        const tabId = `preview-${preview.name}`;
+        const newTab: Tab = {
+          id: tabId,
+          label: `Preview: ${preview.name}`,
+          data: {
+            type: "preview",
+            taskId: preview.taskId,
+            previewName: preview.name,
+            url: preview.url,
+          },
+          component: null,
+          draggable: true,
+          closeable: true,
+        };
+
+        set((state) =>
+          updateTaskLayout(state, taskId, (layout) => {
+            // 1. Existing preview tab → update URL and activate (re-register
+            //    may have hopped ports).
+            const existingTab = findTabInTree(layout.panelTree, tabId);
+            if (existingTab) {
+              const updatedTree = updateTreeNode(
+                layout.panelTree,
+                existingTab.panelId,
+                (panel) => {
+                  if (panel.type !== "leaf") return panel;
+                  return {
+                    ...panel,
+                    content: {
+                      ...panel.content,
+                      tabs: panel.content.tabs.map((tab) =>
+                        tab.id === tabId ? { ...tab, data: newTab.data } : tab,
+                      ),
+                      activeTabId: tabId,
+                    },
+                  };
+                },
+              );
+              return { panelTree: updatedTree };
+            }
+
+            // 2. There's already a non-main leaf panel (e.g. another preview
+            //    or a split the user opened) → drop the new preview tab in
+            //    there alongside it.
+            const nonMainPanel = findNonMainLeafPanel(layout.panelTree);
+            if (nonMainPanel) {
+              const updatedTree = updateTreeNode(
+                layout.panelTree,
+                nonMainPanel.id,
+                (panel) => {
+                  if (panel.type !== "leaf") return panel;
+                  return {
+                    ...panel,
+                    content: {
+                      ...panel.content,
+                      tabs: [...panel.content.tabs, newTab],
+                      activeTabId: tabId,
+                    },
+                  };
+                },
+              );
+              const metadata = updateMetadataForTab(layout, tabId, "add");
+              return { panelTree: updatedTree, ...metadata };
+            }
+
+            // 3. No split yet → split the main panel 50/50 and put the
+            //    preview in the new (right) pane so the chat stays visible.
+            const mainPanel = getLeafPanel(
+              layout.panelTree,
+              DEFAULT_PANEL_IDS.MAIN_PANEL,
+            );
+            if (!mainPanel) return {};
+
+            const newPanelId = generatePanelId();
+            const newPanel: PanelNode = {
+              type: "leaf",
+              id: newPanelId,
+              content: {
+                id: newPanelId,
+                tabs: [newTab],
+                activeTabId: tabId,
+                showTabs: true,
+                droppable: true,
+              },
+            };
+
+            const splitTree = updateTreeNode(
+              layout.panelTree,
+              DEFAULT_PANEL_IDS.MAIN_PANEL,
+              (panel) => ({
+                type: "group" as const,
+                id: generatePanelId(),
+                direction: "horizontal" as const,
+                sizes: [50, 50],
+                children: [panel, newPanel],
+              }),
+            );
+
+            const metadata = updateMetadataForTab(layout, tabId, "add");
+            return {
+              panelTree: splitTree,
+              focusedPanelId: newPanelId,
+              ...metadata,
+            };
           }),
         );
       },

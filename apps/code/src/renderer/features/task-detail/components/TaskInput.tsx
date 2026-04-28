@@ -14,6 +14,8 @@ import {
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
+import { ProductCreationDialog } from "@features/scratchpads/components/ProductCreationDialog";
+import { useOpenProductCreationDialog } from "@features/scratchpads/hooks/useOpenProductCreationDialog";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -28,7 +30,8 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { ButtonGroup } from "@posthog/quill";
-import { Flex, Text } from "@radix-ui/themes";
+import { RocketIcon } from "@radix-ui/react-icons";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
@@ -73,6 +76,7 @@ export function TaskInput({
 
   const editorRef = useRef<EditorHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const openProductCreationDialog = useOpenProductCreationDialog();
   const buttonGroupRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
 
@@ -655,8 +659,22 @@ export function TaskInput({
               if (canSubmit) handleSubmit();
             }}
           />
+
+          <Flex justify="center" className="pt-1">
+            <Button
+              size="1"
+              variant="ghost"
+              color="gray"
+              onClick={openProductCreationDialog}
+            >
+              <RocketIcon className="h-3 w-3" />
+              <Text className="text-[12px]">Or scaffold a brand-new app</Text>
+            </Button>
+          </Flex>
         </Flex>
       </Flex>
+
+      <ProductCreationDialog />
 
       <GitBranchDialog
         open={branchOpen}

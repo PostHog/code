@@ -43,6 +43,13 @@
       "when": 1775755977659,
       "tag": "0005_youthful_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777000000000,
+      "tag": "0006_scratchpad_workspaces",
+      "breakpoints": true
     }
   ]
 }

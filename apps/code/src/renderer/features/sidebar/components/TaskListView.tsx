@@ -2,9 +2,12 @@ import { PointerSensor } from "@dnd-kit/dom";
 import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useFolders } from "@features/folders/hooks/useFolders";
+import { useDeleteScratchpad } from "@features/scratchpads/hooks/useDeleteScratchpad";
+import { useDraftTaskIds } from "@features/scratchpads/hooks/useDraftTaskInfo";
 import {
   FunnelSimple as FunnelSimpleIcon,
   GitBranch,
+  NotePencil,
 } from "@phosphor-icons/react";
 import {
   Button,
@@ -71,11 +74,13 @@ function TaskRow({
   task,
   isActive,
   isEditing,
+  isDraft,
   onClick,
   onDoubleClick,
   onContextMenu,
   onArchive,
   onTogglePin,
+  onTrash,
   onEditSubmit,
   onEditCancel,
   timestamp,
@@ -84,11 +89,13 @@ function TaskRow({
   task: TaskData;
   isActive: boolean;
   isEditing: boolean;
+  isDraft: boolean;
   onClick: () => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent, isPinned: boolean) => void;
   onArchive: () => void;
   onTogglePin: () => void;
+  onTrash?: () => void;
   onEditSubmit: (newTitle: string) => void;
   onEditCancel: () => void;
   timestamp: number;
@@ -112,6 +119,7 @@ function TaskRow({
       isGenerating={task.isGenerating}
       isUnread={task.isUnread}
       isPinned={task.isPinned}
+      isDraft={isDraft}
       needsPermission={task.needsPermission}
       taskRunStatus={task.taskRunStatus}
       timestamp={timestamp}
@@ -120,6 +128,7 @@ function TaskRow({
       onContextMenu={(e) => onContextMenu(e, task.isPinned)}
       onArchive={onArchive}
       onTogglePin={onTogglePin}
+      onTrash={onTrash}
       onEditSubmit={onEditSubmit}
       onEditCancel={onEditCancel}
     />
@@ -229,6 +238,23 @@ export function TaskListView({
     (state) => state.view.type === "task-input",
   );
 
+  const draftTaskIds = useDraftTaskIds();
+  const deleteScratchpad = useDeleteScratchpad();
+  const handleTrash = useCallback(
+    (taskId: string) => {
+      const confirmed = window.confirm(
+        "Delete this draft scratchpad? This will remove the local files, kill any running preview, and delete the task. The linked PostHog project (if any) is left untouched. This cannot be undone.",
+      );
+      if (!confirmed) return;
+      const nav = useNavigationStore.getState();
+      if (nav.view.type === "task-detail" && nav.view.data?.id === taskId) {
+        nav.navigateToTaskInput();
+      }
+      deleteScratchpad.mutate({ taskId });
+    },
+    [deleteScratchpad],
+  );
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset pagination when filters change
   useEffect(() => {
     resetHistoryVisibleCount();
@@ -256,24 +282,29 @@ export function TaskListView({
       {pinnedTasks.length > 0 && (
         <>
           <SectionLabel label="Pinned" />
-          {pinnedTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              isActive={activeTaskId === task.id}
-              isEditing={editingTaskId === task.id}
-              onClick={() => onTaskClick(task.id)}
-              onDoubleClick={() => onTaskDoubleClick(task.id)}
-              onContextMenu={(e, isPinned) =>
-                onTaskContextMenu(task.id, e, isPinned)
-              }
-              onArchive={() => onTaskArchive(task.id)}
-              onTogglePin={() => onTaskTogglePin(task.id)}
-              onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
-              onEditCancel={onTaskEditCancel}
-              timestamp={task[timestampKey]}
-            />
-          ))}
+          {pinnedTasks.map((task) => {
+            const isDraft = draftTaskIds.has(task.id);
+            return (
+              <TaskRow
+                key={task.id}
+                task={task}
+                isActive={activeTaskId === task.id}
+                isEditing={editingTaskId === task.id}
+                isDraft={isDraft}
+                onClick={() => onTaskClick(task.id)}
+                onDoubleClick={() => onTaskDoubleClick(task.id)}
+                onContextMenu={(e, isPinned) =>
+                  onTaskContextMenu(task.id, e, isPinned)
+                }
+                onArchive={() => onTaskArchive(task.id)}
+                onTogglePin={() => onTaskTogglePin(task.id)}
+                onTrash={isDraft ? () => handleTrash(task.id) : undefined}
+                onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
+                onEditCancel={onTaskEditCancel}
+                timestamp={task[timestampKey]}
+              />
+            );
+          })}
         </>
       )}
 
@@ -340,12 +371,21 @@ export function TaskListView({
               );
               const groupFolderId =
                 folder?.id ?? group.tasks.find((t) => t.folderId)?.folderId;
+              const allDrafts =
+                group.tasks.length > 0 &&
+                group.tasks.every((t) => draftTaskIds.has(t.id));
               return (
                 <DraggableFolder key={group.id} id={group.id} index={index}>
                   <SidebarSection
                     id={group.id}
                     label={folder?.name ?? group.name}
-                    icon={<GitBranch size={14} className="text-gray-10" />}
+                    icon={
+                      allDrafts ? (
+                        <NotePencil size={14} className="text-gray-10" />
+                      ) : (
+                        <GitBranch size={14} className="text-gray-10" />
+                      )
+                    }
                     isExpanded={isExpanded}
                     onToggle={() => toggleSection(group.id)}
                     addSpacingBefore={false}
@@ -359,27 +399,34 @@ export function TaskListView({
                     }}
                     newTaskTooltip={`Start new task in ${folder?.name ?? group.name}`}
                   >
-                    {group.tasks.map((task) => (
-                      <TaskRow
-                        key={task.id}
-                        task={task}
-                        isActive={activeTaskId === task.id}
-                        isEditing={editingTaskId === task.id}
-                        onClick={() => onTaskClick(task.id)}
-                        onDoubleClick={() => onTaskDoubleClick(task.id)}
-                        onContextMenu={(e, isPinned) =>
-                          onTaskContextMenu(task.id, e, isPinned)
-                        }
-                        onArchive={() => onTaskArchive(task.id)}
-                        onTogglePin={() => onTaskTogglePin(task.id)}
-                        onEditSubmit={(newTitle) =>
-                          onTaskEditSubmit(task.id, newTitle)
-                        }
-                        onEditCancel={onTaskEditCancel}
-                        timestamp={task[timestampKey]}
-                        depth={1}
-                      />
-                    ))}
+                    {group.tasks.map((task) => {
+                      const isDraft = draftTaskIds.has(task.id);
+                      return (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          isActive={activeTaskId === task.id}
+                          isEditing={editingTaskId === task.id}
+                          isDraft={isDraft}
+                          onClick={() => onTaskClick(task.id)}
+                          onDoubleClick={() => onTaskDoubleClick(task.id)}
+                          onContextMenu={(e, isPinned) =>
+                            onTaskContextMenu(task.id, e, isPinned)
+                          }
+                          onArchive={() => onTaskArchive(task.id)}
+                          onTogglePin={() => onTaskTogglePin(task.id)}
+                          onTrash={
+                            isDraft ? () => handleTrash(task.id) : undefined
+                          }
+                          onEditSubmit={(newTitle) =>
+                            onTaskEditSubmit(task.id, newTitle)
+                          }
+                          onEditCancel={onTaskEditCancel}
+                          timestamp={task[timestampKey]}
+                          depth={1}
+                        />
+                      );
+                    })}
                   </SidebarSection>
                 </DraggableFolder>
               );
@@ -388,24 +435,29 @@ export function TaskListView({
         </DragDropProvider>
       ) : (
         <Flex direction="column" gap="1px">
-          {flatTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              isActive={activeTaskId === task.id}
-              isEditing={editingTaskId === task.id}
-              onClick={() => onTaskClick(task.id)}
-              onDoubleClick={() => onTaskDoubleClick(task.id)}
-              onContextMenu={(e, isPinned) =>
-                onTaskContextMenu(task.id, e, isPinned)
-              }
-              onArchive={() => onTaskArchive(task.id)}
-              onTogglePin={() => onTaskTogglePin(task.id)}
-              onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
-              onEditCancel={onTaskEditCancel}
-              timestamp={task[timestampKey]}
-            />
-          ))}
+          {flatTasks.map((task) => {
+            const isDraft = draftTaskIds.has(task.id);
+            return (
+              <TaskRow
+                key={task.id}
+                task={task}
+                isActive={activeTaskId === task.id}
+                isEditing={editingTaskId === task.id}
+                isDraft={isDraft}
+                onClick={() => onTaskClick(task.id)}
+                onDoubleClick={() => onTaskDoubleClick(task.id)}
+                onContextMenu={(e, isPinned) =>
+                  onTaskContextMenu(task.id, e, isPinned)
+                }
+                onArchive={() => onTaskArchive(task.id)}
+                onTogglePin={() => onTaskTogglePin(task.id)}
+                onTrash={isDraft ? () => handleTrash(task.id) : undefined}
+                onEditSubmit={(newTitle) => onTaskEditSubmit(task.id, newTitle)}
+                onEditCancel={onTaskEditCancel}
+                timestamp={task[timestampKey]}
+              />
+            );
+          })}
           {hasMore && (
             <div className="px-2 py-2">
               <button

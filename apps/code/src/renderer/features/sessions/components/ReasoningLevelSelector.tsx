@@ -4,11 +4,13 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
   MenuLabel,
 } from "@posthog/quill";
+import type { RefObject } from "react";
 import { flattenSelectOptions } from "../stores/sessionStore";
 
 interface ReasoningLevelSelectorProps {
@@ -16,6 +18,8 @@ interface ReasoningLevelSelectorProps {
   adapter?: "claude" | "codex";
   onChange?: (value: string) => void;
   disabled?: boolean;
+  /** See ModeSelectorProps.portalContainer. */
+  portalContainer?: RefObject<HTMLElement | null>;
 }
 
 export function ReasoningLevelSelector({
@@ -23,6 +27,7 @@ export function ReasoningLevelSelector({
   adapter,
   onChange,
   disabled,
+  portalContainer,
 }: ReasoningLevelSelectorProps) {
   if (!thoughtOption || thoughtOption.type !== "select") {
     return null;
@@ -36,7 +41,7 @@ export function ReasoningLevelSelector({
   const triggerLabel = `${adapter === "codex" ? "Reasoning" : "Effort"}: ${activeLabel}`;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -56,24 +61,26 @@ export function ReasoningLevelSelector({
           </Button>
         }
       />
-      <DropdownMenuContent
-        align="start"
-        side="top"
-        sideOffset={6}
-        className="min-w-[180px]"
-      >
-        <MenuLabel>{adapter === "codex" ? "Reasoning" : "Effort"}</MenuLabel>
-        <DropdownMenuRadioGroup
-          value={activeLevel}
-          onValueChange={(value) => onChange?.(value)}
+      <DropdownMenuPortal container={portalContainer}>
+        <DropdownMenuContent
+          align="start"
+          side="top"
+          sideOffset={6}
+          className="min-w-[180px]"
         >
-          {options.map((level) => (
-            <DropdownMenuRadioItem key={level.value} value={level.value}>
-              <span className="whitespace-nowrap">{level.name}</span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
+          <MenuLabel>{adapter === "codex" ? "Reasoning" : "Effort"}</MenuLabel>
+          <DropdownMenuRadioGroup
+            value={activeLevel}
+            onValueChange={(value) => onChange?.(value)}
+          >
+            {options.map((level) => (
+              <DropdownMenuRadioItem key={level.value} value={level.value}>
+                <span className="whitespace-nowrap">{level.name}</span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
     </DropdownMenu>
   );
 }

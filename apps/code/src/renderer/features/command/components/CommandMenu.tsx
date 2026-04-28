@@ -2,6 +2,7 @@ import { useReviewNavigationStore } from "@features/code-review/stores/reviewNav
 import { Command } from "@features/command/components/Command";
 import { CommandKeyHints } from "@features/command/components/CommandKeyHints";
 import { useFolders } from "@features/folders/hooks/useFolders";
+import { useOpenProductCreationDialog } from "@features/scratchpads/hooks/useOpenProductCreationDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useSidebarStore } from "@features/sidebar/stores/sidebarStore";
 import {
@@ -10,6 +11,7 @@ import {
   GearIcon,
   HomeIcon,
   MoonIcon,
+  RocketIcon,
   SunIcon,
   ViewVerticalIcon,
 } from "@radix-ui/react-icons";
@@ -35,6 +37,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const { folders } = useFolders();
   const { theme, cycleTheme } = useThemeStore();
   const toggleLeftSidebar = useSidebarStore((state) => state.toggle);
+  const openProductCreationDialog = useOpenProductCreationDialog();
   const view = useNavigationStore((state) => state.view);
   const setReviewMode = useReviewNavigationStore(
     (state) => state.setReviewMode,
@@ -195,6 +198,13 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
               >
                 <FileTextIcon className="mr-3 h-3 w-3 text-gray-11" />
                 <Text className="text-[13px]">New task</Text>
+              </Command.Item>
+              <Command.Item
+                value="Create new app"
+                onSelect={runAndClose(openProductCreationDialog, "new-app")}
+              >
+                <RocketIcon className="mr-3 h-3 w-3 text-gray-11" />
+                <Text className="text-[13px]">New app</Text>
               </Command.Item>
             </Command.Group>
 

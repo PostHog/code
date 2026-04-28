@@ -8,6 +8,7 @@ import {
   getLeafPanel,
   parseTabId,
 } from "@features/panels/store/panelStoreHelpers";
+import { DraftTaskHeaderActions } from "@features/scratchpads/components/DraftTaskHeaderActions";
 import { MIN_CHAT_WIDTH } from "@features/sessions/constants";
 import { getSessionService } from "@features/sessions/service/service";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
@@ -150,11 +151,15 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
             </Text>
           </Tooltip>
         )}
-        {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
+        <Flex align="center" gap="2" className="shrink-0">
+          <DraftTaskHeaderActions taskId={taskId} taskTitle={task.title} />
+          {openTargetPath && <ExternalAppsOpener targetPath={openTargetPath} />}
+        </Flex>
       </Flex>
     ),
     [
       task.title,
+      taskId,
       openTargetPath,
       isEditingTitle,
       handleTitleEditSubmit,

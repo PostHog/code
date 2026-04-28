@@ -11,6 +11,7 @@ import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
 import type { AuthProxyService } from "../auth-proxy/service";
 import type { McpProxyService } from "../mcp-proxy/service";
+import type { PosthogCodeMcpService } from "../posthog-code-mcp/service";
 import type { Credentials } from "./schemas";
 
 const log = logger.scope("agent-auth-adapter");
@@ -63,6 +64,8 @@ export class AgentAuthAdapter {
     private readonly authProxy: AuthProxyService,
     @inject(MAIN_TOKENS.McpProxyService)
     private readonly mcpProxy: McpProxyService,
+    @inject(MAIN_TOKENS.PosthogCodeMcpService)
+    private readonly posthogCodeMcp: PosthogCodeMcpService,
   ) {}
 
   createPosthogConfig(credentials: Credentials): AgentPosthogConfig {
@@ -100,6 +103,18 @@ export class AgentAuthAdapter {
         },
         { name: "x-posthog-mcp-version", value: "2" },
       ],
+    });
+
+    // Register the in-process PostHog Code MCP server. Surfaces tools like
+    // `posthog_code__registerPreview` to the agent. Runs on its own loopback
+    // port — does not go through `mcp-proxy` since that proxy is geared for
+    // remote token-rotating servers.
+    await this.posthogCodeMcp.start();
+    servers.push({
+      name: "posthog_code",
+      type: "http",
+      url: this.posthogCodeMcp.getServerUrl(),
+      headers: [],
     });
 
     const installations = await this.fetchMcpInstallations(credentials);

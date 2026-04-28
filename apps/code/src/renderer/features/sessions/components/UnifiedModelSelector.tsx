@@ -15,13 +15,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   MenuLabel,
 } from "@posthog/quill";
-import { Fragment, useMemo } from "react";
+import { Fragment, type RefObject, useMemo } from "react";
 import { flattenSelectOptions } from "../stores/sessionStore";
 
 const ADAPTER_ICONS: Record<AgentAdapter, React.ReactNode> = {
@@ -45,6 +46,8 @@ interface UnifiedModelSelectorProps {
   onModelChange?: (model: string) => void;
   disabled?: boolean;
   isConnecting?: boolean;
+  /** See ModeSelectorProps.portalContainer. */
+  portalContainer?: RefObject<HTMLElement | null>;
 }
 
 export function UnifiedModelSelector({
@@ -54,6 +57,7 @@ export function UnifiedModelSelector({
   onModelChange,
   disabled,
   isConnecting,
+  portalContainer,
 }: UnifiedModelSelectorProps) {
   const selectOption = modelOption?.type === "select" ? modelOption : undefined;
   const options = selectOption
@@ -83,7 +87,7 @@ export function UnifiedModelSelector({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -105,46 +109,48 @@ export function UnifiedModelSelector({
           </Button>
         }
       />
-      <DropdownMenuContent
-        align="start"
-        side="top"
-        sideOffset={6}
-        className="min-w-[220px]"
-      >
-        <MenuLabel>{ADAPTER_LABELS[adapter]}</MenuLabel>
-        <DropdownMenuRadioGroup
-          value={currentValue ?? ""}
-          onValueChange={(value) => onModelChange?.(value)}
+      <DropdownMenuPortal container={portalContainer}>
+        <DropdownMenuContent
+          align="start"
+          side="top"
+          sideOffset={6}
+          className="min-w-[220px]"
         >
-          {groupedOptions.length > 0
-            ? groupedOptions.map((group, index) => (
-                <Fragment key={group.group}>
-                  {index > 0 && <DropdownMenuSeparator />}
-                  <MenuLabel>{group.name}</MenuLabel>
-                  {group.options.map((model) => (
-                    <DropdownMenuRadioItem
-                      key={model.value}
-                      value={model.value}
-                    >
-                      <span className="whitespace-nowrap">{model.name}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </Fragment>
-              ))
-            : options.map((model) => (
-                <DropdownMenuRadioItem key={model.value} value={model.value}>
-                  <span className="whitespace-nowrap">{model.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-        </DropdownMenuRadioGroup>
+          <MenuLabel>{ADAPTER_LABELS[adapter]}</MenuLabel>
+          <DropdownMenuRadioGroup
+            value={currentValue ?? ""}
+            onValueChange={(value) => onModelChange?.(value)}
+          >
+            {groupedOptions.length > 0
+              ? groupedOptions.map((group, index) => (
+                  <Fragment key={group.group}>
+                    {index > 0 && <DropdownMenuSeparator />}
+                    <MenuLabel>{group.name}</MenuLabel>
+                    {group.options.map((model) => (
+                      <DropdownMenuRadioItem
+                        key={model.value}
+                        value={model.value}
+                      >
+                        <span className="whitespace-nowrap">{model.name}</span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </Fragment>
+                ))
+              : options.map((model) => (
+                  <DropdownMenuRadioItem key={model.value} value={model.value}>
+                    <span className="whitespace-nowrap">{model.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+          </DropdownMenuRadioGroup>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={() => onAdapterChange(otherAdapter)}>
-          <ArrowsClockwise size={12} weight="bold" />
-          Switch to {ADAPTER_LABELS[otherAdapter]}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+          <DropdownMenuItem onClick={() => onAdapterChange(otherAdapter)}>
+            <ArrowsClockwise size={12} weight="bold" />
+            Switch to {ADAPTER_LABELS[otherAdapter]}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
     </DropdownMenu>
   );
 }

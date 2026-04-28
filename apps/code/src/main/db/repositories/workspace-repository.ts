@@ -12,6 +12,7 @@ export interface CreateWorkspaceData {
   taskId: string;
   repositoryId: string | null;
   mode: WorkspaceMode;
+  scratchpad?: boolean;
 }
 
 export interface IWorkspaceRepository {
@@ -82,6 +83,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
       taskId: data.taskId,
       repositoryId: data.repositoryId,
       mode: data.mode,
+      scratchpad: data.scratchpad ?? false,
       createdAt: timestamp,
       updatedAt: timestamp,
     };

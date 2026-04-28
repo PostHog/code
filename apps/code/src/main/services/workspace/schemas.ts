@@ -33,6 +33,12 @@ export const workspaceSchema = z.object({
   baseBranch: z.string().nullable(),
   linkedBranch: z.string().nullable(),
   createdAt: z.string(),
+  /**
+   * Scratchpad axis is orthogonal to `mode`. Scratchpad workspaces behave
+   * like `mode: "local"` for branch derivation and worktree handling, but
+   * the host treats them as drafts (no git lifecycle until Publish).
+   */
+  scratchpad: z.boolean().optional(),
 });
 
 // Input schemas
@@ -45,6 +51,11 @@ export const createWorkspaceInput = z
     mode: workspaceModeSchema,
     branch: z.string().optional(),
     useExistingBranch: z.boolean().optional(),
+    /**
+     * Scratchpad axis is orthogonal to `mode`. Scratchpad workspaces behave
+     * like `mode: "local"` for branch derivation and worktree handling.
+     */
+    scratchpad: z.boolean().optional(),
   })
   .refine(
     (data) =>
