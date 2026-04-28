@@ -51,18 +51,14 @@ export function MultiSelectStack({
       align="center"
       justify="center"
       gap="4"
-      style={{ flex: 1, padding: "32px", minHeight: 0, overflow: "auto" }}
+      className="min-h-0 flex-1 overflow-auto p-[32px]"
     >
       {/* ── Stacked cards ──────────────────────────────────────────── */}
       <motion.div
         animate={{ height: stackHeight }}
         transition={{ type: "spring", stiffness: 800, damping: 45 }}
         onMouseLeave={handleStackLeave}
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 400,
-        }}
+        className="relative w-full max-w-[400px]"
       >
         <AnimatePresence mode="popLayout">
           {visibleReports.map((report, i) => {
@@ -123,14 +119,10 @@ export function MultiSelectStack({
                 }}
                 onMouseEnter={() => handleCardHover(i)}
                 style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
                   zIndex: i,
                   transformOrigin: "bottom center",
-                  cursor: "default",
                 }}
+                className="absolute right-0 bottom-0 left-0 cursor-default"
               >
                 <div
                   className="rounded-lg border border-gray-5 bg-gray-2 px-4 py-3 shadow-sm"
@@ -151,11 +143,11 @@ export function MultiSelectStack({
         transition={{ delay: 0.1 }}
       >
         <Flex direction="column" align="center" gap="1">
-          <Text size="2" weight="medium" color="gray">
+          <Text color="gray" className="font-medium text-sm">
             {reports.length} reports selected
           </Text>
           {overflowCount > 0 && (
-            <Text size="1" color="gray" className="text-[11px]">
+            <Text color="gray" className="text-[11px]">
               +{overflowCount} more not shown
             </Text>
           )}

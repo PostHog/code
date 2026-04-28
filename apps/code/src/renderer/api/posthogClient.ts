@@ -50,9 +50,23 @@ export class SeatPaymentFailedError extends Error {
 
 const log = logger.scope("posthog-client");
 
-export type McpRecommendedServer = Schemas.RecommendedServer;
+export const MCP_CATEGORIES = [
+  { id: "all", label: "All" },
+  { id: "business", label: "Business Operations" },
+  { id: "data", label: "Data & Analytics" },
+  { id: "design", label: "Design & Content" },
+  { id: "dev", label: "Developer Tools & APIs" },
+  { id: "infra", label: "Infrastructure" },
+  { id: "productivity", label: "Productivity & Collaboration" },
+] as const;
 
+export type McpCategory = Schemas.CategoryEnum;
+export type McpApprovalState =
+  Schemas.MCPServerInstallationToolApprovalStateEnum;
+export type McpAuthType = Schemas.AuthType9cbEnum;
+export type McpRecommendedServer = Schemas.MCPServerTemplate;
 export type McpServerInstallation = Schemas.MCPServerInstallation;
+export type McpInstallationTool = Schemas.MCPServerInstallationTool;
 
 export type Evaluation = Schemas.Evaluation;
 
@@ -98,7 +112,133 @@ export interface ExternalDataSource {
   schemas?: ExternalDataSourceSchema[] | string;
 }
 
+export interface TaskArtifactUploadRequest {
+  name: string;
+  type: "user_attachment";
+  size: number;
+  content_type?: string;
+  source?: string;
+}
+
+export interface DirectUploadPresignedPost {
+  url: string;
+  fields: Record<string, string>;
+}
+
+export interface PreparedTaskArtifactUpload extends TaskArtifactUploadRequest {
+  id: string;
+  storage_path: string;
+  expires_in: number;
+  presigned_post: DirectUploadPresignedPost;
+}
+
+export interface FinalizedTaskArtifactUpload {
+  id: string;
+  name: string;
+  type: string;
+  source?: string;
+  size?: number;
+  content_type?: string;
+  storage_path: string;
+  uploaded_at?: string;
+}
+
 type CloudRuntimeAdapter = "claude" | "codex";
+
+interface CloudRunOptions {
+  adapter?: CloudRuntimeAdapter;
+  model?: string;
+  reasoningLevel?: string;
+  sandboxEnvironmentId?: string;
+  prAuthorshipMode?: PrAuthorshipMode;
+  runSource?: CloudRunSource;
+  signalReportId?: string;
+  githubUserToken?: string;
+  initialPermissionMode?: PermissionMode;
+}
+
+interface CreateTaskRunOptions extends CloudRunOptions {
+  environment?: "local" | "cloud";
+  mode?: "interactive" | "background";
+  branch?: string | null;
+}
+
+interface StartTaskRunOptions {
+  pendingUserMessage?: string;
+  pendingUserArtifactIds?: string[];
+}
+
+function buildCloudRunRequestBody(
+  options?: CloudRunOptions & {
+    branch?: string | null;
+    mode?: "interactive" | "background";
+    resumeFromRunId?: string;
+    pendingUserMessage?: string;
+    pendingUserArtifactIds?: string[];
+  },
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    mode: options?.mode ?? "interactive",
+  };
+
+  if (options?.branch) {
+    body.branch = options.branch;
+  }
+  if (options?.adapter) {
+    body.runtime_adapter = options.adapter;
+    if (options.model) {
+      body.model = options.model;
+    }
+    if (options.reasoningLevel) {
+      if (!options.model) {
+        throw new Error(
+          "A cloud reasoning level requires a model to be selected.",
+        );
+      }
+      if (
+        !isSupportedReasoningEffort(
+          options.adapter,
+          options.model,
+          options.reasoningLevel,
+        )
+      ) {
+        throw new Error(
+          `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
+        );
+      }
+      body.reasoning_effort = options.reasoningLevel;
+    }
+  }
+  if (options?.resumeFromRunId) {
+    body.resume_from_run_id = options.resumeFromRunId;
+  }
+  if (options?.pendingUserMessage) {
+    body.pending_user_message = options.pendingUserMessage;
+  }
+  if (options?.pendingUserArtifactIds?.length) {
+    body.pending_user_artifact_ids = options.pendingUserArtifactIds;
+  }
+  if (options?.sandboxEnvironmentId) {
+    body.sandbox_environment_id = options.sandboxEnvironmentId;
+  }
+  if (options?.prAuthorshipMode) {
+    body.pr_authorship_mode = options.prAuthorshipMode;
+  }
+  if (options?.runSource) {
+    body.run_source = options.runSource;
+  }
+  if (options?.signalReportId) {
+    body.signal_report_id = options.signalReportId;
+  }
+  if (options?.githubUserToken) {
+    body.github_user_token = options.githubUserToken;
+  }
+  if (options?.initialPermissionMode) {
+    body.initial_permission_mode = options.initialPermissionMode;
+  }
+
+  return body;
+}
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -767,74 +907,18 @@ export class PostHogAPIClient {
   async runTaskInCloud(
     taskId: string,
     branch?: string | null,
-    options?: {
-      adapter?: CloudRuntimeAdapter;
-      model?: string;
-      reasoningLevel?: string;
+    options?: CloudRunOptions & {
       resumeFromRunId?: string;
       pendingUserMessage?: string;
-      sandboxEnvironmentId?: string;
-      prAuthorshipMode?: PrAuthorshipMode;
-      runSource?: CloudRunSource;
-      signalReportId?: string;
-      githubUserToken?: string;
-      initialPermissionMode?: PermissionMode;
+      pendingUserArtifactIds?: string[];
     },
   ): Promise<Task> {
     const teamId = await this.getTeamId();
-    const body: Record<string, unknown> = { mode: "interactive" };
-    if (branch) {
-      body.branch = branch;
-    }
-    if (options?.adapter) {
-      body.runtime_adapter = options.adapter;
-      if (options.model) {
-        body.model = options.model;
-      }
-      if (options.reasoningLevel) {
-        if (!options.model) {
-          throw new Error(
-            "A cloud reasoning level requires a model to be selected.",
-          );
-        }
-        if (
-          !isSupportedReasoningEffort(
-            options.adapter,
-            options.model,
-            options.reasoningLevel,
-          )
-        ) {
-          throw new Error(
-            `Reasoning effort '${options.reasoningLevel}' is not supported for ${options.adapter} model '${options.model}'.`,
-          );
-        }
-        body.reasoning_effort = options.reasoningLevel;
-      }
-    }
-    if (options?.resumeFromRunId) {
-      body.resume_from_run_id = options.resumeFromRunId;
-    }
-    if (options?.pendingUserMessage) {
-      body.pending_user_message = options.pendingUserMessage;
-    }
-    if (options?.sandboxEnvironmentId) {
-      body.sandbox_environment_id = options.sandboxEnvironmentId;
-    }
-    if (options?.prAuthorshipMode) {
-      body.pr_authorship_mode = options.prAuthorshipMode;
-    }
-    if (options?.runSource) {
-      body.run_source = options.runSource;
-    }
-    if (options?.signalReportId) {
-      body.signal_report_id = options.signalReportId;
-    }
-    if (options?.githubUserToken) {
-      body.github_user_token = options.githubUserToken;
-    }
-    if (options?.initialPermissionMode) {
-      body.initial_permission_mode = options.initialPermissionMode;
-    }
+    const body = buildCloudRunRequestBody({
+      ...options,
+      branch,
+      mode: "interactive",
+    });
 
     const data = await this.api.post(
       `/api/projects/{project_id}/tasks/{id}/run/`,
@@ -845,6 +929,172 @@ export class PostHogAPIClient {
     );
 
     return data as unknown as Task;
+  }
+
+  async prepareTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to prepare staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskStagedArtifactUploads(
+    taskId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/staged_artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to finalize staged uploads: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async prepareTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: TaskArtifactUploadRequest[],
+  ): Promise<PreparedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/prepare_upload/`,
+      overrides: {
+        body: JSON.stringify({ artifacts }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to prepare uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: PreparedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async finalizeTaskRunArtifactUploads(
+    taskId: string,
+    runId: string,
+    artifacts: PreparedTaskArtifactUpload[],
+  ): Promise<FinalizedTaskArtifactUpload[]> {
+    if (!artifacts.length) {
+      return [];
+    }
+
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/finalize_upload/`,
+      overrides: {
+        body: JSON.stringify({
+          artifacts: artifacts.map((artifact) => ({
+            id: artifact.id,
+            name: artifact.name,
+            type: artifact.type,
+            source: artifact.source,
+            content_type: artifact.content_type,
+            storage_path: artifact.storage_path,
+          })),
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to finalize uploads: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as {
+      artifacts?: FinalizedTaskArtifactUpload[];
+    };
+    return data.artifacts ?? [];
+  }
+
+  async resumeRunInCloud(taskId: string, runId: string): Promise<TaskRun> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to resume run in cloud: ${response.statusText}`);
+    }
+
+    return (await response.json()) as TaskRun;
   }
 
   async listTaskRuns(taskId: string): Promise<TaskRun[]> {
@@ -884,19 +1134,62 @@ export class PostHogAPIClient {
     return await response.json();
   }
 
-  async createTaskRun(taskId: string): Promise<TaskRun> {
+  async createTaskRun(
+    taskId: string,
+    options?: CreateTaskRunOptions,
+  ): Promise<TaskRun> {
     const teamId = await this.getTeamId();
-    const data = await this.api.post(
-      `/api/projects/{project_id}/tasks/{task_id}/runs/`,
-      {
-        path: { project_id: teamId.toString(), task_id: taskId },
-        //@ts-expect-error the generated client does not infer the request type unless explicitly specified on the viewset
-        body: {
-          environment: "local" as const,
-        },
-      },
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/`,
     );
-    return data as unknown as TaskRun;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/`,
+      overrides: {
+        body: JSON.stringify({
+          ...buildCloudRunRequestBody({
+            ...options,
+            mode: options?.mode ?? "background",
+          }),
+          environment: options?.environment ?? "local",
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create task run: ${response.statusText}`);
+    }
+
+    return (await response.json()) as TaskRun;
+  }
+
+  async startTaskRun(
+    taskId: string,
+    runId: string,
+    options?: StartTaskRunOptions,
+  ): Promise<Task> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/start/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/start/`,
+      overrides: {
+        body: JSON.stringify({
+          pending_user_message: options?.pendingUserMessage,
+          pending_user_artifact_ids: options?.pendingUserArtifactIds,
+        }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to start task run: ${response.statusText}`);
+    }
+
+    return (await response.json()) as Task;
   }
 
   async updateTaskRun(
@@ -1070,6 +1363,7 @@ export class PostHogAPIClient {
     repo: string,
     offset: number,
     limit: number,
+    search?: string,
   ): Promise<{
     branches: string[];
     defaultBranch: string | null;
@@ -1082,6 +1376,9 @@ export class PostHogAPIClient {
     url.searchParams.set("repo", repo);
     url.searchParams.set("offset", String(offset));
     url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1105,10 +1402,43 @@ export class PostHogAPIClient {
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
+    const repositories: string[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await this.getGithubRepositoriesPage(
+        integrationId,
+        offset,
+        500,
+      );
+      repositories.push(...page.repositories);
+
+      if (!page.hasMore) {
+        return repositories;
+      }
+
+      offset += page.repositories.length;
+    }
+  }
+
+  async getGithubRepositoriesPage(
+    integrationId: string | number,
+    offset: number,
+    limit: number,
+    search?: string,
+  ): Promise<{
+    repositories: string[];
+    hasMore: boolean;
+  }> {
     const teamId = await this.getTeamId();
     const url = new URL(
       `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/`,
     );
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
     const response = await this.api.fetcher.fetch({
       method: "get",
       url,
@@ -1122,13 +1452,47 @@ export class PostHogAPIClient {
     }
 
     const data = await response.json();
+    return {
+      repositories: this.normalizeGithubRepositories(data),
+      hasMore: data.has_more ?? false,
+    };
+  }
 
-    const repos =
-      data.repositories ?? data.results ?? (Array.isArray(data) ? data : []);
-    return repos.map((repo: string | { full_name?: string; name?: string }) => {
-      if (typeof repo === "string") return repo;
-      return (repo.full_name ?? repo.name ?? "").toLowerCase();
+  async refreshGithubRepositories(
+    integrationId: string | number,
+  ): Promise<string[]> {
+    const teamId = await this.getTeamId();
+    const url = new URL(
+      `${this.api.baseUrl}/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
+    );
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: `/api/environments/${teamId}/integrations/${integrationId}/github_repos/refresh/`,
     });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to refresh GitHub repositories: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return this.normalizeGithubRepositories(data);
+  }
+
+  private normalizeGithubRepositories(data: unknown): string[] {
+    const repos =
+      (data as { repositories?: unknown[] }).repositories ??
+      (data as { results?: unknown[] }).results ??
+      (Array.isArray(data) ? data : []);
+
+    return (repos as (string | { full_name?: string; name?: string })[]).map(
+      (repo) => {
+        if (typeof repo === "string") return repo;
+        return (repo.full_name ?? repo.name ?? "").toLowerCase();
+      },
+    );
   }
 
   async getAgents() {
@@ -1199,6 +1563,30 @@ export class PostHogAPIClient {
     }
 
     return await response.json();
+  }
+
+  async getSignalReport(reportId: string): Promise<SignalReport | null> {
+    const teamId = await this.getTeamId();
+    const path = `/api/projects/${teamId}/signals/reports/${reportId}/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+
+    try {
+      const response = await this.api.fetcher.fetch({
+        method: "get",
+        url,
+        path,
+      });
+      return (await response.json()) as SignalReport;
+    } catch (error) {
+      // The shared fetcher throws "Failed request: [<status>] <body>" for any
+      // non-2xx. Treat missing / forbidden as "not available in the current
+      // team" and surface other errors to the caller.
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("[404]") || msg.includes("[403]")) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getSignalReports(
@@ -1653,9 +2041,11 @@ export class PostHogAPIClient {
   async installCustomMcpServer(options: {
     name: string;
     url: string;
-    auth_type: "none" | "api_key" | "oauth";
+    auth_type: McpAuthType;
     api_key?: string;
     description?: string;
+    client_id?: string;
+    client_secret?: string;
     install_source?: "posthog" | "posthog-code";
     posthog_code_callback_url?: string;
   }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
@@ -1729,6 +2119,141 @@ export class PostHogAPIClient {
     if (!response.ok && response.status !== 204) {
       throw new Error(`Failed to uninstall MCP server: ${response.statusText}`);
     }
+  }
+
+  async installMcpTemplate(options: {
+    template_id: string;
+    api_key?: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
+  }): Promise<McpServerInstallation | Schemas.OAuthRedirectResponse> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/install_template/`;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+      overrides: { body: JSON.stringify(options) },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to install MCP template: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async authorizeMcpInstallation(options: {
+    installation_id: string;
+    install_source?: "posthog" | "posthog-code";
+    posthog_code_callback_url?: string;
+  }): Promise<Schemas.OAuthRedirectResponse> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/authorize/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    url.searchParams.set("installation_id", options.installation_id);
+    if (options.install_source) {
+      url.searchParams.set("install_source", options.install_source);
+    }
+    if (options.posthog_code_callback_url) {
+      url.searchParams.set(
+        "posthog_code_callback_url",
+        options.posthog_code_callback_url,
+      );
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to authorize MCP installation: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async getMcpInstallationTools(
+    installationId: string,
+    options: { includeRemoved?: boolean } = {},
+  ): Promise<McpInstallationTool[]> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    if (options.includeRemoved) {
+      url.searchParams.set("include_removed", "1");
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch MCP installation tools: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
+  }
+
+  async updateMcpToolApproval(
+    installationId: string,
+    toolName: string,
+    approval_state: McpApprovalState,
+  ): Promise<McpInstallationTool> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/${encodeURIComponent(toolName)}/`;
+    const response = await this.api.fetcher.fetch({
+      method: "patch",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+      overrides: { body: JSON.stringify({ approval_state }) },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to update tool approval: ${response.statusText}`,
+      );
+    }
+
+    return await response.json();
+  }
+
+  async refreshMcpInstallationTools(
+    installationId: string,
+  ): Promise<McpInstallationTool[]> {
+    const teamId = await this.getTeamId();
+    const path = `/api/environments/${teamId}/mcp_server_installations/${installationId}/tools/refresh/`;
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url: new URL(`${this.api.baseUrl}${path}`),
+      path,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail ??
+          `Failed to refresh MCP tools: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return data.results ?? data ?? [];
   }
 
   async getMySeat(): Promise<SeatData | null> {
@@ -1989,5 +2514,44 @@ export class PostHogAPIClient {
         `Failed to delete sandbox environment: ${response.statusText}`,
       );
     }
+  }
+
+  /** Find an exported asset by session recording ID. */
+  async findExportBySessionRecordingId(
+    projectId: number,
+    sessionRecordingId: string,
+  ): Promise<number | null> {
+    const urlPath = `/api/projects/${projectId}/exports/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("session_recording_id", sessionRecordingId);
+    url.searchParams.set("export_format", "video/mp4");
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as {
+      results?: Array<{ id: number; has_content: boolean }>;
+    };
+    const match = data.results?.find((e) => e.has_content);
+    return match?.id ?? null;
+  }
+
+  /** Get the presigned content URL for an exported asset (e.g. rasterized recording). */
+  async getExportContentUrl(
+    projectId: number,
+    exportId: number,
+  ): Promise<string | null> {
+    const urlPath = `/api/projects/${projectId}/exports/${exportId}/content/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   }
 }

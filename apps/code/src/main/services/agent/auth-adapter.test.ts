@@ -85,7 +85,7 @@ describe("AgentAuthAdapter", () => {
   });
 
   it("builds the default PostHog MCP server routed through the local proxy", async () => {
-    const servers = await adapter.buildMcpServers(baseCredentials);
+    const { servers } = await adapter.buildMcpServers(baseCredentials);
 
     expect(deps.mcpProxy.register).toHaveBeenCalledWith(
       "posthog",
@@ -100,40 +100,6 @@ describe("AgentAuthAdapter", () => {
           headers: expect.not.arrayContaining([
             expect.objectContaining({ name: "Authorization" }),
           ]),
-        }),
-      ]),
-    );
-  });
-
-  it("includes enabled user-installed MCP servers from backend", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          results: [
-            {
-              id: "inst-1",
-              url: "https://custom-mcp.example.com",
-              proxy_url: "https://proxy.posthog.com/inst-1/",
-              name: "custom-server",
-              display_name: "Custom Server",
-              auth_type: "none",
-              is_enabled: true,
-              pending_oauth: false,
-              needs_reauth: false,
-            },
-          ],
-        }),
-    });
-
-    const servers = await adapter.buildMcpServers(baseCredentials);
-
-    expect(servers).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "custom-server",
-          url: "https://custom-mcp.example.com",
-          headers: [],
         }),
       ]),
     );
@@ -160,7 +126,7 @@ describe("AgentAuthAdapter", () => {
         }),
     });
 
-    const servers = await adapter.buildMcpServers(baseCredentials);
+    const { servers } = await adapter.buildMcpServers(baseCredentials);
 
     expect(deps.mcpProxy.register).toHaveBeenCalledWith(
       "installation-inst-2",
@@ -175,6 +141,81 @@ describe("AgentAuthAdapter", () => {
         }),
       ]),
     );
+  });
+
+  it("fetches tool approval states for installations", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: [
+              {
+                id: "inst-3",
+                url: "https://tools.example.com",
+                proxy_url: "https://proxy.posthog.com/inst-3/",
+                name: "tool-server",
+                display_name: "Tool Server",
+                auth_type: "oauth",
+                is_enabled: true,
+                pending_oauth: false,
+                needs_reauth: false,
+              },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: [
+              { tool_name: "read_data", approval_state: "approved" },
+              { tool_name: "write_data", approval_state: "do_not_use" },
+              { tool_name: "query", approval_state: "needs_approval" },
+            ],
+          }),
+      });
+
+    const { toolApprovals, toolInstallations } =
+      await adapter.buildMcpServers(baseCredentials);
+
+    expect(toolApprovals).toEqual({
+      "mcp__tool-server__read_data": "approved",
+      "mcp__tool-server__write_data": "do_not_use",
+      "mcp__tool-server__query": "needs_approval",
+    });
+    expect(toolInstallations["mcp__tool-server__read_data"]).toEqual({
+      installationId: "inst-3",
+      toolName: "read_data",
+    });
+  });
+
+  it("returns empty approvals when tool fetch fails", async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: [
+              {
+                id: "inst-4",
+                url: "https://broken.example.com",
+                proxy_url: "https://proxy.posthog.com/inst-4/",
+                name: "broken-server",
+                display_name: "Broken Server",
+                auth_type: "oauth",
+                is_enabled: true,
+                pending_oauth: false,
+                needs_reauth: false,
+              },
+            ],
+          }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 500 });
+
+    const { toolApprovals } = await adapter.buildMcpServers(baseCredentials);
+
+    expect(toolApprovals).toEqual({});
   });
 
   it("configures environment using the gateway proxy and current token", async () => {

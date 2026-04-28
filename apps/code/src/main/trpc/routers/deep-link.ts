@@ -1,14 +1,22 @@
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
 import {
+  InboxLinkEvent,
+  type InboxLinkService,
+  type PendingInboxDeepLink,
+} from "../../services/inbox-link/service";
+import {
   type PendingDeepLink,
   TaskLinkEvent,
   type TaskLinkService,
 } from "../../services/task-link/service";
 import { publicProcedure, router } from "../trpc";
 
-const getService = () =>
+const getTaskLinkService = () =>
   container.get<TaskLinkService>(MAIN_TOKENS.TaskLinkService);
+
+const getInboxLinkService = () =>
+  container.get<InboxLinkService>(MAIN_TOKENS.InboxLinkService);
 
 export const deepLinkRouter = router({
   /**
@@ -17,7 +25,7 @@ export const deepLinkRouter = router({
    * posthog-code://task/{taskId}/run/{taskRunId} is opened.
    */
   onOpenTask: publicProcedure.subscription(async function* (opts) {
-    const service = getService();
+    const service = getTaskLinkService();
     const iterable = service.toIterable(TaskLinkEvent.OpenTask, {
       signal: opts.signal,
     });
@@ -31,7 +39,31 @@ export const deepLinkRouter = router({
    * This handles the case where the app is launched via deep link.
    */
   getPendingDeepLink: publicProcedure.query((): PendingDeepLink | null => {
-    const service = getService();
+    const service = getTaskLinkService();
     return service.consumePendingDeepLink();
   }),
+
+  /**
+   * Subscribe to inbox report deep link events.
+   * Emits report ID when posthog-code://inbox/{reportId} is opened.
+   */
+  onOpenReport: publicProcedure.subscription(async function* (opts) {
+    const service = getInboxLinkService();
+    const iterable = service.toIterable(InboxLinkEvent.OpenReport, {
+      signal: opts.signal,
+    });
+    for await (const data of iterable) {
+      yield data;
+    }
+  }),
+
+  /**
+   * Get any pending inbox deep link that arrived before renderer was ready.
+   */
+  getPendingReportLink: publicProcedure.query(
+    (): PendingInboxDeepLink | null => {
+      const service = getInboxLinkService();
+      return service.consumePendingDeepLink();
+    },
+  ),
 });

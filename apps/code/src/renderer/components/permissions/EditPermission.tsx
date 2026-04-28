@@ -24,7 +24,7 @@ export function EditPermission({
         isNewFile ? (
           <>
             Do you want to create{" "}
-            <Code variant="ghost" weight="bold">
+            <Code variant="ghost" className="font-bold">
               {getFilename(filePath)}
             </Code>
             ?

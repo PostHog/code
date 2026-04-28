@@ -43,7 +43,7 @@ export function ScopeReauthPrompt() {
             </Dialog.Title>
           </Flex>
           <Dialog.Description>
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               PostHog Code has been updated with new features that require
               additional permissions. Please sign in again to continue.
             </Text>

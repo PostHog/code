@@ -34,6 +34,7 @@ import { CloudTaskService } from "../services/cloud-task/service";
 import { ConnectivityService } from "../services/connectivity/service";
 import { ContextMenuService } from "../services/context-menu/service";
 import { DeepLinkService } from "../services/deep-link/service";
+import { EnrichmentService } from "../services/enrichment/service";
 import { EnvironmentService } from "../services/environment/service";
 import { ExternalAppsService } from "../services/external-apps/service";
 import { FileWatcherService } from "../services/file-watcher/service";
@@ -43,6 +44,8 @@ import { FoldersService } from "../services/folders/service";
 import { FsService } from "../services/fs/service";
 import { GitService } from "../services/git/service";
 import { GitHubIntegrationService } from "../services/github-integration/service";
+import { HandoffService } from "../services/handoff/service";
+import { InboxLinkService } from "../services/inbox-link/service";
 import { LinearIntegrationService } from "../services/linear-integration/service";
 import { LlmGatewayService } from "../services/llm-gateway/service";
 import { McpAppsService } from "../services/mcp-apps/service";
@@ -106,6 +109,7 @@ container.bind(MAIN_TOKENS.CloudTaskService).to(CloudTaskService);
 container.bind(MAIN_TOKENS.ConnectivityService).to(ConnectivityService);
 container.bind(MAIN_TOKENS.ContextMenuService).to(ContextMenuService);
 container.bind(MAIN_TOKENS.DeepLinkService).to(DeepLinkService);
+container.bind(MAIN_TOKENS.EnrichmentService).to(EnrichmentService);
 container.bind(MAIN_TOKENS.EnvironmentService).to(EnvironmentService);
 container.bind(MAIN_TOKENS.ProvisioningService).to(ProvisioningService);
 
@@ -121,6 +125,7 @@ container
   .bind(MAIN_TOKENS.GitHubIntegrationService)
   .to(GitHubIntegrationService);
 container.bind(MAIN_TOKENS.GitService).to(GitService);
+container.bind(MAIN_TOKENS.HandoffService).to(HandoffService);
 container
   .bind(MAIN_TOKENS.LinearIntegrationService)
   .to(LinearIntegrationService);
@@ -134,6 +139,7 @@ container.bind(MAIN_TOKENS.ShellService).to(ShellService);
 container.bind(MAIN_TOKENS.UIService).to(UIService);
 container.bind(MAIN_TOKENS.UpdatesService).to(UpdatesService);
 container.bind(MAIN_TOKENS.TaskLinkService).to(TaskLinkService);
+container.bind(MAIN_TOKENS.InboxLinkService).to(InboxLinkService);
 container.bind(MAIN_TOKENS.WatcherRegistryService).to(WatcherRegistryService);
 container.bind(MAIN_TOKENS.WorkspaceService).to(WorkspaceService);
 

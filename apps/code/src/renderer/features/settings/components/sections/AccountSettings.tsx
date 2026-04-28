@@ -29,7 +29,7 @@ export function AccountSettings() {
   if (!isAuthenticated) {
     return (
       <Flex direction="column" gap="3" py="4">
-        <Text size="2" color="gray">
+        <Text color="gray" className="text-sm">
           You are not currently authenticated. Please sign in from the main
           screen.
         </Text>
@@ -54,14 +54,14 @@ export function AccountSettings() {
     <Flex direction="column">
       <Flex align="center" gap="4" py="4">
         <Avatar size="4" fallback={initials} radius="full" color="amber" />
-        <Flex direction="column" gap="1" style={{ flex: 1 }}>
-          <Text size="3" weight="medium">
+        <Flex direction="column" gap="1" className="flex-1">
+          <Text className="font-medium text-base">
             {user.first_name && user.last_name
               ? `${user.first_name} ${user.last_name}`
               : user.email}
           </Text>
           <Flex align="center" gap="2">
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               {user.email}
             </Text>
             {cloudRegion && (
@@ -81,7 +81,7 @@ export function AccountSettings() {
           color="red"
           size="1"
           onClick={handleLogout}
-          style={{ cursor: "pointer" }}
+          className="cursor-pointer"
         >
           <SignOut size={14} />
           Sign out

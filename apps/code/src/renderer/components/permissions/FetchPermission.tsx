@@ -34,12 +34,17 @@ export function FetchPermission({
       pendingAction={
         <>
           {url && (
-            <Link href={url} target="_blank" size="1">
+            <Link href={url} target="_blank" className="text-[13px]">
               {url}
             </Link>
           )}
           {prompt && (
-            <Text size="1" color="gray" as="p" mt={url ? "2" : "0"}>
+            <Text
+              color="gray"
+              as="p"
+              mt={url ? "2" : "0"}
+              className="text-[13px]"
+            >
               {prompt}
             </Text>
           )}

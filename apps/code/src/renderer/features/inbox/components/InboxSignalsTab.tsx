@@ -5,6 +5,7 @@ import {
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
+import { useInboxDeepLinkListSync } from "@features/inbox/hooks/useInboxDeepLinkListSync";
 import {
   useInboxAvailableSuggestedReviewers,
   useInboxReportsInfinite,
@@ -155,25 +156,18 @@ export function InboxSignalsTab() {
   const selectExactRange = useInboxReportSelectionStore(
     (s) => s.selectExactRange,
   );
-  const pruneSelection = useInboxReportSelectionStore((s) => s.pruneSelection);
   const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
+
+  const { selectedReport } = useInboxDeepLinkListSync({
+    reports,
+    inboxPollingActive,
+  });
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
   selectedReportIdsRef.current = selectedReportIds;
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
-
-  // Prune selection when visible reports change (e.g. filter/search)
-  useEffect(() => {
-    pruneSelection(reports.map((report) => report.id));
-  }, [reports, pruneSelection]);
-
-  // The report to show in the detail pane (only when exactly 1 is selected)
-  const selectedReport = useMemo(() => {
-    if (selectedReportIds.length !== 1) return null;
-    return reports.find((r) => r.id === selectedReportIds[0]) ?? null;
-  }, [reports, selectedReportIds]);
 
   // Reports for the multi-select stack (when 2+ selected)
   const selectedReports = useMemo(() => {
@@ -406,24 +400,17 @@ export function InboxSignalsTab() {
   return (
     <>
       {showTwoPaneLayout ? (
-        <Flex ref={containerRef} height="100%" style={{ minHeight: 0 }}>
+        <Flex ref={containerRef} height="100%" className="min-h-0">
           {/* ── Left pane: report list ───────────────────────────────── */}
           <Box
-            className="select-none"
+            className="relative h-full max-w-[60%] flex-none select-none overflow-hidden border-r border-r-(--gray-5)"
             style={{
               width: `${sidebarWidth}px`,
-              maxWidth: "60%",
-              height: "100%",
-              flex: "none",
-              borderRight: "1px solid var(--gray-5)",
-              position: "relative",
-              overflow: "hidden",
             }}
           >
             <ScrollArea
               type="auto"
-              className="scroll-area-constrain-width inbox-report-list-scroll"
-              style={{ height: "100%" }}
+              className="scroll-area-constrain-width inbox-report-list-scroll h-full"
             >
               <Flex
                 ref={leftPaneRef}
@@ -468,12 +455,7 @@ export function InboxSignalsTab() {
               >
                 <Box
                   data-inbox-sticky-header
-                  style={{
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 10,
-                    backgroundColor: "var(--color-background)",
-                  }}
+                  className="sticky top-0 z-10 bg-(--color-background)"
                 >
                   <SignalsToolbar
                     totalCount={totalCount}
@@ -515,15 +497,8 @@ export function InboxSignalsTab() {
             {/* Resize handle */}
             <Box
               onMouseDown={handleResizeMouseDown}
-              className="no-drag"
+              className="no-drag absolute top-0 right-0 bottom-0 w-[4px] cursor-col-resize bg-transparent"
               style={{
-                position: "absolute",
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: "4px",
-                cursor: "col-resize",
-                backgroundColor: "transparent",
                 zIndex: 100,
               }}
             />
@@ -532,12 +507,7 @@ export function InboxSignalsTab() {
           {/* ── Right pane: detail ───────────────────────────────── */}
           <Flex
             direction="column"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              height: "100%",
-              position: "relative",
-            }}
+            className="@container relative h-full min-w-0 flex-1"
           >
             {selectedReports.length > 1 ? (
               <MultiSelectStack
@@ -556,7 +526,7 @@ export function InboxSignalsTab() {
         </Flex>
       ) : (
         /* ── Full-width empty state with skeleton backdrop ──────── */
-        <Box style={{ height: "100%", position: "relative" }}>
+        <Box className="relative h-full">
           <Flex direction="column">
             <SignalsToolbar
               totalCount={0}
@@ -571,17 +541,12 @@ export function InboxSignalsTab() {
           </Flex>
           <Box
             style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              pointerEvents: "none",
               background:
                 "linear-gradient(to bottom, transparent 0%, var(--color-background) 30%)",
             }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
           >
-            <Box style={{ pointerEvents: "auto" }}>
+            <Box className="pointer-events-auto">
               {!hasSignalSources || !hasGithubIntegration ? (
                 <WelcomePane onEnableInbox={() => setSourcesDialogOpen(true)} />
               ) : (

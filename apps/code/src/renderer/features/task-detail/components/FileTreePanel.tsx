@@ -10,6 +10,7 @@ import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudRunState } from "@features/task-detail/hooks/useCloudRunState";
 import { Cloud } from "@phosphor-icons/react";
 import { Box, Button, Flex, Spinner, Text } from "@radix-ui/themes";
+import { useIsCloudTask } from "@renderer/features/workspace/hooks/useIsCloudTask";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
@@ -154,7 +155,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
       <PanelMessage detail="Files are in the cloud sandbox">
         <Flex align="center" gap="2">
           <Spinner size="1" />
-          <Text size="2">Running in cloud...</Text>
+          <Text className="text-sm">Running in cloud...</Text>
         </Flex>
       </PanelMessage>
     );
@@ -171,7 +172,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
       <Flex direction="column" align="center" gap="2">
         <Flex align="center" gap="2">
           <Cloud size={16} weight="regular" />
-          <Text size="2">
+          <Text className="text-sm">
             {hasFallbackChanges
               ? `${fallbackFiles.length} file${fallbackFiles.length === 1 ? "" : "s"} changed in cloud sandbox`
               : "Files are in the cloud sandbox"}
@@ -194,9 +195,7 @@ function CloudFileTreePanel({ taskId, task }: FileTreePanelProps) {
 }
 
 export function FileTreePanel({ taskId, task }: FileTreePanelProps) {
-  const workspace = useWorkspace(taskId);
-  const isCloud =
-    workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
+  const isCloud = useIsCloudTask(taskId);
 
   if (isCloud) {
     return <CloudFileTreePanel taskId={taskId} task={task} />;
@@ -257,13 +256,7 @@ function LocalFileTreePanel({ taskId, task: _task }: FileTreePanelProps) {
   }
 
   return (
-    <Box
-      height="100%"
-      py="2"
-      style={{
-        overflowY: "auto",
-      }}
-    >
+    <Box height="100%" py="2" className="overflow-y-auto">
       <Flex direction="column">
         {rootEntries.map((entry) => (
           <LazyTreeItem

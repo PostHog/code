@@ -452,8 +452,9 @@ describe("CloudTaskService", () => {
     );
 
     expect(mockStreamFetch.mock.calls.length).toBe(6);
-    // 2 bootstrap calls + 6 handleStreamCompletion calls (one per stream error)
-    expect(mockNetFetch).toHaveBeenCalledTimes(8);
+    // 2 bootstrap calls + 1 post-bootstrap status verification + 6
+    // handleStreamCompletion calls (one per stream error)
+    expect(mockNetFetch).toHaveBeenCalledTimes(9);
     expect(updates).toContainEqual({
       taskId: "task-1",
       runId: "run-1",

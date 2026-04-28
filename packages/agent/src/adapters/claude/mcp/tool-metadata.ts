@@ -1,16 +1,26 @@
 import type { McpServerStatus, Query } from "@anthropic-ai/claude-agent-sdk";
 import { Logger } from "../../../utils/logger";
 
+export type McpToolApprovalState = "approved" | "needs_approval" | "do_not_use";
+
+/** Maps MCP tool keys (e.g. `mcp__server__tool`) to their backend approval state. */
+export type McpToolApprovals = Record<string, McpToolApprovalState>;
+
 export interface McpToolMetadata {
   readOnly: boolean;
   name: string;
   description?: string;
+  approvalState?: McpToolApprovalState;
 }
 
 const mcpToolMetadataCache: Map<string, McpToolMetadata> = new Map();
 
 const PENDING_RETRY_INTERVAL_MS = 1_000;
 const PENDING_MAX_RETRIES = 10;
+
+export function sanitizeMcpServerName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
 
 function buildToolKey(serverName: string, toolName: string): string {
   return `mcp__${serverName}__${toolName}`;
@@ -49,10 +59,12 @@ export async function fetchMcpToolMetadata(
         const toolKey = buildToolKey(server.name, tool.name);
         const readOnly = tool.annotations?.readOnly === true;
 
+        const existing = mcpToolMetadataCache.get(toolKey);
         mcpToolMetadataCache.set(toolKey, {
           readOnly,
           name: tool.name,
           description: tool.description,
+          approvalState: existing?.approvalState,
         });
         if (readOnly) readOnlyCount++;
       }
@@ -102,6 +114,27 @@ export function getConnectedMcpServerNames(): string[] {
     if (parts.length >= 3) names.add(parts[1]);
   }
   return [...names];
+}
+
+export function getMcpToolApprovalState(
+  toolName: string,
+): McpToolApprovalState | undefined {
+  return mcpToolMetadataCache.get(toolName)?.approvalState;
+}
+
+export function setMcpToolApprovalStates(approvals: McpToolApprovals): void {
+  for (const [toolKey, approvalState] of Object.entries(approvals)) {
+    const existing = mcpToolMetadataCache.get(toolKey);
+    if (existing) {
+      existing.approvalState = approvalState;
+    } else {
+      mcpToolMetadataCache.set(toolKey, {
+        readOnly: false,
+        name: toolKey,
+        approvalState,
+      });
+    }
+  }
 }
 
 export function clearMcpToolMetadataCache(): void {

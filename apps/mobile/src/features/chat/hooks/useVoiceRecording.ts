@@ -1,7 +1,8 @@
-import { Audio } from "expo-av";
-import { File } from "expo-file-system";
+import { ExpoSpeechRecognitionModule } from "expo-speech-recognition";
 import { useCallback, useRef, useState } from "react";
-import { useAuthStore } from "@/features/auth";
+import { logger } from "@/lib/logger";
+
+const log = logger.scope("voice-recording");
 
 type RecordingStatus = "idle" | "recording" | "transcribing" | "error";
 
@@ -16,148 +17,142 @@ interface UseVoiceRecordingReturn {
 export function useVoiceRecording(): UseVoiceRecordingReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const transcriptRef = useRef<string>("");
+  const resolveRef = useRef<((text: string | null) => void) | null>(null);
+  const listenersRef = useRef<(() => void)[]>([]);
+
+  const cleanup = useCallback(() => {
+    for (const remove of listenersRef.current) {
+      remove();
+    }
+    listenersRef.current = [];
+    resolveRef.current = null;
+    transcriptRef.current = "";
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
       setError(null);
+      transcriptRef.current = "";
 
-      // Request permissions
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        setError("Microphone permission is required");
+      if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
+        setError("Speech recognition is not available on this device");
         setStatus("error");
         return;
       }
 
-      // Configure audio mode for recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      // Create and start recording
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-      await recording.startAsync();
-      recordingRef.current = recording;
-      setStatus("recording");
-    } catch (err) {
-      console.error("Failed to start recording:", err);
-      setError("Failed to start recording");
-      setStatus("error");
-    }
-  }, []);
-
-  const stopRecording = useCallback(async (): Promise<string | null> => {
-    if (!recordingRef.current) {
-      return null;
-    }
-
-    try {
-      setStatus("transcribing");
-
-      // Stop recording and get URI
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-
-      // Reset audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
-
-      if (!uri) {
-        setError("No recording found");
+      const { granted } =
+        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) {
+        setError("Speech recognition permission is required");
         setStatus("error");
-        return null;
+        return;
       }
 
-      const {
-        oauthAccessToken,
-        cloudRegion,
-        projectId,
-        getCloudUrlFromRegion,
-      } = useAuthStore.getState();
-
-      if (!oauthAccessToken || !cloudRegion || !projectId) {
-        setError("Not authenticated");
-        setStatus("error");
-        return null;
-      }
-
-      const cloudUrl = getCloudUrlFromRegion(cloudRegion);
-
-      // Create form data with the recording file
-      const formData = new FormData();
-      formData.append("file", {
-        uri,
-        type: "audio/mp4",
-        name: "recording.m4a",
-      } as unknown as Blob);
-
-      // Call PostHog LLM Gateway transcription API
-      const response = await fetch(
-        `${cloudUrl}/api/projects/${projectId}/llm_gateway/v1/audio/transcriptions`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${oauthAccessToken}`,
-          },
-          body: formData,
+      // Listen for results — accumulate the latest transcript
+      const resultSub = ExpoSpeechRecognitionModule.addListener(
+        "result",
+        (event) => {
+          const best = event.results[0]?.transcript;
+          if (best) {
+            transcriptRef.current = best;
+          }
+          if (event.isFinal && resolveRef.current) {
+            resolveRef.current(transcriptRef.current || null);
+            cleanup();
+            setStatus("idle");
+          }
         },
       );
 
-      // Clean up the temp file
-      const recordingFile = new File(uri);
-      if (recordingFile.exists) {
-        await recordingFile.delete();
-      }
+      const errorSub = ExpoSpeechRecognitionModule.addListener(
+        "error",
+        (event) => {
+          // "no-speech" is not a real error — just means the user didn't say anything
+          if (event.error === "no-speech") {
+            if (resolveRef.current) {
+              resolveRef.current(null);
+            }
+            cleanup();
+            setStatus("idle");
+            return;
+          }
+          setError(event.message || "Speech recognition failed");
+          if (resolveRef.current) {
+            resolveRef.current(null);
+          }
+          cleanup();
+          setStatus("error");
+        },
+      );
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Transcription failed: ${errorData}`);
-      }
+      // If recognition ends without a final result (e.g. silence timeout)
+      const endSub = ExpoSpeechRecognitionModule.addListener("end", () => {
+        if (resolveRef.current) {
+          resolveRef.current(transcriptRef.current || null);
+          cleanup();
+          setStatus("idle");
+        }
+      });
 
-      const data = await response.json();
-      setStatus("idle");
-      return data.text;
+      listenersRef.current = [
+        () => resultSub.remove(),
+        () => errorSub.remove(),
+        () => endSub.remove(),
+      ];
+
+      const useOnDevice =
+        ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+
+      ExpoSpeechRecognitionModule.start({
+        lang: "en-US",
+        interimResults: true,
+        requiresOnDeviceRecognition: useOnDevice,
+        addsPunctuation: true,
+      });
+
+      setStatus("recording");
     } catch (err) {
-      console.error("Failed to transcribe:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Transcription failed";
-      setError(errorMessage);
+      log.error("Failed to start speech recognition", err);
+      setError("Failed to start speech recognition");
       setStatus("error");
+    }
+  }, [cleanup]);
+
+  const stopRecording = useCallback(async (): Promise<string | null> => {
+    if (status !== "recording") {
       return null;
     }
-  }, []);
+
+    setStatus("transcribing");
+
+    return new Promise<string | null>((resolve) => {
+      // Some Android engines go silent (e.g. backgrounded mid-recognition)
+      // and never fire result/error/end — without this timeout the UI
+      // would stay stuck on "Transcribing…" with no way out.
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        log.warn("Speech recognition did not finalize, falling back");
+        cleanup();
+        setStatus("idle");
+        resolve(transcriptRef.current || null);
+      }, 5000);
+      resolveRef.current = (value) => {
+        if (timedOut) return;
+        clearTimeout(timeoutId);
+        resolve(value);
+      };
+      ExpoSpeechRecognitionModule.stop();
+    });
+  }, [status, cleanup]);
 
   const cancelRecording = useCallback(async () => {
-    if (recordingRef.current) {
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
-        if (uri) {
-          const file = new File(uri);
-          if (file.exists) {
-            await file.delete();
-          }
-        }
-      } catch {
-        // Ignore cleanup errors
-      }
-      recordingRef.current = null;
-    }
-
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-    });
-
+    ExpoSpeechRecognitionModule.abort();
+    cleanup();
     setStatus("idle");
     setError(null);
-  }, []);
+  }, [cleanup]);
 
   return {
     status,

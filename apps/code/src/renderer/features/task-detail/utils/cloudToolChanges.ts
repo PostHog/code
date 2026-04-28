@@ -3,8 +3,7 @@ import type {
   ToolCallContent,
   ToolCallLocation,
 } from "@features/sessions/types";
-import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
-import type { ChangedFile, GitFileStatus } from "@shared/types";
+import type { ChangedFile } from "@shared/types";
 import {
   type AcpMessage,
   isJsonRpcNotification,
@@ -115,23 +114,15 @@ function getDiffStats(
 
 export interface CloudEventSummary {
   toolCalls: Map<string, ParsedToolCall>;
-  treeSnapshotFiles: ChangedFile[];
 }
 
-const TREE_SNAPSHOT_STATUS_MAP: Record<string, GitFileStatus> = {
-  A: "added",
-  M: "modified",
-  D: "deleted",
-};
-
 /**
- * Single-pass extraction of tool calls and the last tree snapshot from events.
+ * Single-pass extraction of tool calls from events.
  */
 export function buildCloudEventSummary(
   events: AcpMessage[],
 ): CloudEventSummary {
   const toolCalls = new Map<string, ParsedToolCall>();
-  let treeSnapshotFiles: ChangedFile[] = [];
 
   for (const event of events) {
     const message = event.message;
@@ -171,28 +162,10 @@ export function buildCloudEventSummary(
 
       const merged = mergeToolCall(toolCalls.get(toolCallId), patch);
       toolCalls.set(toolCallId, merged);
-    } else if (
-      isNotification(message.method, POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT)
-    ) {
-      const params = message.params as
-        | {
-            changes?: Array<{ path: string; status: "A" | "M" | "D" }>;
-          }
-        | undefined;
-      const changes = params?.changes;
-      if (!Array.isArray(changes) || changes.length === 0) continue;
-
-      // Overwrite — we only care about the last snapshot
-      treeSnapshotFiles = changes
-        .filter((c) => c.path && c.status in TREE_SNAPSHOT_STATUS_MAP)
-        .map((c) => ({
-          path: c.path,
-          status: TREE_SNAPSHOT_STATUS_MAP[c.status],
-        }));
     }
   }
 
-  return { toolCalls, treeSnapshotFiles };
+  return { toolCalls };
 }
 
 export function extractCloudFileDiff(
@@ -252,6 +225,7 @@ export function extractCloudToolChangedFiles(
     const path =
       diff?.path ?? (kind === "move" ? destinationPath : locationPath);
     if (!path) continue;
+    if (path.includes(".claude/plans/")) continue;
 
     let file: ChangedFile;
     if (kind === "move") {

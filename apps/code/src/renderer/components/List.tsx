@@ -13,46 +13,34 @@ interface ListItemProps {
   size?: ListSize;
 }
 
-const sizeStyles: Record<
-  ListSize,
-  { fontSize: string; lineHeight: string; spacing: string }
-> = {
-  "1": {
-    fontSize: "var(--font-size-1)",
-    lineHeight: "var(--line-height-1)",
-    spacing: "var(--space-1)",
-  },
-  "1.5": {
-    fontSize: "var(--font-size-1-5)",
-    lineHeight: "var(--line-height-1-5)",
-    spacing: "var(--space-1)",
-  },
-  "2": {
-    fontSize: "var(--font-size-2)",
-    lineHeight: "var(--line-height-2)",
-    spacing: "var(--space-1)",
-  },
-  "3": {
-    fontSize: "var(--font-size-3)",
-    lineHeight: "var(--line-height-3)",
-    spacing: "var(--space-2)",
-  },
-};
+const sizeStyles: Record<ListSize, { className: string; itemSpacing: string }> =
+  {
+    "1": {
+      className: "text-[13px]",
+      itemSpacing: "mb-1",
+    },
+    "1.5": {
+      className: "text-[13.5px]",
+      itemSpacing: "mb-1",
+    },
+    "2": {
+      className: "text-sm",
+      itemSpacing: "mb-1",
+    },
+    "3": {
+      className: "text-base",
+      itemSpacing: "mb-2",
+    },
+  };
 
 export function List({ children, as = "ul" }: ListProps) {
   const Component = as;
 
   return (
     <Component
-      className="marker:text-[var(--accent-10)]"
-      style={{
-        margin: 0,
-        marginTop: "var(--space-2)",
-        paddingLeft: as === "ol" ? "var(--space-5)" : "var(--space-4)",
-        marginBottom: "var(--space-3)",
-        listStyleType: as === "ol" ? "decimal" : "disc",
-        listStylePosition: "outside",
-      }}
+      className={`mt-2 mb-3 list-outside marker:text-[var(--accent-10)] ${
+        as === "ol" ? "list-decimal pl-6" : "list-disc pl-4"
+      }`}
     >
       {children}
     </Component>
@@ -64,12 +52,7 @@ export function ListItem({ children, size = "2" }: ListItemProps) {
 
   return (
     <li
-      style={{
-        fontSize: styles.fontSize,
-        lineHeight: styles.lineHeight,
-        marginBottom: styles.spacing,
-        color: "var(--gray-12)",
-      }}
+      className={`text-(--gray-12) ${styles.className} ${styles.itemSpacing}`}
     >
       {children}
     </li>

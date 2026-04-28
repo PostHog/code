@@ -32,9 +32,7 @@ function CopyableCommand({ command }: { command: string }) {
       gap="2"
       className="rounded border border-gray-6 bg-gray-2 px-2 py-1"
     >
-      <Text size="1" className="text-gray-11">
-        {command}
-      </Text>
+      <Text className="text-[13px] text-gray-11">{command}</Text>
       <Tooltip content={copied ? "Copied!" : "Copy"}>
         <IconButton
           variant="ghost"
@@ -58,10 +56,10 @@ function SettingDescription({
 }) {
   return (
     <Flex direction="column" gap="1">
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         {text}
       </Text>
-      <Link href={docsUrl} target="_blank" size="1">
+      <Link href={docsUrl} target="_blank" className="text-[13px]">
         <Flex align="center" gap="1">
           Documentation
           <ArrowSquareOut size={10} />
@@ -107,9 +105,7 @@ export function ClaudeCodeSettings() {
   return (
     <Flex direction="column">
       {/* Extensions */}
-      <Text size="2" weight="medium" className="mt-1 mb-2">
-        Extensions
-      </Text>
+      <Text className="mt-1 mb-2 font-medium text-sm">Extensions</Text>
 
       <SettingRow
         label="MCP servers"
@@ -161,11 +157,7 @@ export function ClaudeCodeSettings() {
       </SettingRow>
 
       {/* Permissions */}
-      <Text
-        size="2"
-        weight="medium"
-        className="mb-2 block border-gray-6 border-t pt-4"
-      >
+      <Text className="mb-2 block border-gray-6 border-t pt-4 font-medium text-sm">
         Permissions
       </Text>
 
@@ -196,9 +188,9 @@ export function ClaudeCodeSettings() {
             <Warning weight="fill" />
           </Callout.Icon>
           <Callout.Text>
-            Auto-accept is enabled. All actions (shell commands, file edits, web
-            requests) run without approval. Pick this mode from the mode menu in
-            the prompt input per session.
+            Bypass Permissions is enabled. All actions (shell commands, file
+            edits, web requests) run without approval. Pick this mode from the
+            mode menu in the prompt input per session.
           </Callout.Text>
         </Callout.Root>
       )}
@@ -211,14 +203,14 @@ export function ClaudeCodeSettings() {
           <AlertDialog.Title color="red">
             <Flex align="center" gap="2">
               <Warning size={20} weight="fill" color="var(--red-9)" />
-              <Text color="red" weight="bold">
+              <Text color="red" className="font-bold">
                 Enable bypass permissions
               </Text>
             </Flex>
           </AlertDialog.Title>
-          <AlertDialog.Description size="2">
+          <AlertDialog.Description className="text-sm">
             <Flex direction="column" gap="3">
-              <Text color="red" weight="medium">
+              <Text color="red" className="font-medium">
                 With bypass enabled, Claude will execute every action without
                 asking -- including shell commands, file edits, web requests and
                 any installed MCP tools.
@@ -227,7 +219,7 @@ export function ClaudeCodeSettings() {
                 This mode is intended for sandboxed environments (containers or
                 VMs) with restricted network access that can be easily restored.
               </Text>
-              <Text weight="medium">
+              <Text className="font-medium">
                 By proceeding, you accept all responsibility for actions taken
                 while bypass is enabled.
               </Text>

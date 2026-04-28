@@ -1,14 +1,17 @@
+import { StepIcon, StepList, type StepStatus } from "@components/ui/StepList";
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import type { Plan } from "@features/sessions/types";
-import {
-  CaretDown,
-  CaretRight,
-  CheckCircle,
-  Circle,
-  Spinner,
-  XCircle,
-} from "@phosphor-icons/react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useMemo, useState } from "react";
+
+function planEntriesToSteps(plan: Plan) {
+  return plan.entries.map((entry) => ({
+    key: entry.content,
+    label: entry.content,
+    status: entry.status as StepStatus,
+  }));
+}
 
 interface PlanStatusBarProps {
   plan: Plan | null;
@@ -38,23 +41,23 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
       className="cursor-pointer border-gray-4 border-t bg-gray-2"
       onClick={() => setIsExpanded(!isExpanded)}
     >
-      <Box className="mx-auto max-w-[750px]">
+      <Box className="mx-auto" style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}>
         <Flex align="center" gap="2" className="px-3 py-2">
           {isExpanded ? (
             <CaretDown size={12} className="text-gray-9" />
           ) : (
             <CaretRight size={12} className="text-gray-9" />
           )}
-          <Text size="1" color="gray" className="whitespace-nowrap">
+          <Text color="gray" className="whitespace-nowrap text-[13px]">
             {stats.completed}/{stats.total} completed
           </Text>
           {stats.inProgress && (
             <>
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px]">
                 •
               </Text>
-              <Spinner size={12} className="animate-spin text-blue-9" />
-              <Text size="1" className="truncate text-gray-11">
+              <StepIcon status="in_progress" />
+              <Text className="truncate text-[13px] text-gray-11">
                 {stats.inProgress.content}
               </Text>
             </>
@@ -62,39 +65,11 @@ export function PlanStatusBar({ plan }: PlanStatusBarProps) {
         </Flex>
 
         {isExpanded && plan && (
-          <Box className="border-gray-4 border-t px-3 pb-2">
-            <Flex direction="column" gap="1" className="pt-2">
-              {plan.entries.map((entry) => (
-                <Flex key={entry.content} align="center" gap="2">
-                  <StatusIcon status={entry.status} />
-                  <Text
-                    size="1"
-                    color={entry.status === "completed" ? "gray" : undefined}
-                    className={
-                      entry.status === "completed" ? "text-gray-9" : ""
-                    }
-                  >
-                    {entry.content}
-                  </Text>
-                </Flex>
-              ))}
-            </Flex>
+          <Box className="border-gray-4 border-t px-3 pt-2 pb-2">
+            <StepList steps={planEntriesToSteps(plan)} size="1" />
           </Box>
         )}
       </Box>
     </Box>
   );
-}
-
-function StatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case "completed":
-      return <CheckCircle size={14} className="text-green-9" />;
-    case "in_progress":
-      return <Spinner size={14} className="animate-spin text-blue-9" />;
-    case "failed":
-      return <XCircle size={14} className="text-red-9" />;
-    default:
-      return <Circle size={14} className="text-gray-8" />;
-  }
 }

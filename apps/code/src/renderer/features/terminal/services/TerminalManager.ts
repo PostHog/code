@@ -86,7 +86,7 @@ function getTerminalTheme(isDarkMode: boolean) {
         foreground: "#0d0d0d",
         cursor: "#f54d00",
         cursorAccent: "#f2f3ee",
-        selectionBackground: "rgba(245, 77, 0, 0.2)",
+        selectionBackground: "rgba(245, 77, 0, 0.95)",
         selectionForeground: "#0d0d0d",
       };
 }

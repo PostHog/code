@@ -34,7 +34,7 @@ export function InviteCodeScreen() {
       variant="ghost"
       color="gray"
       onClick={() => logoutMutation.mutate()}
-      style={{ opacity: 0.5 }}
+      className="opacity-50"
     >
       <SignOut size={14} />
       Log out
@@ -47,41 +47,26 @@ export function InviteCodeScreen() {
         <Flex
           direction="column"
           align="center"
-          style={{
-            width: "100%",
-            maxWidth: 480,
-            height: "100%",
-            paddingTop: 24,
-            paddingBottom: 40,
-          }}
+          className="h-full w-full max-w-[480px] pt-[24px] pb-[40px]"
         >
           <Flex
             direction="column"
             justify="center"
             align="center"
-            style={{ flex: 1, minHeight: 0, width: "100%" }}
+            className="min-h-0 w-full flex-1"
           >
-            <Flex
-              direction="column"
-              align="start"
-              gap="6"
-              style={{ width: "100%" }}
-            >
-              <Flex direction="column" gap="5" style={{ width: "100%" }}>
+            <Flex direction="column" align="start" gap="6" className="w-full">
+              <Flex direction="column" gap="5" className="w-full">
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
                   <Flex direction="column" gap="2">
-                    <Text
-                      size="6"
-                      weight="bold"
-                      style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                    >
+                    <Text className="font-bold text-(--gray-12) text-2xl">
                       Enter your invite code
                     </Text>
-                    <Text size="2" style={{ color: "var(--gray-11)" }}>
+                    <Text className="text-(--gray-11) text-sm">
                       You need an invite code to access PostHog Code.
                     </Text>
                   </Flex>
@@ -105,17 +90,9 @@ export function InviteCodeScreen() {
                         onChange={(e) => setInviteCode(e.target.value)}
                         placeholder="Invite code"
                         disabled={redeemMutation.isPending}
+                        className="box-border h-[44px] w-full rounded-[10px] border border-(--gray-a3) bg-(--color-panel-solid) px-[14px] py-0 text-(--gray-12) text-[15px]"
                         style={{
-                          width: "100%",
-                          height: 44,
-                          padding: "0 14px",
-                          border: "1px solid var(--gray-a3)",
-                          borderRadius: 10,
-                          fontSize: 15,
-                          backgroundColor: "var(--color-panel-solid)",
-                          color: "var(--gray-12)",
                           outline: "none",
-                          boxSizing: "border-box",
                           boxShadow:
                             "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
                           fontFamily: "inherit",
@@ -125,7 +102,7 @@ export function InviteCodeScreen() {
                         type="submit"
                         size="3"
                         disabled={redeemMutation.isPending || !code.trim()}
-                        style={{ width: "100%" }}
+                        className="w-full"
                       >
                         {redeemMutation.isPending ? (
                           <Spinner size="1" />

@@ -3,12 +3,14 @@ import StarterKit from "@tiptap/starter-kit";
 import { createCommandGhostText } from "./CommandGhostText";
 import { createCommandMention } from "./CommandMention";
 import { createFileMention } from "./FileMention";
+import { createIssueMention } from "./IssueMention";
 import { MentionChipNode } from "./MentionChipNode";
 
 export interface EditorExtensionsOptions {
   sessionId: string;
   placeholder?: string;
   fileMentions?: boolean;
+  issueMentions?: boolean;
   commands?: boolean;
 }
 
@@ -17,6 +19,7 @@ export function getEditorExtensions(options: EditorExtensionsOptions) {
     sessionId,
     placeholder = "",
     fileMentions = true,
+    issueMentions = true,
     commands = true,
   } = options;
 
@@ -40,6 +43,10 @@ export function getEditorExtensions(options: EditorExtensionsOptions) {
 
   if (fileMentions) {
     extensions.push(createFileMention(sessionId));
+  }
+
+  if (issueMentions) {
+    extensions.push(createIssueMention(sessionId));
   }
 
   if (commands) {

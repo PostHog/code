@@ -164,22 +164,20 @@ export function SignalsToolbar({
       <Flex
         direction="column"
         gap="2"
-        className="select-none"
-        style={{ padding: "8px", borderBottom: "1px solid var(--gray-5)" }}
+        className="select-none border-b border-b-(--gray-5) p-[8px]"
       >
         <Flex align="center" justify="between" gap="2">
           <Flex direction="column" gap="0" className="min-w-0">
             <Flex align="center" gap="2">
-              <Text size="1" color="gray" className="shrink-0 text-[12px]">
+              <Text color="gray" className="shrink-0 text-[12px]">
                 Reports ({countLabel})
               </Text>
               {livePolling ? (
                 <Tooltip content={inboxLivePollingTooltip}>
                   <span
                     role="img"
-                    className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full"
+                    className="inline-flex h-1.5 w-1.5 shrink-0 cursor-default rounded-full bg-(--red-9)"
                     style={{
-                      backgroundColor: "var(--red-9)",
                       boxShadow: isFetching
                         ? "0 0 6px var(--red-9)"
                         : "0 0 4px var(--red-9)",
@@ -195,7 +193,7 @@ export function SignalsToolbar({
               ) : null}
             </Flex>
             {pipelineHint && !isSearchActive ? (
-              <Text size="1" color="gray" className="text-[11px] opacity-80">
+              <Text color="gray" className="text-[11px] opacity-80">
                 {pipelineHint}
               </Text>
             ) : null}
@@ -265,7 +263,7 @@ export function SignalsToolbar({
                 }
                 aria-label="Select all visible reports"
               />
-              <Text size="1" color="gray" className="text-[11px]">
+              <Text color="gray" className="text-[11px]">
                 {selectedCount} selected
               </Text>
             </label>
@@ -345,10 +343,10 @@ export function SignalsToolbar({
           <AlertDialog.Title>
             <Flex align="center" gap="2">
               <EyeSlashIcon size={18} />
-              <Text weight="bold">Suppress reports</Text>
+              <Text className="font-bold">Suppress reports</Text>
             </Flex>
           </AlertDialog.Title>
-          <AlertDialog.Description size="2">
+          <AlertDialog.Description className="text-sm">
             <Text className="text-[13px]">
               Suppressing a report causes all future signals matched to that
               report to be ignored. Are you sure?
@@ -387,10 +385,10 @@ export function SignalsToolbar({
           <AlertDialog.Title>
             <Flex align="center" gap="2">
               <TrashIcon size={18} />
-              <Text weight="bold">Delete reports</Text>
+              <Text className="font-bold">Delete reports</Text>
             </Flex>
           </AlertDialog.Title>
-          <AlertDialog.Description size="2">
+          <AlertDialog.Description className="text-sm">
             <Text className="text-[13px]">Delete this report?</Text>
           </AlertDialog.Description>
           <Flex gap="3" mt="4" justify="end">

@@ -1,5 +1,8 @@
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { trpcClient } from "../trpc";
+
+const log = logger.scope("settings-store");
 
 export type SendMessagesWith = "enter" | "cmd+enter";
 
@@ -20,7 +23,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
       if (mode === "enter" || mode === "cmd+enter") {
         set({ sendMessagesWith: mode });
       }
-    } catch (_error) {}
+    } catch (error) {
+      log.warn("Failed to load sendMessagesWith preference", { error });
+    }
   },
 
   setSendMessagesWith: async (mode: SendMessagesWith) => {
@@ -30,6 +35,8 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
         value: mode,
       });
       set({ sendMessagesWith: mode });
-    } catch (_error) {}
+    } catch (error) {
+      log.warn("Failed to persist sendMessagesWith preference", { error });
+    }
   },
 }));

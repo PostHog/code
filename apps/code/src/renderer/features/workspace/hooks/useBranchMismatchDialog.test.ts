@@ -109,12 +109,12 @@ describe("useBranchMismatchDialog", () => {
       const { result } = renderDialog({ shouldWarn: true });
       const clearEditor = vi.fn();
 
-      let allowed: boolean;
+      let allowed = true;
       act(() => {
         allowed = result.current.handleBeforeSubmit("hello", clearEditor);
       });
 
-      expect(allowed!).toBe(false);
+      expect(allowed).toBe(false);
       expect(result.current.dialogProps?.open).toBe(true);
       expect(clearEditor).not.toHaveBeenCalled();
       expect(mockTrack).toHaveBeenCalledWith(

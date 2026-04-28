@@ -17,10 +17,12 @@ import {
   MenuLabel,
 } from "@posthog/quill";
 import { Flex, Text } from "@radix-ui/themes";
+import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { useWorkspace } from "@renderer/features/workspace/hooks/useWorkspace";
 import { normalizeRepoKey } from "@shared/utils/repo";
 import { useNavigationStore } from "@stores/navigationStore";
 import { getRelativeDateGroup } from "@utils/time";
+import { motion } from "framer-motion";
 import { Fragment, useCallback, useEffect, useMemo } from "react";
 import type { TaskData, TaskGroup } from "../hooks/useSidebarData";
 import { useSidebarStore } from "../stores/sidebarStore";
@@ -146,7 +148,7 @@ function TaskFilterMenu() {
         align="start"
         side="bottom"
         sideOffset={6}
-        className="min-w-xs"
+        className="min-w-fit"
       >
         <MenuLabel>Organize</MenuLabel>
         <DropdownMenuRadioGroup
@@ -224,6 +226,9 @@ export function TaskListView({
   const navigateToTaskInput = useNavigationStore(
     (state) => state.navigateToTaskInput,
   );
+  const isOnTaskInput = useNavigationStore(
+    (state) => state.view.type === "task-input",
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset pagination when filters change
   useEffect(() => {
@@ -292,17 +297,38 @@ export function TaskListView({
       {pinnedTasks.length === 0 &&
       flatTasks.length === 0 &&
       groupedTasks.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-          <Text size="2" className="text-gray-11">
-            No tasks yet
-          </Text>
-          <button
-            type="button"
-            className="rounded-md bg-gray-3 px-3 py-1.5 text-[13px] text-gray-12 transition-colors hover:bg-gray-4"
-            onClick={() => navigateToTaskInput()}
-          >
-            New task
-          </button>
+        <div className="flex flex-col items-center gap-1 px-4 pt-6 pb-4 text-center">
+          <motion.img
+            src={builderHog}
+            alt=""
+            className="pointer-events-none w-[72px]"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{
+              opacity: 1,
+              y: [0, -4, 0],
+            }}
+            transition={{
+              opacity: { duration: 0.4 },
+              y: {
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.4,
+              },
+            }}
+          />
+          <Text className="text-[13px] text-gray-10">No tasks yet</Text>
+          {!isOnTaskInput && (
+            <motion.button
+              type="button"
+              className="mt-1 rounded-md bg-gray-3 px-3 py-1.5 text-[13px] text-gray-12"
+              onClick={() => navigateToTaskInput()}
+              whileHover={{ scale: 1.05, backgroundColor: "var(--gray-4)" }}
+              whileTap={{ scale: 0.97 }}
+            >
+              Start building
+            </motion.button>
+          )}
         </div>
       ) : organizeMode === "by-project" ? (
         <DragDropProvider
@@ -324,8 +350,7 @@ export function TaskListView({
               const folder = folders.find(
                 (f) =>
                   (f.remoteUrl &&
-                    normalizeRepoKey(f.remoteUrl).toLowerCase() ===
-                      normalizeRepoKey(group.id).toLowerCase()) ||
+                    normalizeRepoKey(f.remoteUrl).toLowerCase() === group.id) ||
                   f.path === group.id,
               );
               const groupFolderId =

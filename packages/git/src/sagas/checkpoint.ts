@@ -106,6 +106,7 @@ export class CaptureCheckpointSaga extends GitSaga<
         const rawCommit = await commitGit.raw([
           "commit-tree",
           metaTree.trim(),
+          ...(headInfo.head ? ["-p", headInfo.head] : []),
           "-m",
           message,
         ]);

@@ -30,14 +30,17 @@ const MODELS_WITH_EFFORT = new Set([
   "claude-sonnet-4-6",
 ]);
 
-const MODELS_WITH_MAX_EFFORT = new Set(["claude-opus-4-6", "claude-opus-4-7"]);
+const MODELS_WITH_XHIGH_EFFORT = new Set([
+  "claude-opus-4-6",
+  "claude-opus-4-7",
+]);
 
 export function supportsEffort(modelId: string): boolean {
   return MODELS_WITH_EFFORT.has(modelId);
 }
 
-export function supportsMaxEffort(modelId: string): boolean {
-  return MODELS_WITH_MAX_EFFORT.has(modelId);
+export function supportsXhighEffort(modelId: string): boolean {
+  return MODELS_WITH_XHIGH_EFFORT.has(modelId);
 }
 
 const MODELS_TO_EXCLUDE_MCP_TOOLS = new Set(["claude-haiku-4-5"]);
@@ -60,8 +63,11 @@ export function getEffortOptions(modelId: string): EffortOption[] | null {
     { value: "high", name: "High" },
   ];
 
-  if (supportsMaxEffort(modelId)) {
-    options.push({ value: "max", name: "Max" });
+  if (supportsXhighEffort(modelId)) {
+    options.push(
+      { value: "xhigh", name: "Extra High" },
+      { value: "max", name: "Max" },
+    );
   }
 
   return options;

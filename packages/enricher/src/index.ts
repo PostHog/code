@@ -31,12 +31,16 @@ export type {
   FlagAssignment,
   FlagType,
   FunctionInfo,
+  ImportEdge,
+  LocalWrapper,
+  ParseContext,
   PostHogCall,
   PostHogInitCall,
   StalenessCheckOptions,
   StalenessReason,
   SupportedLanguage,
   VariantBranch,
+  WrapperClassification,
 } from "./types.js";
 export { DEFAULT_CONFIG } from "./types.js";
 
@@ -57,3 +61,24 @@ export type {
   FlagCheck,
   ListItem,
 } from "./types.js";
+
+// ── Shared enrichment pipeline ──
+
+export type {
+  EnrichSourceApiConfig,
+  EnrichSourceOptions,
+} from "./enrich-source.js";
+export { enrichSource } from "./enrich-source.js";
+
+// ── Serialisation (tRPC/IPC boundary) ──
+
+export type {
+  SerializedEnrichment,
+  SerializedEvent,
+  SerializedEventOccurrence,
+  SerializedFlag,
+  SerializedFlagExperiment,
+  SerializedFlagOccurrence,
+  SerializedFlagVariant,
+} from "./serialize.js";
+export { toSerializable } from "./serialize.js";

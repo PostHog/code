@@ -23,4 +23,7 @@ export function invalidateGitBranchQueries(repoPath: string) {
   queryClient.invalidateQueries(trpc.git.getLatestCommit.queryFilter(input));
   queryClient.invalidateQueries(trpc.git.getPrStatus.queryFilter(input));
   queryClient.invalidateQueries(trpc.git.getFileAtHead.pathFilter());
+  queryClient.invalidateQueries(
+    trpc.git.getLocalBranchChangedFiles.pathFilter(),
+  );
 }

@@ -1,4 +1,9 @@
-import { File, GithubLogo, Paperclip } from "@phosphor-icons/react";
+import {
+  File,
+  FolderSimple,
+  GithubLogo,
+  Paperclip,
+} from "@phosphor-icons/react";
 import {
   Button,
   DropdownMenu,
@@ -11,7 +16,11 @@ import { toast } from "@renderer/utils/toast";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
 import { useRef, useState } from "react";
-import type { FileAttachment, MentionChip } from "../utils/content";
+import {
+  deriveFileLabel,
+  type FileAttachment,
+  type MentionChip,
+} from "../utils/content";
 import { persistBrowserFile } from "../utils/persistFile";
 import { IssuePicker } from "./IssuePicker";
 
@@ -98,18 +107,19 @@ export function AttachmentMenu({
     }
   };
 
-  const handleAddFile = async () => {
+  const isWindows = window.navigator.platform.toLowerCase().startsWith("win");
+
+  const pickAttachments = async (mode: "files" | "directories" | "both") => {
     setMenuOpen(false);
 
     try {
-      const filePaths = await trpcClient.os.selectFiles.query();
-      if (filePaths.length > 0) {
-        for (const filePath of filePaths) {
-          onAddAttachment({
-            id: filePath,
-            label: filePath.split("/").pop() ?? filePath,
-          });
-        }
+      const results = await trpcClient.os.selectAttachments.query({ mode });
+      for (const { path: filePath, kind } of results) {
+        onInsertChip({
+          type: kind === "directory" ? "folder" : "file",
+          id: filePath,
+          label: deriveFileLabel(filePath),
+        });
       }
       return;
     } catch {
@@ -118,6 +128,10 @@ export function AttachmentMenu({
 
     fileInputRef.current?.click();
   };
+
+  const handleAddFileOrFolder = () => pickAttachments("both");
+  const handleAddFile = () => pickAttachments("files");
+  const handleAddFolder = () => pickAttachments("directories");
 
   const handleOpenIssuePicker = () => {
     setMenuOpen(false);
@@ -158,19 +172,32 @@ export function AttachmentMenu({
           align="start"
           side="top"
           sideOffset={6}
-          className="min-w-[180px]"
+          className="min-w-[200px]"
         >
-          <DropdownMenuItem onClick={handleAddFile}>
-            <File size={14} weight="bold" />
-            Add file
-          </DropdownMenuItem>
+          {isWindows ? (
+            <>
+              <DropdownMenuItem onClick={handleAddFile}>
+                <File size={14} weight="bold" />
+                Add file
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAddFolder}>
+                <FolderSimple size={14} weight="bold" />
+                Add folder
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem onClick={handleAddFileOrFolder}>
+              <File size={14} weight="bold" />
+              Add file or folder
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             disabled={!!issueDisabledReason}
             onClick={handleOpenIssuePicker}
             title={issueDisabledReason ?? undefined}
           >
             <GithubLogo size={14} weight="bold" />
-            Add issue
+            Add issue or pull request
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

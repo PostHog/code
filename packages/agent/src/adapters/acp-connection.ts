@@ -1,6 +1,6 @@
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
 import type { SessionLogWriter } from "../session-log-writer";
-import type { ProcessSpawnedCallback } from "../types";
+import type { PostHogAPIConfig, ProcessSpawnedCallback } from "../types";
 import { Logger } from "../utils/logger";
 import {
   createBidirectionalStreams,
@@ -26,6 +26,10 @@ export type AcpConnectionConfig = {
   allowedModelIds?: Set<string>;
   /** Callback invoked when the agent calls the create_output tool for structured output */
   onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
+  /** PostHog API config; when set, enables file-read enrichment unless disabled. */
+  posthogApiConfig?: PostHogAPIConfig;
+  /** Defaults to true when posthogApiConfig is set. Set to false to disable enrichment. */
+  enricherEnabled?: boolean;
 };
 
 export type AcpConnection = {
@@ -52,6 +56,13 @@ export function createAcpConnection(
   }
 
   return createClaudeConnection(config);
+}
+
+function resolveEnricherApiConfig(
+  config: AcpConnectionConfig,
+): PostHogAPIConfig | undefined {
+  const enabled = !!config.posthogApiConfig && config.enricherEnabled !== false;
+  return enabled ? config.posthogApiConfig : undefined;
 }
 
 function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
@@ -102,6 +113,7 @@ function createClaudeConnection(config: AcpConnectionConfig): AcpConnection {
     agent = new ClaudeAcpAgent(client, {
       ...config.processCallbacks,
       onStructuredOutput: config.onStructuredOutput,
+      posthogApiConfig: resolveEnricherApiConfig(config),
     });
     return agent;
   }, agentStream);
@@ -192,6 +204,7 @@ function createCodexConnection(config: AcpConnectionConfig): AcpConnection {
     agent = new CodexAcpAgent(client, {
       codexProcessOptions: config.codexOptions ?? {},
       processCallbacks: config.processCallbacks,
+      posthogApiConfig: resolveEnricherApiConfig(config),
     });
     return agent;
   }, agentStream);

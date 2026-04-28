@@ -128,6 +128,7 @@
     "@pierre/diffs": "^1.1.7",
     "@posthog/agent": "workspace:*",
     "@posthog/electron-trpc": "workspace:*",
+    "@posthog/enricher": "workspace:*",
     "@posthog/git": "workspace:*",
     "@posthog/hedgehog-mode": "^0.0.48",
     "@posthog/platform": "workspace:*",

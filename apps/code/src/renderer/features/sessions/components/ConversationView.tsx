@@ -1,3 +1,4 @@
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import { useContextUsage } from "@features/sessions/hooks/useContextUsage";
 import {
   sessionStoreSetters,
@@ -7,6 +8,7 @@ import {
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
+import { SkillButtonActionMessage } from "@features/skill-buttons/components/SkillButtonActionMessage";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { AcpMessage } from "@shared/types/session-events";
@@ -167,6 +169,8 @@ export function ConversationView({
           );
         case "git_action":
           return <GitActionMessage actionType={item.actionType} />;
+        case "skill_button_action":
+          return <SkillButtonActionMessage buttonId={item.buttonId} />;
         case "session_update":
           return (
             <SessionUpdateRow
@@ -212,7 +216,7 @@ export function ConversationView({
   return (
     <div className="relative flex-1">
       <div
-        id="mcp-fullscreen-portal"
+        id="fullscreen-portal"
         className="pointer-events-none absolute inset-0 z-20"
       />
 
@@ -224,7 +228,8 @@ export function ConversationView({
         onScrollStateChange={handleScrollStateChange}
         keepMounted={mcpAppIndices}
         className="absolute inset-0 bg-background"
-        itemClassName="mx-auto max-w-[750px] px-2 py-1.5"
+        itemClassName="mx-auto px-2 py-1.5"
+        itemStyle={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
         footer={
           <div className={compact ? "pb-1" : "pb-16"}>
             <SessionFooter
@@ -292,7 +297,7 @@ const TurnCancelledView = memo(function TurnCancelledView({
     <Box className="border-gray-4 border-l-2 py-0.5 pl-3">
       <Flex align="center" gap="2" className="text-gray-9">
         <XCircle size={14} />
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           {message}
         </Text>
       </Flex>

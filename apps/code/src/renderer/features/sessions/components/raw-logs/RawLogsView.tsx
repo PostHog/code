@@ -13,6 +13,7 @@ import { RawLogsHeader } from "./RawLogsHeader";
 
 interface RawLogsViewProps {
   events: AcpMessage[];
+  onClose: () => void;
 }
 
 interface FilteredEvent {
@@ -20,7 +21,7 @@ interface FilteredEvent {
   originalIndex: number;
 }
 
-export function RawLogsView({ events }: RawLogsViewProps) {
+export function RawLogsView({ events, onClose }: RawLogsViewProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchQuery = useSearchQuery();
   const showSearch = useShowSearch();
@@ -71,6 +72,7 @@ export function RawLogsView({ events }: RawLogsViewProps) {
         showSearch={showSearch}
         onToggleSearch={toggleSearch}
         onCopyAll={copyAllLogs}
+        onClose={onClose}
         onSearchChange={setSearchQuery}
         searchInputRef={searchInputRef}
       />

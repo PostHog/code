@@ -69,9 +69,18 @@ class IPCClient {
   }
 
   request(op: Operation, callbacks: IPCCallbacks) {
-    const { type } = op;
+    const { type, signal } = op;
     const scopedId = `${this.#sessionId}:${op.id}`;
     const scopedOp = { ...op, id: scopedId };
+
+    if (signal?.aborted) {
+      callbacks.error(
+        TRPCClientError.from(
+          new DOMException("The operation was aborted.", "AbortError"),
+        ),
+      );
+      return () => {};
+    }
 
     this.#pendingRequests.set(scopedId, {
       type,
@@ -84,10 +93,20 @@ class IPCClient {
       operation: scopedOp as unknown as Operation,
     });
 
+    const onAbort = () => {
+      if (!this.#pendingRequests.has(scopedId)) return;
+      this.#electronTRPC.sendMessage({
+        id: scopedId,
+        method: "operation.cancel",
+      });
+    };
+    signal?.addEventListener("abort", onAbort);
+
     return () => {
       const callbacks = this.#pendingRequests.get(scopedId)?.callbacks;
 
       this.#pendingRequests.delete(scopedId);
+      signal?.removeEventListener("abort", onAbort);
 
       callbacks?.complete();
 

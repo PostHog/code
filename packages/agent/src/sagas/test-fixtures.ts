@@ -5,11 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import type { SagaLogger } from "@posthog/shared";
-import * as tar from "tar";
 import { vi } from "vitest";
 import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import type { PostHogAPIClient } from "../posthog-api";
-import type { StoredNotification, TaskRun, TreeSnapshot } from "../types";
+import type { GitCheckpointEvent, StoredNotification, TaskRun } from "../types";
 
 const execFileAsync = promisify(execFile);
 
@@ -67,6 +66,52 @@ export async function createTestRepo(prefix = "test-repo"): Promise<TestRepo> {
   };
 }
 
+export async function cloneTestRepo(
+  sourcePath: string,
+  prefix = "test-repo-clone",
+): Promise<TestRepo> {
+  const clonePath = join(
+    tmpdir(),
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  await execFileAsync("git", ["clone", sourcePath, clonePath]);
+  await execFileAsync("git", ["config", "user.email", "test@test.com"], {
+    cwd: clonePath,
+  });
+  await execFileAsync("git", ["config", "user.name", "Test"], {
+    cwd: clonePath,
+  });
+  await execFileAsync("git", ["config", "commit.gpgsign", "false"], {
+    cwd: clonePath,
+  });
+
+  const git = async (args: string[]): Promise<string> => {
+    const { stdout } = await execFileAsync("git", args, { cwd: clonePath });
+    return stdout.trim();
+  };
+
+  return {
+    path: clonePath,
+    cleanup: () => rm(clonePath, { recursive: true, force: true }),
+    git,
+    writeFile: async (relativePath: string, content: string) => {
+      const fullPath = join(clonePath, relativePath);
+      const dir = join(fullPath, "..");
+      await mkdir(dir, { recursive: true });
+      await writeFile(fullPath, content);
+    },
+    readFile: async (relativePath: string) => {
+      return readFile(join(clonePath, relativePath), "utf-8");
+    },
+    deleteFile: async (relativePath: string) => {
+      await rm(join(clonePath, relativePath), { force: true });
+    },
+    exists: (relativePath: string) => {
+      return existsSync(join(clonePath, relativePath));
+    },
+  };
+}
+
 export function createMockLogger(): SagaLogger {
   return {
     info: vi.fn(),
@@ -82,75 +127,12 @@ export function createMockApiClient(
   return {
     uploadTaskArtifacts: vi
       .fn()
-      .mockResolvedValue([{ storage_path: "gs://bucket/trees/test.tar.gz" }]),
+      .mockResolvedValue([{ storage_path: "gs://bucket/handoff/test.pack" }]),
     downloadArtifact: vi.fn(),
     getTaskRun: vi.fn(),
     fetchTaskRunLogs: vi.fn(),
     ...overrides,
   } as unknown as PostHogAPIClient;
-}
-
-export interface ArchiveFile {
-  path: string;
-  content: string;
-}
-
-export interface ArchiveSymlink {
-  path: string;
-  target: string;
-}
-
-export async function createArchiveBuffer(
-  files: Array<ArchiveFile>,
-  symlinks: Array<ArchiveSymlink> = [],
-): Promise<Buffer> {
-  const { symlink } = await import("node:fs/promises");
-  const tmpDir = join(
-    tmpdir(),
-    `archive-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-  );
-  await mkdir(tmpDir, { recursive: true });
-
-  const filesToArchive =
-    files.length > 0 ? files : [{ path: ".empty", content: "" }];
-
-  for (const file of filesToArchive) {
-    const fullPath = join(tmpDir, file.path);
-    await mkdir(join(fullPath, ".."), { recursive: true });
-    await writeFile(fullPath, file.content);
-  }
-
-  const symlinkPaths: string[] = [];
-  for (const link of symlinks) {
-    const fullPath = join(tmpDir, link.path);
-    await mkdir(join(fullPath, ".."), { recursive: true });
-    await symlink(link.target, fullPath);
-    symlinkPaths.push(link.path);
-  }
-
-  const archivePath = join(tmpDir, "archive.tar.gz");
-  await tar.create({ gzip: true, file: archivePath, cwd: tmpDir }, [
-    ...filesToArchive.map((f) => f.path),
-    ...symlinkPaths,
-  ]);
-
-  const content = await readFile(archivePath);
-  await rm(tmpDir, { recursive: true, force: true });
-
-  return Buffer.from(content.toString("base64"));
-}
-
-export function createSnapshot(
-  overrides: Partial<TreeSnapshot> = {},
-): TreeSnapshot {
-  return {
-    treeHash: "test-tree-hash",
-    baseCommit: null,
-    archiveUrl: "gs://bucket/trees/test.tar.gz",
-    changes: [],
-    timestamp: new Date().toISOString(),
-    ...overrides,
-  };
 }
 
 export function createTaskRun(overrides: Partial<TaskRun> = {}): TaskRun {
@@ -244,17 +226,22 @@ export function createToolResult(
   });
 }
 
-export function createTreeSnapshotNotification(
-  treeHash: string,
-  archiveUrl?: string,
-  options: { interrupted?: boolean; device?: { type: "local" | "cloud" } } = {},
+export function createGitCheckpointNotification(
+  overrides: Partial<GitCheckpointEvent> = {},
 ): StoredNotification {
-  return createNotification(POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT, {
-    treeHash,
-    baseCommit: "abc123",
-    archiveUrl,
-    changes: [{ path: "file.ts", status: "A" }],
+  return createNotification(POSTHOG_NOTIFICATIONS.GIT_CHECKPOINT, {
+    checkpointId: "checkpoint-1",
+    commit: "commit-1",
+    checkpointRef: "refs/posthog-code-checkpoint/checkpoint-1",
+    headRef: "refs/posthog-code-handoff/head/checkpoint-1",
+    head: "head-1",
+    branch: "main",
+    indexTree: "index-tree-1",
+    worktreeTree: "worktree-tree-1",
     timestamp: new Date().toISOString(),
-    ...options,
+    upstreamRemote: "origin",
+    upstreamMergeRef: "refs/heads/main",
+    remoteUrl: "git@github.com:posthog/posthog.git",
+    ...overrides,
   });
 }

@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ResolvedDiffSource } from "../utils/resolveDiffSource";
 import { ReviewToolbar } from "./ReviewToolbar";
 
 function splitFilePath(fullPath: string): {
@@ -252,23 +253,12 @@ function ExpandedSidebar({ task }: { task: Task }) {
   );
 
   return (
-    <Flex direction="row" style={{ flexShrink: 0 }}>
+    <Flex direction="row" className="shrink-0">
       <button
         type="button"
         aria-label="Resize sidebar"
         onMouseDown={handleMouseDown}
-        style={{
-          width: "4px",
-          cursor: "col-resize",
-          background: "transparent",
-          flexShrink: 0,
-          transition: "background 0.1s",
-          padding: 0,
-          border: "none",
-          borderLeftWidth: "1px",
-          borderLeftStyle: "solid",
-          borderLeftColor: "var(--gray-6)",
-        }}
+        style={{ transition: "background 0.1s" }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = "var(--accent-8)";
         }}
@@ -277,15 +267,15 @@ function ExpandedSidebar({ task }: { task: Task }) {
             e.currentTarget.style.background = "transparent";
           }
         }}
+        className="w-[4px] shrink-0 cursor-col-resize border-l border-l-(--gray-6) bg-transparent p-0"
       />
       <Flex
         direction="column"
         style={{
           width: `${width}px`,
           minWidth: `${SIDEBAR_MIN_WIDTH}px`,
-          background: "var(--color-background)",
-          flexShrink: 0,
         }}
+        className="shrink-0 bg-(--color-background)"
       >
         <ChangesPanel taskId={taskId} task={task} />
       </Flex>
@@ -306,6 +296,10 @@ export interface ReviewShellProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh?: () => void;
+  effectiveSource?: ResolvedDiffSource;
+  branchSourceAvailable?: boolean;
+  prSourceAvailable?: boolean;
+  defaultBranch?: string | null;
 }
 
 export function ReviewShell({
@@ -321,6 +315,10 @@ export function ReviewShell({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  effectiveSource,
+  branchSourceAvailable,
+  prSourceAvailable,
+  defaultBranch,
 }: ReviewShellProps) {
   const taskId = task.id;
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -409,24 +407,6 @@ export function ReviewShell({
     return () => observer.disconnect();
   }, [taskId, setActiveFilePath]);
 
-  if (isLoading) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Spinner size="2" />
-      </Flex>
-    );
-  }
-
-  if (isEmpty) {
-    return (
-      <Flex align="center" justify="center" height="100%">
-        <Text size="2" color="gray">
-          No file changes to review
-        </Text>
-      </Flex>
-    );
-  }
-
   return (
     <WorkerPoolContextProvider
       poolOptions={{ workerFactory }}
@@ -444,15 +424,30 @@ export function ReviewShell({
           onExpandAll={onExpandAll}
           onCollapseAll={onCollapseAll}
           onRefresh={onRefresh}
+          effectiveSource={effectiveSource}
+          branchSourceAvailable={branchSourceAvailable}
+          prSourceAvailable={prSourceAvailable}
+          defaultBranch={defaultBranch}
         />
-        <Flex style={{ flex: 1, minHeight: 0 }}>
+        <Flex className="min-h-0 flex-1">
           <div
             ref={scrollContainerRef}
-            className="scrollbar-overlay-y flex-1 space-y-2 overflow-auto"
+            className="scrollbar-overlay-y min-w-0 flex-1 space-y-2 overflow-auto"
             id="review-shell-diff-container"
-            style={{ minWidth: 0 }}
           >
-            {children}
+            {isLoading ? (
+              <Flex align="center" justify="center" height="100%">
+                <Spinner size="2" />
+              </Flex>
+            ) : isEmpty ? (
+              <Flex align="center" justify="center" height="100%">
+                <Text color="gray" className="text-sm">
+                  No file changes to review
+                </Text>
+              </Flex>
+            ) : (
+              children
+            )}
           </div>
 
           {isExpanded && <ExpandedSidebar task={task} />}
@@ -483,21 +478,7 @@ function FileHeaderRow({
     <button
       type="button"
       onClick={onToggle}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-        padding: "6px 12px",
-        borderBottom: "1px solid var(--gray-5)",
-        fontFamily: "var(--code-font-family)",
-        fontSize: "12px",
-        cursor: "pointer",
-        // userSelect: "none",
-        width: "100%",
-        background: "none",
-        border: "none",
-        textAlign: "left",
-      }}
+      className="flex w-full cursor-pointer items-center gap-[6px] border-0 border-b border-b-(--gray-5) bg-transparent px-[12px] py-[6px] text-left font-[var(--code-font-family)] text-xs"
     >
       <CaretDown
         size={12}
@@ -505,38 +486,26 @@ function FileHeaderRow({
         style={{
           transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
           transition: "transform 0.15s",
-          flexShrink: 0,
         }}
+        className="shrink-0"
       />
       <FileIcon filename={fileName} size={14} />
       <span
-        style={{ display: "flex", minWidth: 0, flex: 1, gap: "6px" }}
         title={dirPath + fileName}
+        className="flex min-w-0 flex-1 gap-[6px]"
       >
-        <span style={{ fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
+        <span className="shrink-0 whitespace-nowrap font-semibold">
           {fileName}
         </span>
-        <span
-          style={{
-            color: "var(--gray-9)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            minWidth: 0,
-          }}
-        >
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-(--gray-9)">
           {dirPath}
         </span>
       </span>
-      <span style={{ fontFamily: "monospace", fontSize: "10px" }}>
+      <span className="font-mono text-[10px]">
         {additions > 0 && (
-          <span style={{ color: "var(--green-9)", marginRight: "2px" }}>
-            +{additions}
-          </span>
+          <span className="mr-[2px] text-(--green-9)">+{additions}</span>
         )}
-        {deletions > 0 && (
-          <span style={{ color: "var(--red-9)" }}>-{deletions}</span>
-        )}
+        {deletions > 0 && <span className="text-(--red-9)">-{deletions}</span>}
       </span>
       {trailing}
     </button>
@@ -577,17 +546,7 @@ export function DiffFileHeader({
               e.stopPropagation();
               onOpenFile();
             }}
-            className="hover:bg-gray-4"
-            style={{
-              marginLeft: "auto",
-              color: "var(--gray-9)",
-              cursor: "pointer",
-              padding: "2px",
-              borderRadius: "3px",
-              display: "inline-flex",
-              background: "none",
-              border: "none",
-            }}
+            className="ml-auto inline-flex cursor-pointer rounded-[3px] border-0 bg-transparent p-[2px] text-(--gray-9) hover:bg-gray-4"
           >
             <ArrowSquareOut size={14} />
           </button>
@@ -645,17 +604,7 @@ export function DeferredDiffPlaceholder({
         onToggle={onToggle}
       />
       {!collapsed && (
-        <div
-          style={{
-            padding: "16px",
-            textAlign: "center",
-            color: "var(--gray-9)",
-            fontSize: "12px",
-            background: "var(--gray-2)",
-            borderBottom: "1px solid var(--gray-5)",
-            width: "100%",
-          }}
-        >
+        <div className="w-full border-b border-b-(--gray-5) bg-(--gray-2) p-[16px] text-center text-(--gray-9) text-xs">
           {getDeferredMessage(reason, linesAdded + linesRemoved)}
           {onShow ? (
             <>
@@ -664,14 +613,9 @@ export function DeferredDiffPlaceholder({
                 type="button"
                 onClick={onShow}
                 style={{
-                  color: "var(--accent-9)",
-                  textDecoration: "underline",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
                   fontSize: "inherit",
-                  padding: 0,
                 }}
+                className="cursor-pointer border-0 bg-transparent p-0 text-(--accent-9) underline"
               >
                 Load diff
               </button>
@@ -684,10 +628,9 @@ export function DeferredDiffPlaceholder({
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  color: "var(--accent-9)",
-                  textDecoration: "underline",
                   fontSize: "inherit",
                 }}
+                className="text-(--accent-9) underline"
               >
                 View on GitHub
               </a>

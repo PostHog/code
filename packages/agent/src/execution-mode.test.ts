@@ -8,6 +8,7 @@ describe("execution modes", () => {
       "acceptEdits",
       "plan",
       "bypassPermissions",
+      "auto",
     ]);
   });
 

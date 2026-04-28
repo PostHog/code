@@ -1,4 +1,9 @@
 import { delimiter } from "node:path";
+import {
+  type McpToolApprovalState,
+  type McpToolApprovals,
+  sanitizeMcpServerName,
+} from "@posthog/agent/adapters/claude/mcp/tool-metadata";
 import { getLlmGatewayUrl } from "@posthog/agent/posthog-api";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -9,6 +14,15 @@ import type { McpProxyService } from "../mcp-proxy/service";
 import type { Credentials } from "./schemas";
 
 const log = logger.scope("agent-auth-adapter");
+
+const VALID_APPROVAL_STATES = new Set([
+  "approved",
+  "needs_approval",
+  "do_not_use",
+]);
+function isValidApprovalState(value: string): value is McpToolApprovalState {
+  return VALID_APPROVAL_STATES.has(value);
+}
 
 export interface AcpMcpServer {
   name: string;
@@ -23,6 +37,15 @@ export interface AgentPosthogConfig {
   refreshApiKey: () => Promise<string>;
   projectId: number;
 }
+
+/** Reference linking an MCP tool key back to its server installation for backend updates. */
+export interface McpToolInstallationRef {
+  installationId: string;
+  toolName: string;
+}
+
+/** Maps MCP tool keys (e.g. `mcp__server__tool`) to their installation reference. */
+export type McpToolInstallations = Record<string, McpToolInstallationRef>;
 
 interface ConfigureProcessEnvInput {
   credentials: Credentials;
@@ -51,7 +74,11 @@ export class AgentAuthAdapter {
     };
   }
 
-  async buildMcpServers(credentials: Credentials): Promise<AcpMcpServer[]> {
+  async buildMcpServers(credentials: Credentials): Promise<{
+    servers: AcpMcpServer[];
+    toolApprovals: McpToolApprovals;
+    toolInstallations: McpToolInstallations;
+  }> {
     const servers: AcpMcpServer[] = [];
     const mcpUrl = this.getPostHogMcpUrl(credentials.apiHost);
     // Warm the token so authenticatedFetch() has something cached, but do not
@@ -83,16 +110,6 @@ export class AgentAuthAdapter {
       const name =
         installation.name || installation.display_name || installation.url;
 
-      if (installation.auth_type === "none") {
-        servers.push({
-          name,
-          type: "http",
-          url: installation.url,
-          headers: [],
-        });
-        continue;
-      }
-
       const proxiedUrl = this.mcpProxy.register(
         `installation-${installation.id}`,
         installation.proxy_url,
@@ -105,7 +122,10 @@ export class AgentAuthAdapter {
       });
     }
 
-    return servers;
+    const { approvals: toolApprovals, toolInstallations } =
+      await this.fetchMcpToolApprovals(credentials, installations);
+
+    return { servers, toolApprovals, toolInstallations };
   }
 
   async ensureGatewayProxy(apiHost: string): Promise<string> {
@@ -162,6 +182,96 @@ export class AgentAuthAdapter {
   private getPostHogApiBaseUrl(apiHost: string): string {
     const host = process.env.POSTHOG_PROXY_BASE_URL || apiHost;
     return host.endsWith("/") ? host.slice(0, -1) : host;
+  }
+
+  async updateMcpToolApproval(
+    credentials: Credentials,
+    installationId: string,
+    toolName: string,
+    approvalState: McpToolApprovalState,
+  ): Promise<void> {
+    const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
+    const url = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${installationId}/tools/${encodeURIComponent(toolName)}/`;
+    const response = await this.authService.authenticatedFetch(fetch, url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approval_state: approvalState }),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update MCP tool approval (${response.status}) for ${toolName} on installation ${installationId}`,
+      );
+    }
+  }
+
+  private async fetchMcpToolApprovals(
+    credentials: Credentials,
+    installations: Array<{
+      id: string;
+      url: string;
+      name: string;
+      display_name: string;
+    }>,
+  ): Promise<{
+    approvals: McpToolApprovals;
+    toolInstallations: McpToolInstallations;
+  }> {
+    const baseUrl = this.getPostHogApiBaseUrl(credentials.apiHost);
+    const approvals: McpToolApprovals = {};
+    const toolInstallations: McpToolInstallations = {};
+
+    const results = await Promise.allSettled(
+      installations.map(async (installation) => {
+        const serverName = sanitizeMcpServerName(
+          installation.name || installation.display_name || installation.url,
+        );
+        const toolsUrl = `${baseUrl}/api/environments/${credentials.projectId}/mcp_server_installations/${installation.id}/tools/`;
+
+        const response = await this.authService.authenticatedFetch(
+          fetch,
+          toolsUrl,
+          { headers: { "Content-Type": "application/json" } },
+        );
+        if (!response.ok) return [];
+
+        const data = (await response.json()) as {
+          results?: Array<{
+            tool_name: string;
+            approval_state?: string;
+          }>;
+        };
+        return (data.results ?? []).map((tool) => ({
+          serverName,
+          installationId: installation.id,
+          toolName: tool.tool_name,
+          approvalState: tool.approval_state,
+        }));
+      }),
+    );
+
+    for (const result of results) {
+      if (result.status !== "fulfilled") {
+        log.warn("Failed to fetch tool approvals for an installation", {
+          error:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+        });
+        continue;
+      }
+      for (const tool of result.value) {
+        const key = `mcp__${tool.serverName}__${tool.toolName}`;
+        if (tool.approvalState && isValidApprovalState(tool.approvalState)) {
+          approvals[key] = tool.approvalState;
+        }
+        toolInstallations[key] = {
+          installationId: tool.installationId,
+          toolName: tool.toolName,
+        };
+      }
+    }
+
+    return { approvals, toolInstallations };
   }
 
   private async fetchMcpInstallations(credentials: Credentials): Promise<

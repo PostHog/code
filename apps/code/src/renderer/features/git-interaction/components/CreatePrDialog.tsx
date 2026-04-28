@@ -1,3 +1,4 @@
+import { StepList, type StepStatus } from "@components/ui/StepList";
 import {
   CommitAllToggle,
   ErrorContainer,
@@ -11,18 +12,12 @@ import {
   formatFileCountLabel,
 } from "@features/git-interaction/utils/diffStats";
 import { buildCreatePrFlowErrorPrompt } from "@features/git-interaction/utils/errorPrompts";
-import {
-  CheckCircle,
-  Circle,
-  GitPullRequest,
-  XCircle,
-} from "@phosphor-icons/react";
+import { GitPullRequest } from "@phosphor-icons/react";
 import {
   Button,
   Checkbox,
   Dialog,
   Flex,
-  Spinner,
   Text,
   TextArea,
   TextField,
@@ -30,90 +25,31 @@ import {
 
 const ICON_SIZE = 14;
 
+const STEP_ORDER: CreatePrStep[] = [
+  "creating-branch",
+  "committing",
+  "pushing",
+  "creating-pr",
+  "complete",
+];
+
+function resolveStepStatus(
+  stepId: CreatePrStep,
+  currentStep: CreatePrStep,
+  failedStep: CreatePrStep | null | undefined,
+): StepStatus {
+  const currentIndex = STEP_ORDER.indexOf(currentStep);
+  const stepIndex = STEP_ORDER.indexOf(stepId);
+  if (currentStep === "error" && stepId === failedStep) return "failed";
+  if (currentStep === "complete" || stepIndex < currentIndex)
+    return "completed";
+  if (stepId === currentStep) return "in_progress";
+  return "pending";
+}
+
 interface StepDef {
   id: CreatePrStep;
   label: string;
-}
-
-function StepIndicator({
-  steps,
-  currentStep,
-  failedStep,
-}: {
-  steps: StepDef[];
-  currentStep: CreatePrStep;
-  failedStep?: CreatePrStep | null;
-}) {
-  const stepOrder: CreatePrStep[] = [
-    "creating-branch",
-    "committing",
-    "pushing",
-    "creating-pr",
-    "complete",
-  ];
-
-  const currentIndex = stepOrder.indexOf(currentStep);
-  const isError = currentStep === "error";
-
-  return (
-    <Flex direction="column" gap="3">
-      {steps.map((step) => {
-        const stepIndex = stepOrder.indexOf(step.id);
-        const isComplete =
-          currentStep === "complete" || stepIndex < currentIndex;
-        const isActive = step.id === currentStep;
-        const isFailed = isError && step.id === failedStep;
-
-        let icon: React.ReactNode;
-        if (isFailed) {
-          icon = <XCircle size={16} weight="fill" color="var(--red-9)" />;
-        } else if (isComplete) {
-          icon = <CheckCircle size={16} weight="fill" color="var(--green-9)" />;
-        } else if (isActive) {
-          icon = <Spinner size="1" />;
-        } else {
-          icon = <Circle size={16} color="var(--gray-6)" />;
-        }
-
-        return (
-          <Flex
-            key={step.id}
-            align="center"
-            gap="2"
-            style={{
-              transition: "opacity 150ms ease",
-              opacity: isComplete ? 0.6 : 1,
-            }}
-          >
-            <Flex
-              style={{
-                transition: "transform 200ms ease",
-                transform: isActive ? "scale(1.15)" : "scale(1)",
-              }}
-            >
-              {icon}
-            </Flex>
-            <Text
-              size="2"
-              weight={isActive ? "medium" : "regular"}
-              style={{
-                transition: "color 150ms ease",
-                color: isFailed
-                  ? "var(--red-11)"
-                  : isComplete
-                    ? "var(--green-11)"
-                    : isActive
-                      ? "var(--gray-12)"
-                      : "var(--gray-9)",
-              }}
-            >
-              {step.label}
-            </Text>
-          </Flex>
-        );
-      })}
-    </Flex>
-  );
 }
 
 export interface CreatePrDialogProps {
@@ -174,7 +110,7 @@ export function CreatePrDialog({
         <Flex direction="column" gap="3">
           <Flex align="center" gap="2">
             <GitPullRequest size={ICON_SIZE} />
-            <Text size="2" weight="medium">
+            <Text className="font-medium text-sm">
               {isExecuting ? "Creating PR..." : "Create PR"}
             </Text>
           </Flex>
@@ -183,7 +119,7 @@ export function CreatePrDialog({
             <>
               {store.createPrNeedsBranch && (
                 <Flex direction="column" gap="1">
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     Branch
                   </Text>
                   <TextField.Root
@@ -194,7 +130,7 @@ export function CreatePrDialog({
                     autoFocus
                   />
                   {currentBranch && (
-                    <Text size="1" color="gray">
+                    <Text color="gray" className="text-[13px]">
                       from {currentBranch}
                     </Text>
                   )}
@@ -204,21 +140,21 @@ export function CreatePrDialog({
               {store.createPrNeedsCommit && (
                 <Flex direction="column" gap="1">
                   <Flex align="center" justify="between">
-                    <Text size="1" color="gray">
+                    <Text color="gray" className="text-[13px]">
                       Commit message
                     </Text>
                     <Flex align="center" gap="2">
-                      <Text size="1" color="gray">
+                      <Text color="gray" className="text-[13px]">
                         {formatFileCountLabel(
                           !!(showCommitAllToggle && !commitAll),
                           stagedFileCount ?? 0,
                           diffStats.filesChanged,
                         )}
                       </Text>
-                      <Text size="1" color="green">
+                      <Text color="green" className="text-[13px]">
                         +{diffStats.linesAdded}
                       </Text>
-                      <Text size="1" color="red">
+                      <Text color="red" className="text-[13px]">
                         -{diffStats.linesRemoved}
                       </Text>
                       <GenerateButton
@@ -247,7 +183,7 @@ export function CreatePrDialog({
 
               <Flex direction="column" gap="1">
                 <Flex align="center" justify="between">
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     PR title
                   </Text>
                   <GenerateButton
@@ -268,7 +204,7 @@ export function CreatePrDialog({
               </Flex>
 
               <Flex direction="column" gap="1">
-                <Text size="1" color="gray">
+                <Text color="gray" className="text-[13px]">
                   Description
                 </Text>
                 <TextArea
@@ -281,7 +217,7 @@ export function CreatePrDialog({
                 />
               </Flex>
 
-              <Text as="label" size="1" color="gray">
+              <Text as="label" color="gray" className="text-[13px]">
                 <Flex gap="2" align="center">
                   <Checkbox
                     size="1"
@@ -318,10 +254,17 @@ export function CreatePrDialog({
 
           {isExecuting && (
             <>
-              <StepIndicator
-                steps={steps}
-                currentStep={step}
-                failedStep={store.createPrFailedStep}
+              <StepList
+                steps={steps.map((s) => ({
+                  key: s.id,
+                  label: s.label,
+                  status: resolveStepStatus(
+                    s.id,
+                    step,
+                    store.createPrFailedStep,
+                  ),
+                }))}
+                gap="3"
               />
 
               {step === "error" && store.createPrError && (

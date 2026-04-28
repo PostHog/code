@@ -1,9 +1,9 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
+import { useLogoutMutation } from "@features/auth/hooks/authMutations";
 import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
-import { useAuthStore } from "@features/auth/stores/authStore";
 import {
   type SettingsCategory,
   useSettingsDialogStore,
@@ -29,6 +29,7 @@ import {
   Wrench,
 } from "@phosphor-icons/react";
 import { Avatar, Box, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { BILLING_FLAG } from "@shared/constants";
 import { type ReactNode, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AdvancedSettings } from "./sections/AdvancedSettings";
@@ -50,6 +51,7 @@ interface SidebarItem {
   label: string;
   icon: ReactNode;
   hasChevron?: boolean;
+  fullwidth?: boolean;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
@@ -73,7 +75,12 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Palette size={16} />,
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
-  { id: "mcp-servers", label: "MCP Servers", icon: <Plugs size={16} /> },
+  {
+    id: "mcp-servers",
+    label: "MCP servers",
+    icon: <Plugs size={16} />,
+    fullwidth: true,
+  },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
 
   {
@@ -128,7 +135,8 @@ export function SettingsDialog() {
   const client = useOptionalAuthenticatedClient();
   const { data: user } = useCurrentUser({ client });
   const { seat, planLabel } = useSeat();
-  const billingEnabled = useFeatureFlag("posthog-code-billing");
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
+  const logoutMutation = useLogoutMutation();
 
   const sidebarItems = useMemo(
     () =>
@@ -161,6 +169,8 @@ export function SettingsDialog() {
   }
 
   const ActiveComponent = CATEGORY_COMPONENTS[activeCategory];
+  const activeItem = sidebarItems.find((i) => i.id === activeCategory);
+  const isFullwidth = !!activeItem?.fullwidth;
 
   const initials = user
     ? user.first_name && user.last_name
@@ -170,19 +180,11 @@ export function SettingsDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex"
-      style={{ backgroundColor: "var(--color-background)" }}
+      className="fixed inset-0 z-[100] flex bg-(--color-background)"
       data-overlay="settings"
     >
       <div className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r">
-        <div
-          className="drag"
-          style={{
-            height: 36,
-            flexShrink: 0,
-            borderBottom: "1px solid var(--gray-6)",
-          }}
-        />
+        <div className="drag h-[36px] shrink-0 border-b border-b-(--gray-6)" />
 
         {isAuthenticated && user && initials && (
           <Flex
@@ -190,15 +192,15 @@ export function SettingsDialog() {
             gap="3"
             px="3"
             py="3"
-            style={{ borderBottom: "1px solid var(--gray-5)" }}
+            className="border-b border-b-(--gray-5)"
           >
             <Avatar size="2" fallback={initials} radius="full" color="amber" />
-            <Flex direction="column" style={{ minWidth: 0 }}>
-              <Text size="2" weight="medium" truncate>
+            <Flex direction="column" className="min-w-0">
+              <Text truncate className="font-medium text-sm">
                 {user.email}
               </Text>
               {seat && (
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                <Text className="text-(--gray-9) text-[13px]">
                   {planLabel} Plan
                 </Text>
               )}
@@ -215,7 +217,7 @@ export function SettingsDialog() {
           <span>Back to app</span>
         </button>
 
-        <ScrollArea style={{ flex: 1 }}>
+        <ScrollArea className="flex-1">
           <div className="flex flex-col pt-2">
             {sidebarItems.map((item) => (
               <SidebarNavItem
@@ -231,8 +233,12 @@ export function SettingsDialog() {
         {isAuthenticated && (
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11"
-            onClick={() => useAuthStore.getState().logout()}
+            disabled={logoutMutation.isPending}
+            className="flex cursor-pointer items-center gap-2 border-0 border-gray-5 border-t bg-transparent px-3 py-2.5 text-left font-mono text-[12px] text-gray-9 transition-colors hover:bg-gray-3 hover:text-gray-11 disabled:pointer-events-none disabled:opacity-50"
+            onClick={() => {
+              close();
+              logoutMutation.mutate();
+            }}
           >
             <SignOut size={14} />
             <span>Sign out</span>
@@ -241,29 +247,16 @@ export function SettingsDialog() {
       </div>
 
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        <div
-          className="drag"
-          style={{
-            height: 36,
-            flexShrink: 0,
-            borderBottom: "1px solid var(--gray-6)",
-          }}
-        />
+        <div className="drag h-[36px] shrink-0 border-b border-b-(--gray-6)" />
         <div className="relative flex flex-1 justify-center overflow-hidden">
           <svg
             aria-hidden="true"
             style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              opacity: 0.4,
               maskImage: "linear-gradient(to top, black 0%, transparent 100%)",
               WebkitMaskImage:
                 "linear-gradient(to top, black 0%, transparent 100%)",
             }}
+            className="pointer-events-none absolute bottom-0 left-0 h-full w-full opacity-40"
           >
             <defs>
               <pattern
@@ -285,25 +278,22 @@ export function SettingsDialog() {
               fill="url(#settings-dot-pattern)"
             />
           </svg>
-          <ScrollArea
-            style={{
-              height: "100%",
-              width: "100%",
-            }}
-          >
-            <Box
-              p="6"
-              mx="auto"
-              style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
-            >
-              <Flex direction="column" gap="4">
-                <Text size="4" weight="medium">
-                  {CATEGORY_TITLES[activeCategory]}
-                </Text>
-                <ActiveComponent />
-              </Flex>
-            </Box>
-          </ScrollArea>
+          {isFullwidth ? (
+            <div className="relative z-[1] flex h-full min-h-0 w-full">
+              <ActiveComponent />
+            </div>
+          ) : (
+            <ScrollArea className="h-full w-full">
+              <Box p="6" mx="auto" className="relative z-[1] max-w-[800px]">
+                <Flex direction="column" gap="4">
+                  <Text className="font-medium text-lg leading-6.5">
+                    {CATEGORY_TITLES[activeCategory]}
+                  </Text>
+                  <ActiveComponent />
+                </Flex>
+              </Box>
+            </ScrollArea>
+          )}
         </div>
       </div>
     </div>

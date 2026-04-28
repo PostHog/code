@@ -38,7 +38,7 @@ export function SidebarItem({
     <Button
       type="button"
       className={cn(
-        "group focus-visible:-outline-offset-2 flex w-full text-left transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
+        "group focus-visible:-outline-offset-2 flex w-full text-left text-[13px] leading-snug transition-colors focus-visible:outline-2 focus-visible:outline-accent-8",
         "cursor-default disabled:opacity-100 data-active:bg-fill-selected",
       )}
       data-active={isActive || undefined}
@@ -52,9 +52,13 @@ export function SidebarItem({
       onContextMenu={onContextMenu}
       disabled={disabled}
     >
-      {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
+      {icon ? (
+        <span className="flex shrink-0 items-center opacity-80 group-data-active:opacity-100">
+          {icon}
+        </span>
+      ) : null}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <span className="flex items-center gap-1" style={{ height: "18px" }}>
+        <span className="flex h-[18px] items-center gap-1">
           <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
             {label}
           </span>

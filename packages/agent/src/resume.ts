@@ -3,29 +3,28 @@
  *
  * Handles resuming a task from any point:
  * - Fetches log via the PostHog API
- * - Finds latest tree_snapshot event
+ * - Finds latest git_checkpoint event
  * - Rebuilds conversation from log events
- * - Restores working tree from snapshot
+ * - Restores working tree from checkpoint
  *
  * Uses Saga pattern for atomic operations with clear success/failure tracking.
  *
  * The log is the single source of truth for:
  * - Conversation history (user_message, agent_message_chunk, tool_call, tool_result)
- * - Working tree state (tree_snapshot events)
+ * - Working tree state (git_checkpoint events)
  * - Session metadata (device info, mode changes)
  */
 
 import type { ContentBlock } from "@agentclientprotocol/sdk";
+import { selectRecentTurns } from "./adapters/claude/session/jsonl-hydration";
 import type { PostHogAPIClient } from "./posthog-api";
 import { ResumeSaga } from "./sagas/resume-saga";
-import type { DeviceInfo, TreeSnapshotEvent } from "./types";
+import type { DeviceInfo, GitCheckpointEvent } from "./types";
 import { Logger } from "./utils/logger";
 
 export interface ResumeState {
   conversation: ConversationTurn[];
-  latestSnapshot: TreeSnapshotEvent | null;
-  /** Whether the tree snapshot was successfully applied (files restored) */
-  snapshotApplied: boolean;
+  latestGitCheckpoint: GitCheckpointEvent | null;
   interrupted: boolean;
   lastDevice?: DeviceInfo;
   logEntryCount: number;
@@ -55,11 +54,7 @@ export interface ResumeConfig {
 /**
  * Resume a task from its persisted log.
  * Returns the rebuilt state for the agent to continue from.
- *
- * Uses Saga pattern internally for atomic operations.
- * Note: snapshotApplied field indicates if files were actually restored -
- * even if latestSnapshot is non-null, files may not have been restored if
- * the snapshot had no archive URL or download/extraction failed.
+ * Checkpoint application happens in the agent server after SSE connects.
  */
 export async function resumeFromLog(
   config: ResumeConfig,
@@ -94,8 +89,7 @@ export async function resumeFromLog(
 
   return {
     conversation: result.data.conversation as ConversationTurn[],
-    latestSnapshot: result.data.latestSnapshot,
-    snapshotApplied: result.data.snapshotApplied,
+    latestGitCheckpoint: result.data.latestGitCheckpoint,
     interrupted: result.data.interrupted,
     lastDevice: result.data.lastDevice,
     logEntryCount: result.data.logEntryCount,
@@ -112,4 +106,70 @@ export function conversationToPromptHistory(
     role: turn.role,
     content: turn.content,
   }));
+}
+
+const RESUME_HISTORY_TOKEN_BUDGET = 50_000;
+const TOOL_RESULT_MAX_CHARS = 2000;
+
+const RESUME_CONTEXT_MARKERS = [
+  "You are resuming a previous conversation",
+  "Here is the conversation history from the",
+  "Continue from where you left off",
+];
+
+function isResumeContextTurn(turn: ConversationTurn): boolean {
+  if (turn.role !== "user") return false;
+  const text = turn.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { type: "text"; text: string }).text)
+    .join("");
+  return RESUME_CONTEXT_MARKERS.some((marker) => text.includes(marker));
+}
+
+export function formatConversationForResume(
+  conversation: ConversationTurn[],
+): string {
+  const filtered = conversation.filter((turn) => !isResumeContextTurn(turn));
+  const selected = selectRecentTurns(filtered, RESUME_HISTORY_TOKEN_BUDGET);
+  const parts: string[] = [];
+
+  if (selected.length < filtered.length) {
+    parts.push(
+      `*(${filtered.length - selected.length} earlier turns omitted)*`,
+    );
+  }
+
+  for (const turn of selected) {
+    const role = turn.role === "user" ? "User" : "Assistant";
+
+    const textParts = turn.content
+      .filter((block) => block.type === "text")
+      .map((block) => (block as { type: "text"; text: string }).text);
+
+    if (textParts.length > 0) {
+      parts.push(`**${role}**: ${textParts.join("\n")}`);
+    }
+
+    if (turn.toolCalls?.length) {
+      const toolSummary = turn.toolCalls
+        .map((tc) => {
+          let resultStr = "";
+          if (tc.result !== undefined) {
+            const raw =
+              typeof tc.result === "string"
+                ? tc.result
+                : JSON.stringify(tc.result);
+            resultStr =
+              raw.length > TOOL_RESULT_MAX_CHARS
+                ? ` → ${raw.substring(0, TOOL_RESULT_MAX_CHARS)}...(truncated)`
+                : ` → ${raw}`;
+          }
+          return `  - ${tc.toolName}${resultStr}`;
+        })
+        .join("\n");
+      parts.push(`**${role} (tools)**:\n${toolSummary}`);
+    }
+  }
+
+  return parts.join("\n\n");
 }

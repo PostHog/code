@@ -10,41 +10,28 @@ interface CodeBlockProps {
   size?: CodeBlockSize;
 }
 
-const sizeStyles: Record<
-  CodeBlockSize,
-  { fontSize: string; lineHeight: string }
-> = {
-  "1": {
-    fontSize: "var(--font-size-1)",
-    lineHeight: "var(--line-height-1)",
-  },
-  "1.5": {
-    fontSize: "var(--font-size-1-5)",
-    lineHeight: "var(--line-height-1-5)",
-  },
-  "2": {
-    fontSize: "var(--font-size-2)",
-    lineHeight: "var(--line-height-2)",
-  },
-  "3": {
-    fontSize: "var(--font-size-3)",
-    lineHeight: "var(--line-height-3)",
-  },
+const SIZE_TO_CLASS: Record<CodeBlockSize, string> = {
+  "1": "text-[13px]",
+  "1.5": "text-[13.5px]",
+  "2": "text-sm",
+  "3": "text-base",
 };
 
 function extractText(children: ReactNode): string {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(extractText).join("");
   if (children && typeof children === "object" && "props" in children) {
-    return extractText(
-      (children as { props: { children?: ReactNode } }).props.children,
-    );
+    const props = (
+      children as { props: { children?: ReactNode; code?: string } }
+    ).props;
+    if (typeof props.code === "string") return props.code;
+    return extractText(props.children);
   }
   return "";
 }
 
 export function CodeBlock({ children, size = "1" }: CodeBlockProps) {
-  const styles = sizeStyles[size];
+  const sizeClass = SIZE_TO_CLASS[size];
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -55,23 +42,9 @@ export function CodeBlock({ children, size = "1" }: CodeBlockProps) {
   }, [children]);
 
   return (
-    <div className="group" style={{ position: "relative" }}>
+    <div className="group relative">
       <pre
-        style={{
-          margin: 0,
-          marginBottom: "var(--space-3)",
-          padding: "var(--space-3)",
-          paddingRight: "var(--space-7)",
-          backgroundColor: "var(--gray-2)",
-          borderRadius: "var(--radius-2)",
-          border: "1px solid var(--gray-4)",
-          fontFamily: "var(--code-font-family)",
-          fontSize: styles.fontSize,
-          lineHeight: styles.lineHeight,
-          color: "var(--gray-12)",
-          overflowX: "auto",
-          whiteSpace: "pre",
-        }}
+        className={`m-0 mb-3 overflow-x-auto whitespace-pre rounded-(--radius-2) border border-(--gray-4) bg-(--gray-2) p-3 pr-10 font-[var(--code-font-family)] text-(--gray-12) ${sizeClass}`}
       >
         {children}
       </pre>
@@ -81,14 +54,9 @@ export function CodeBlock({ children, size = "1" }: CodeBlockProps) {
         color="gray"
         onClick={handleCopy}
         style={{
-          position: "absolute",
-          top: "var(--space-1)",
-          right: "var(--space-1)",
-          opacity: 0,
           transition: "opacity 0.15s",
-          cursor: "pointer",
         }}
-        className="group-hover:!opacity-100 [&]:hover:!opacity-100"
+        className="group-hover:!opacity-100 [&]:hover:!opacity-100 absolute top-1 right-1 cursor-pointer opacity-0"
         aria-label="Copy code"
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}

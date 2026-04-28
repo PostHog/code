@@ -100,7 +100,7 @@ export function GitActionMessage({ actionType }: GitActionMessageProps) {
         >
           {getActionIcon(actionType)}
         </Flex>
-        <Text size="2" weight="medium">
+        <Text className="font-medium text-sm">
           {getActionLabel(actionType)}
         </Text>
         <Badge size="1" color="gray" variant="soft">

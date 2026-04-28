@@ -57,6 +57,7 @@ export const MAIN_TOKENS = Object.freeze({
   FoldersService: Symbol.for("Main.FoldersService"),
   FsService: Symbol.for("Main.FsService"),
   GitService: Symbol.for("Main.GitService"),
+  HandoffService: Symbol.for("Main.HandoffService"),
   GitHubIntegrationService: Symbol.for("Main.GitHubIntegrationService"),
   LinearIntegrationService: Symbol.for("Main.LinearIntegrationService"),
   DeepLinkService: Symbol.for("Main.DeepLinkService"),
@@ -70,8 +71,10 @@ export const MAIN_TOKENS = Object.freeze({
   UIService: Symbol.for("Main.UIService"),
   UpdatesService: Symbol.for("Main.UpdatesService"),
   TaskLinkService: Symbol.for("Main.TaskLinkService"),
+  InboxLinkService: Symbol.for("Main.InboxLinkService"),
   WatcherRegistryService: Symbol.for("Main.WatcherRegistryService"),
   EnvironmentService: Symbol.for("Main.EnvironmentService"),
   ProvisioningService: Symbol.for("Main.ProvisioningService"),
   WorkspaceService: Symbol.for("Main.WorkspaceService"),
+  EnrichmentService: Symbol.for("Main.EnrichmentService"),
 });

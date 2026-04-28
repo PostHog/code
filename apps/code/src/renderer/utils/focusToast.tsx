@@ -9,8 +9,7 @@ export function showFocusSuccessToast(
   const showStashMessage = !!result.session?.mainStashRef && !result.wasSwap;
   toast.success(
     <>
-      Now editing{" "}
-      <Text style={{ color: "var(--accent-11)" }}>{branchName}</Text>
+      Now editing <Text className="text-(--accent-11)">{branchName}</Text>
     </>,
     {
       description: showStashMessage

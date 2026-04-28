@@ -13,6 +13,9 @@ interface SignalReportSummaryMarkdownProps {
 
 /**
  * Renders signal report summary as GFM markdown (matches backend / agent output).
+ *
+ * MarkdownRenderer inherits font-size from this wrapper, so setting `text-[Npx]`
+ * on the outer Box cascades to every paragraph / em / strong / code / link.
  */
 export function SignalReportSummaryMarkdown({
   content,
@@ -22,29 +25,28 @@ export function SignalReportSummaryMarkdown({
 }: SignalReportSummaryMarkdownProps) {
   const raw = content?.trim() ? content : fallback;
 
+  /** List rows: only the first line (before first newline); CSS still caps visual lines. */
+  const listMarkdown = raw.split(/\r?\n/)[0] ?? "";
+
   const italicStyle = pending ? { fontStyle: "italic" as const } : undefined;
 
   if (variant === "list") {
     return (
       <Box
-        className="[&_.rt-Text]:!mb-0 [&_p]:!mb-0 [&_ul]:!mb-0 min-w-0 text-left [&_li]:mb-0"
-        style={{ color: "var(--gray-11)", ...italicStyle }}
+        className="line-clamp-4 min-w-0 overflow-hidden text-pretty text-left text-(--gray-11) text-[12px] [&_.rt-Text]:mb-0! [&_a]:pointer-events-auto [&_li]:mb-0 [&_p]:mb-0! [&_ul]:mb-0!"
+        style={italicStyle}
       >
-        <div className="line-clamp-2 overflow-hidden text-[12px] leading-snug [&_a]:pointer-events-auto">
-          <MarkdownRenderer content={raw} />
-        </div>
+        <MarkdownRenderer content={listMarkdown} />
       </Box>
     );
   }
 
   return (
     <Box
-      className="min-w-0 text-pretty break-words [&_.rt-Text]:mb-2 [&_li]:mb-1 [&_p:last-child]:mb-0"
-      style={{ color: "var(--gray-11)", ...italicStyle }}
+      className="min-w-0 text-pretty break-words text-(--gray-11) text-[13px] [&_*]:leading-relaxed [&_.rt-Text]:mb-2 [&_a]:pointer-events-auto [&_li]:mb-1 [&_p:last-child]:mb-0"
+      style={italicStyle}
     >
-      <div className="text-[12px] leading-relaxed [&_a]:pointer-events-auto">
-        <MarkdownRenderer content={raw} />
-      </div>
+      <MarkdownRenderer content={raw} />
     </Box>
   );
 }

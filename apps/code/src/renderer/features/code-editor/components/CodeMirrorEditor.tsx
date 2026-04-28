@@ -1,7 +1,9 @@
 import { openSearchPanel } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
+import type { SerializedEnrichment } from "@posthog/enricher";
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { useEffect, useMemo } from "react";
+import { setEnrichmentEffect } from "../extensions/postHogEnrichment";
 import { useCodeMirror } from "../hooks/useCodeMirror";
 import { useEditorExtensions } from "../hooks/useEditorExtensions";
 import { usePendingScrollStore } from "../stores/pendingScrollStore";
@@ -11,6 +13,7 @@ interface CodeMirrorEditorProps {
   filePath?: string;
   relativePath?: string;
   readOnly?: boolean;
+  enrichment?: SerializedEnrichment | null;
 }
 
 export function CodeMirrorEditor({
@@ -18,13 +21,25 @@ export function CodeMirrorEditor({
   filePath,
   relativePath,
   readOnly = false,
+  enrichment,
 }: CodeMirrorEditorProps) {
-  const extensions = useEditorExtensions(filePath, readOnly);
+  const enrichmentEnabled = enrichment !== undefined;
+  const extensions = useEditorExtensions(filePath, readOnly, enrichmentEnabled);
   const options = useMemo(
     () => ({ doc: content, extensions, filePath }),
     [content, extensions, filePath],
   );
   const { containerRef, instanceRef } = useCodeMirror(options);
+
+  useEffect(() => {
+    if (!enrichmentEnabled) return;
+    const view = instanceRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: setEnrichmentEffect.of(enrichment ?? null),
+    });
+  }, [enrichment, enrichmentEnabled, instanceRef]);
+
   useEffect(() => {
     if (!filePath) return;
     const scrollToLine = () => {
@@ -67,26 +82,21 @@ export function CodeMirrorEditor({
   }, [instanceRef]);
 
   if (!relativePath) {
-    return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+    return <div ref={containerRef} className="h-full w-full" />;
   }
 
   return (
     <Flex direction="column" height="100%">
-      <Box
-        px="3"
-        py="2"
-        style={{ borderBottom: "1px solid var(--gray-6)", flexShrink: 0 }}
-      >
+      <Box px="3" py="2" className="shrink-0 border-b border-b-(--gray-6)">
         <Text
-          size="1"
           color="gray"
-          style={{ fontFamily: "var(--code-font-family)" }}
+          className="font-[var(--code-font-family)] text-[13px]"
         >
           {relativePath}
         </Text>
       </Box>
-      <Box style={{ flex: 1, overflow: "auto" }}>
-        <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+      <Box className="flex-1 overflow-auto">
+        <div ref={containerRef} className="h-full w-full" />
       </Box>
     </Flex>
   );

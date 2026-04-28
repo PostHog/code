@@ -1,7 +1,9 @@
 import { PanelMessage } from "@components/ui/PanelMessage";
 import { Tooltip } from "@components/ui/Tooltip";
 import { CodeMirrorEditor } from "@features/code-editor/components/CodeMirrorEditor";
+import { EnrichmentPopover } from "@features/code-editor/components/EnrichmentPopover";
 import { useCloudFileContent } from "@features/code-editor/hooks/useCloudFileContent";
+import { useFileEnrichment } from "@features/code-editor/hooks/useFileEnrichment";
 import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
 import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
@@ -73,8 +75,7 @@ export function CodeEditorPanel({
           <a
             href={href ?? "#"}
             onClick={(e) => handleMarkdownLinkClick(e, href ?? "")}
-            className="cursor-pointer"
-            style={{ color: "var(--accent-11)", textDecoration: "underline" }}
+            className="cursor-pointer text-(--accent-11) underline"
           >
             {children}
           </a>
@@ -120,6 +121,13 @@ export function CodeEditorPanel({
   const isLoading = isCloudRun ? cloudFile.isLoading : localQuery.isLoading;
   const error = isCloudRun ? null : localQuery.error;
 
+  const enrichment = useFileEnrichment({
+    taskId,
+    filePath,
+    absolutePath: isInsideRepo ? absolutePath : undefined,
+    content: isImage ? null : fileContent,
+  });
+
   if (isImage) {
     if (isCloudRun) {
       return (
@@ -143,12 +151,12 @@ export function CodeEditorPanel({
         justify="center"
         height="100%"
         p="4"
-        style={{ overflow: "auto" }}
+        className="overflow-auto"
       >
         <img
           src={`data:${mimeType};base64,${imageQuery.data}`}
           alt={filePath}
-          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+          className="max-h-[100%] max-w-[100%] object-contain"
         />
       </Flex>
     );
@@ -186,18 +194,17 @@ export function CodeEditorPanel({
 
   if (isMarkdown) {
     return (
-      <Flex direction="column" height="100%" style={{ overflow: "hidden" }}>
+      <Flex direction="column" height="100%" className="overflow-hidden">
         <Flex
           px="3"
           py="2"
           align="center"
           justify="between"
-          style={{ borderBottom: "1px solid var(--gray-6)", flexShrink: 0 }}
+          className="shrink-0 border-b border-b-(--gray-6)"
         >
           <Text
-            size="1"
             color="gray"
-            style={{ fontFamily: "var(--code-font-family)" }}
+            className="font-[var(--code-font-family)] text-[13px]"
           >
             {filePath}
           </Text>
@@ -213,9 +220,9 @@ export function CodeEditorPanel({
             </IconButton>
           </Tooltip>
         </Flex>
-        <Box style={{ flex: 1, overflow: "auto" }}>
+        <Box className="flex-1 overflow-auto">
           {preferRendered ? (
-            <Box className="plan-markdown" p="5" style={{ maxWidth: 750 }}>
+            <Box className="plan-markdown max-w-[750px]" p="5">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={markdownComponents}
@@ -236,13 +243,15 @@ export function CodeEditorPanel({
   }
 
   return (
-    <Box height="100%" style={{ overflow: "hidden" }}>
+    <Box height="100%" className="relative overflow-hidden">
       <CodeMirrorEditor
         content={fileContent}
         filePath={absolutePath}
         relativePath={filePath}
         readOnly
+        enrichment={enrichment}
       />
+      <EnrichmentPopover />
     </Box>
   );
 }

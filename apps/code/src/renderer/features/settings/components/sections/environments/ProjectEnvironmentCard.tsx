@@ -31,24 +31,21 @@ export function ProjectEnvironmentCard({
   return (
     <Flex
       direction="column"
-      style={{
-        border: "1px solid var(--gray-5)",
-        borderRadius: "var(--radius-2)",
-      }}
+      className="rounded-(--radius-2) border border-(--gray-5)"
     >
       <Flex align="center" justify="between" gap="2" px="3" py="2">
-        <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
+        <Flex align="center" gap="2" className="min-w-0 flex-1">
           <FolderIcon
             size={14}
             weight="regular"
-            style={{ flexShrink: 0, color: "var(--gray-9)" }}
+            className="shrink-0 text-(--gray-9)"
           />
-          <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-            <Text size="1" weight="medium" truncate>
+          <Flex align="center" gap="2" className="min-w-0">
+            <Text truncate className="font-medium text-[13px]">
               {folder.name}
             </Text>
             {orgName && (
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px]">
                 {orgName}
               </Text>
             )}
@@ -69,7 +66,7 @@ export function ProjectEnvironmentCard({
         <Flex
           direction="column"
           px="3"
-          style={{ borderTop: "1px solid var(--gray-4)" }}
+          className="border-t border-t-(--gray-4)"
         >
           {environments.map((env, index) => (
             <EnvironmentRow

@@ -57,6 +57,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
     promptStartedAt,
     isInitializing,
     cloudBranch,
+    cloudStatus,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -121,7 +122,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
   return (
     <BackgroundWrapper>
       <Flex direction="column" height="100%" width="100%">
-        <Box style={{ flex: 1, minHeight: 0 }}>
+        <Box className="min-h-0 flex-1">
           <ErrorBoundary name="SessionView">
             <SessionView
               events={events}
@@ -147,6 +148,8 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
               onRetry={handleRetry}
               onNewSession={isCloud ? undefined : handleNewSession}
               isInitializing={isInitializing}
+              isCloud={isCloud}
+              cloudStatus={cloudStatus}
               slackThreadUrl={slackThreadUrl}
             />
           </ErrorBoundary>

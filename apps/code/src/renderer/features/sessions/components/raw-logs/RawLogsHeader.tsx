@@ -1,4 +1,4 @@
-import { Copy, MagnifyingGlass } from "@phosphor-icons/react";
+import { Copy, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text, TextField } from "@radix-ui/themes";
 import type { RefObject } from "react";
 
@@ -9,6 +9,7 @@ interface RawLogsHeaderProps {
   showSearch: boolean;
   onToggleSearch: () => void;
   onCopyAll: () => void;
+  onClose: () => void;
   onSearchChange: (query: string) => void;
   searchInputRef: RefObject<HTMLInputElement | null>;
 }
@@ -20,6 +21,7 @@ export function RawLogsHeader({
   showSearch,
   onToggleSearch,
   onCopyAll,
+  onClose,
   onSearchChange,
   searchInputRef,
 }: RawLogsHeaderProps) {
@@ -27,13 +29,13 @@ export function RawLogsHeader({
     <Box className="p-4 pb-2">
       <Flex direction="column" gap="2">
         <Flex justify="between" align="center">
-          <Text size="2" weight="medium" color="gray">
+          <Text color="gray" className="font-medium text-base">
             Raw Logs ({filteredCount}
             {searchQuery && ` of ${totalCount}`} events)
           </Text>
-          <Flex gap="1">
+          <Flex gap="3">
             <IconButton
-              size="1"
+              size="2"
               variant="ghost"
               color="gray"
               onClick={() => {
@@ -42,16 +44,27 @@ export function RawLogsHeader({
                   setTimeout(() => searchInputRef.current?.focus(), 0);
                 }
               }}
+              title="Search logs"
             >
-              <MagnifyingGlass size={12} />
+              <MagnifyingGlass size={16} />
             </IconButton>
             <IconButton
-              size="1"
+              size="2"
               variant="ghost"
               color="gray"
               onClick={onCopyAll}
+              title="Copy all logs"
             >
-              <Copy size={12} />
+              <Copy size={16} />
+            </IconButton>
+            <IconButton
+              size="2"
+              variant="ghost"
+              color="gray"
+              onClick={onClose}
+              title="Back to conversation"
+            >
+              <X size={16} />
             </IconButton>
           </Flex>
         </Flex>

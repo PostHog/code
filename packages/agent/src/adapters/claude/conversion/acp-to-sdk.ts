@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { PromptRequest } from "@agentclientprotocol/sdk";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources";
@@ -11,11 +12,6 @@ function sdkText(value: string): ContentBlockParam {
 
 function formatUriAsLink(uri: string): string {
   try {
-    if (uri.startsWith("file://")) {
-      const filePath = uri.slice(7);
-      const name = path.basename(filePath) || filePath;
-      return `[@${name}](${uri})`;
-    }
     if (uri.startsWith("zed://")) {
       const name = path.basename(uri) || uri;
       return `[@${name}](${uri})`;
@@ -23,6 +19,21 @@ function formatUriAsLink(uri: string): string {
     return uri;
   } catch {
     return uri;
+  }
+}
+
+function formatFileAttachment(uri: string): string {
+  try {
+    const filePath = fileURLToPath(uri);
+    const name = path.basename(filePath) || filePath;
+    return [
+      "Attached file available in the workspace:",
+      `- name: ${name}`,
+      `- path: ${filePath}`,
+      "Use the available tools to inspect this file if needed.",
+    ].join("\n");
+  } catch {
+    return `Attached file available at ${uri}`;
   }
 }
 
@@ -46,7 +57,13 @@ function processPromptChunk(
       break;
 
     case "resource_link":
-      content.push(sdkText(formatUriAsLink(chunk.uri)));
+      content.push(
+        sdkText(
+          chunk.uri.startsWith("file://")
+            ? formatFileAttachment(chunk.uri)
+            : formatUriAsLink(chunk.uri),
+        ),
+      );
       break;
 
     case "resource":

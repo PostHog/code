@@ -97,7 +97,7 @@ function DiffPreview({
     <div style={CODE_PREVIEW_CONTAINER_STYLE}>
       {showPath && filePath && (
         <div style={CODE_PREVIEW_PATH_STYLE} title={filePath}>
-          <Code variant="ghost" size="1" className="truncate">
+          <Code variant="ghost" className="truncate text-[13px]">
             {compactHomePath(filePath)}
           </Code>
         </div>
@@ -158,7 +158,7 @@ function PlainCodePreview({
     <div style={CODE_PREVIEW_CONTAINER_STYLE}>
       {showPath && filePath && (
         <div style={CODE_PREVIEW_PATH_STYLE} title={filePath}>
-          <Code variant="ghost" size="1" className="truncate">
+          <Code variant="ghost" className="truncate text-[13px]">
             {compactHomePath(filePath)}
           </Code>
         </div>

@@ -46,7 +46,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -93,6 +93,9 @@ jobs:
 
       - name: Build git package
         run: pnpm --filter @posthog/git run build
+
+      - name: Build enricher package
+        run: pnpm --filter @posthog/enricher run build
 
       - name: Build agent package
         run: pnpm --filter @posthog/agent run build
@@ -153,7 +156,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -193,6 +196,9 @@ jobs:
 
       - name: Build git package
         run: pnpm --filter @posthog/git run build
+
+      - name: Build enricher package
+        run: pnpm --filter @posthog/enricher run build
 
       - name: Build agent package
         run: pnpm --filter @posthog/agent run build

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockSelectFiles = vi.hoisted(() => vi.fn());
+const mockSelectAttachments = vi.hoisted(() => vi.fn());
 
 vi.mock("@posthog/quill", () => ({
   Button: ({
@@ -49,8 +49,8 @@ vi.mock("@posthog/quill", () => ({
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     os: {
-      selectFiles: {
-        query: mockSelectFiles,
+      selectAttachments: {
+        query: mockSelectAttachments,
       },
     },
   },
@@ -59,7 +59,7 @@ vi.mock("@renderer/trpc/client", () => ({
       getGhStatus: {
         queryOptions: () => ({}),
       },
-      searchGithubIssues: {
+      searchGithubRefs: {
         queryOptions: () => ({}),
       },
     },
@@ -83,27 +83,34 @@ describe("AttachmentMenu", () => {
     vi.clearAllMocks();
   });
 
-  it("adds attachments using absolute file paths from the OS picker", async () => {
+  it("inserts file and folder chips from the OS picker", async () => {
     const user = userEvent.setup();
-    const onAddAttachment = vi.fn();
+    const onInsertChip = vi.fn();
 
-    mockSelectFiles.mockResolvedValue(["/tmp/demo/test.txt"]);
+    mockSelectAttachments.mockResolvedValue([
+      { path: "/tmp/demo/test.txt", kind: "file" },
+      { path: "/tmp/demo/src", kind: "directory" },
+    ]);
 
     render(
       <Theme>
-        <AttachmentMenu
-          onAddAttachment={onAddAttachment}
-          onInsertChip={vi.fn()}
-        />
+        <AttachmentMenu onAddAttachment={vi.fn()} onInsertChip={onInsertChip} />
       </Theme>,
     );
 
-    await user.click(screen.getByText("Add file"));
+    await user.click(screen.getByText("Add file or folder"));
 
-    expect(mockSelectFiles).toHaveBeenCalledOnce();
-    expect(onAddAttachment).toHaveBeenCalledWith({
+    expect(mockSelectAttachments).toHaveBeenCalledOnce();
+    expect(mockSelectAttachments).toHaveBeenCalledWith({ mode: "both" });
+    expect(onInsertChip).toHaveBeenNthCalledWith(1, {
+      type: "file",
       id: "/tmp/demo/test.txt",
-      label: "test.txt",
+      label: "demo/test.txt",
+    });
+    expect(onInsertChip).toHaveBeenNthCalledWith(2, {
+      type: "folder",
+      id: "/tmp/demo/src",
+      label: "demo/src",
     });
   });
 });

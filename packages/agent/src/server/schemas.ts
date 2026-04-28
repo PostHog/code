@@ -5,6 +5,19 @@ const httpHeaderSchema = z.object({
   value: z.string(),
 });
 
+const nullishString = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? null);
+
+export const handoffLocalGitStateSchema = z.object({
+  head: nullishString,
+  branch: nullishString,
+  upstreamHead: nullishString,
+  upstreamRemote: nullishString,
+  upstreamMergeRef: nullishString,
+});
+
 const remoteMcpServerSchema = z.object({
   type: z.enum(["http", "sse"]),
   name: z.string().min(1, "MCP server name is required"),
@@ -41,12 +54,31 @@ export const jsonRpcRequestSchema = z.object({
 
 export type JsonRpcRequest = z.infer<typeof jsonRpcRequestSchema>;
 
-export const userMessageParamsSchema = z.object({
-  content: z.union([
-    z.string().min(1, "Content is required"),
-    z.array(z.record(z.string(), z.unknown())).min(1, "Content is required"),
-  ]),
-});
+export const userMessageParamsSchema = z
+  .object({
+    content: z
+      .union([
+        z.string().min(1, "Content is required"),
+        z
+          .array(z.record(z.string(), z.unknown()))
+          .min(1, "Content is required"),
+      ])
+      .optional(),
+    artifacts: z.array(z.record(z.string(), z.unknown())).optional(),
+  })
+  .refine(
+    (params) => {
+      const hasContent =
+        typeof params.content === "string"
+          ? params.content.trim().length > 0
+          : Array.isArray(params.content) && params.content.length > 0;
+      const hasArtifacts =
+        Array.isArray(params.artifacts) && params.artifacts.length > 0;
+
+      return hasContent || hasArtifacts;
+    },
+    { error: "Either content or artifacts are required" },
+  );
 
 export const permissionResponseParamsSchema = z.object({
   requestId: z.string().min(1, "requestId is required"),
@@ -64,13 +96,19 @@ export const refreshSessionParamsSchema = z.object({
   mcpServers: mcpServersSchema,
 });
 
+export const closeParamsSchema = z
+  .object({
+    localGitState: handoffLocalGitStateSchema.optional(),
+  })
+  .optional();
+
 export const commandParamsSchemas = {
   user_message: userMessageParamsSchema,
   "posthog/user_message": userMessageParamsSchema,
   cancel: z.object({}).optional(),
   "posthog/cancel": z.object({}).optional(),
-  close: z.object({}).optional(),
-  "posthog/close": z.object({}).optional(),
+  close: closeParamsSchema,
+  "posthog/close": closeParamsSchema,
   permission_response: permissionResponseParamsSchema,
   "posthog/permission_response": permissionResponseParamsSchema,
   set_config_option: setConfigOptionParamsSchema,

@@ -1,234 +1,318 @@
-import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
-import {
-  MagnifyingGlassIcon,
-  PlugIcon,
-  Plus,
-  Trash,
-  X,
-} from "@phosphor-icons/react";
+import { useMcpServers } from "@features/settings/hooks/useMcpServers";
 import {
   AlertDialog,
-  Badge,
+  Box,
   Button,
-  Dialog,
   Flex,
-  IconButton,
-  Select,
+  ScrollArea,
   Spinner,
-  Switch,
   Text,
-  TextField,
 } from "@radix-ui/themes";
 import type {
   McpRecommendedServer,
   McpServerInstallation,
 } from "@renderer/api/posthogClient";
-import { trpcClient } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-import { useMcpServers } from "../../hooks/useMcpServers";
+import { AddCustomServerForm } from "./mcp/AddCustomServerForm";
+import { MarketplaceView } from "./mcp/MarketplaceView";
+import { McpInstalledRail } from "./mcp/McpInstalledRail";
+import { ServerDetailView } from "./mcp/ServerDetailView";
 
-function AddCustomServerDialog({
-  open,
-  onOpenChange,
-  onInstalled,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onInstalled: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [description, setDescription] = useState("");
-  const [authType, setAuthType] = useState<"api_key" | "oauth">("oauth");
-  const [apiKey, setApiKey] = useState("");
+type SceneView =
+  | { kind: "marketplace" }
+  | { kind: "detail-installation"; installationId: string }
+  | { kind: "detail-template"; templateId: string }
+  | { kind: "add-custom" };
 
-  const installMutation = useAuthenticatedMutation(
-    async (
-      client,
-      vars: {
-        name: string;
-        url: string;
-        description: string;
-        auth_type: "api_key" | "oauth";
-        api_key?: string;
-      },
-    ) => {
-      // For OAuth, use the main process flow (handles deep links / HTTP callback)
-      if (vars.auth_type === "oauth") {
-        const { callbackUrl } =
-          await trpcClient.mcpCallback.getCallbackUrl.query();
-        const data = await client.installCustomMcpServer({
-          ...vars,
-          install_source: "posthog-code",
-          posthog_code_callback_url: callbackUrl,
-        });
-        if ("redirect_url" in data && data.redirect_url) {
-          return trpcClient.mcpCallback.openAndWaitForCallback.mutate({
-            redirectUrl: data.redirect_url,
-          });
-        }
-        return data;
-      }
-      return client.installCustomMcpServer(vars);
-    },
-    {
-      onSuccess: (data) => {
-        if (data && "success" in data && data.success) {
-          toast.success("Server added");
-        } else if (!("success" in data)) {
-          toast.success("Server added");
-        }
-        onInstalled();
-        resetAndClose();
-      },
-      onError: (error: Error) => {
-        toast.error(error.message || "Failed to add server");
-      },
-    },
+export function McpServersSettings() {
+  const queryClient = useQueryClient();
+  const [view, setView] = useState<SceneView>({ kind: "marketplace" });
+  const [query, setQuery] = useState("");
+  const [category, setCategory] =
+    useState<Parameters<typeof MarketplaceView>[0]["category"]>("all");
+  const [uninstallTarget, setUninstallTarget] =
+    useState<McpServerInstallation | null>(null);
+  // Snapshot of installation IDs taken when the user submits the Add Custom
+  // form. The new installation is whichever id appears that wasn't in the
+  // snapshot — robust against backend URL normalisation that would break a
+  // string-equality match on `installation.url`.
+  const [pendingCustomKnownIds, setPendingCustomKnownIds] =
+    useState<Set<string> | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
+    null,
   );
 
-  const resetAndClose = useCallback(() => {
-    setName("");
-    setUrl("");
-    setDescription("");
-    setAuthType("oauth");
-    setApiKey("");
-    onOpenChange(false);
-  }, [onOpenChange]);
+  const {
+    installations,
+    installationsLoading,
+    servers,
+    serversLoading,
+    installingId,
+    uninstallMutation,
+    toggleEnabled,
+    installTemplate,
+    installCustom,
+    installCustomPending,
+    reauthorize,
+    reauthorizePending,
+  } = useMcpServers();
 
-  const handleSubmit = useCallback(() => {
-    installMutation.mutate({
-      name,
-      url,
-      description,
-      auth_type: authType,
-      ...(authType === "api_key" && apiKey ? { api_key: apiKey } : {}),
+  useEffect(() => {
+    const refreshMcpState = () => {
+      queryClient.invalidateQueries({ queryKey: ["mcp"] });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshMcpState();
+    };
+    window.addEventListener("focus", refreshMcpState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshMcpState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [queryClient]);
+
+  const serverList = servers ?? [];
+  const installationList = installations ?? [];
+
+  const selectedInstallation = useMemo<McpServerInstallation | null>(() => {
+    if (view.kind !== "detail-installation") return null;
+    return installationList.find((i) => i.id === view.installationId) ?? null;
+  }, [view, installationList]);
+
+  const selectedTemplate = useMemo<McpRecommendedServer | null>(() => {
+    if (view.kind === "detail-template") {
+      return serverList.find((s) => s.id === view.templateId) ?? null;
+    }
+    if (view.kind === "detail-installation" && selectedInstallation) {
+      return (
+        serverList.find((s) => s.id === selectedInstallation.template_id) ??
+        null
+      );
+    }
+    return null;
+  }, [view, serverList, selectedInstallation]);
+
+  const handleConnect = useCallback(
+    (template: McpRecommendedServer) => {
+      setPendingTemplateId(template.id);
+      installTemplate(template);
+    },
+    [installTemplate],
+  );
+
+  const handleUninstallConfirm = useCallback(() => {
+    if (!uninstallTarget) return;
+    uninstallMutation.mutate(uninstallTarget.id, {
+      onSuccess: () => {
+        setUninstallTarget(null);
+        setView({ kind: "marketplace" });
+      },
     });
-  }, [name, url, description, authType, apiKey, installMutation]);
+  }, [uninstallTarget, uninstallMutation]);
 
-  const canSubmit = name.trim() !== "" && url.trim() !== "";
+  // When installations list updates, if the opened installation disappears, go back.
+  useEffect(() => {
+    if (
+      view.kind === "detail-installation" &&
+      !installationList.some((i) => i.id === view.installationId)
+    ) {
+      setView({ kind: "marketplace" });
+    }
+  }, [view, installationList]);
+
+  // When viewing a template and it gets installed, switch to the installation
+  // detail so the freshly-fetched tools and status render.
+  useEffect(() => {
+    if (view.kind !== "detail-template") return;
+    const installation = installationList.find(
+      (i) => i.template_id === view.templateId,
+    );
+    if (installation) {
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [view, installationList]);
+
+  // After a custom server install resolves, jump to its detail panel once the
+  // new installation appears in the list. Identifies the new one as any id
+  // not present in the pre-submit snapshot — does not rely on URL equality.
+  useEffect(() => {
+    if (!pendingCustomKnownIds) return;
+    const newOne = installationList.find(
+      (i) => !pendingCustomKnownIds.has(i.id),
+    );
+    if (newOne) {
+      setPendingCustomKnownIds(null);
+      setView({ kind: "detail-installation", installationId: newOne.id });
+    }
+  }, [pendingCustomKnownIds, installationList]);
+
+  // After a template install resolves, jump to the new installation's detail
+  // panel. Stays put if the install fails (no matching installation appears).
+  useEffect(() => {
+    if (!pendingTemplateId) return;
+    const installation = installationList.find(
+      (i) => i.template_id === pendingTemplateId,
+    );
+    if (installation) {
+      setPendingTemplateId(null);
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [pendingTemplateId, installationList]);
+
+  const selectedInstallationId =
+    view.kind === "detail-installation" ? view.installationId : null;
+
+  const mainContent = (() => {
+    if (view.kind === "add-custom") {
+      return (
+        <AddCustomServerForm
+          pending={installCustomPending}
+          onBack={() => setView({ kind: "marketplace" })}
+          onSubmit={(values) => {
+            setPendingCustomKnownIds(
+              new Set(installationList.map((i) => i.id)),
+            );
+            installCustom(values, {
+              onError: () => setPendingCustomKnownIds(null),
+            });
+          }}
+        />
+      );
+    }
+
+    if (
+      view.kind === "detail-installation" ||
+      view.kind === "detail-template"
+    ) {
+      const install =
+        view.kind === "detail-installation" ? selectedInstallation : null;
+      const template = selectedTemplate;
+
+      if (!install && !template) {
+        return (
+          <Flex align="center" justify="center" py="6">
+            {installationsLoading || serversLoading ? (
+              <Spinner size="2" />
+            ) : (
+              <Text color="gray" className="text-sm">
+                Server not found.
+              </Text>
+            )}
+          </Flex>
+        );
+      }
+
+      return (
+        <ServerDetailView
+          installation={install}
+          template={template}
+          isEnabled={install?.is_enabled !== false}
+          isInstalling={!!template && installingId === template.id && !install}
+          isReauthorizing={reauthorizePending}
+          onBack={() => setView({ kind: "marketplace" })}
+          onConnect={() => {
+            if (template) {
+              setPendingTemplateId(template.id);
+              installTemplate(template);
+            }
+          }}
+          onReauthorize={() => {
+            if (install) reauthorize(install.id);
+          }}
+          onToggleEnabled={(enabled) => {
+            if (install) toggleEnabled(install.id, enabled);
+          }}
+          onUninstall={() => {
+            if (install) setUninstallTarget(install);
+          }}
+        />
+      );
+    }
+
+    return (
+      <MarketplaceView
+        servers={serverList}
+        serversLoading={serversLoading}
+        installations={installationList}
+        installingId={installingId}
+        query={query}
+        onQueryChange={setQuery}
+        category={category}
+        onCategoryChange={setCategory}
+        onOpenServer={(templateId) =>
+          setView({ kind: "detail-template", templateId })
+        }
+        onOpenInstallation={(installationId) =>
+          setView({ kind: "detail-installation", installationId })
+        }
+        onConnect={handleConnect}
+        onAddCustom={() => setView({ kind: "add-custom" })}
+      />
+    );
+  })();
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content maxWidth="480px">
-        <Dialog.Title>Add custom MCP server</Dialog.Title>
-        <Dialog.Description size="2" color="gray" mb="4">
-          Connect a custom MCP server to extend your AI agent&apos;s
-          capabilities.
-        </Dialog.Description>
-
-        <Flex direction="column" gap="3">
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Name
-            </Text>
-            <TextField.Root
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My MCP server"
-            />
-          </Flex>
-
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              URL
-            </Text>
-            <TextField.Root
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://mcp.example.com/mcp"
-            />
-          </Flex>
-
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Description
-            </Text>
-            <TextField.Root
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this server do?"
-            />
-          </Flex>
-
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium">
-              Auth type
-            </Text>
-            <Select.Root
-              value={authType}
-              onValueChange={(val) => {
-                setAuthType(val as "api_key" | "oauth");
-                if (val !== "api_key") {
-                  setApiKey("");
-                }
-              }}
-            >
-              <Select.Trigger />
-              <Select.Content>
-                <Select.Item value="api_key">API key</Select.Item>
-                <Select.Item value="oauth">OAuth</Select.Item>
-              </Select.Content>
-            </Select.Root>
-          </Flex>
-
-          {authType === "api_key" && (
-            <Flex direction="column" gap="1">
-              <Text size="2" weight="medium">
-                API key
-              </Text>
-              <TextField.Root
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter API key"
-                type="password"
-              />
-            </Flex>
-          )}
-        </Flex>
-
-        <Flex gap="3" mt="4" justify="end">
-          <Dialog.Close>
-            <Button variant="soft" color="gray">
-              Cancel
-            </Button>
-          </Dialog.Close>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit || installMutation.isPending}
+    <Flex className="min-h-0 w-full flex-1 overflow-hidden">
+      <McpInstalledRail
+        installations={installationList}
+        templates={serverList}
+        selectedInstallationId={selectedInstallationId}
+        onAddCustom={() => setView({ kind: "add-custom" })}
+        onSelectInstallation={(installationId) =>
+          setView({ kind: "detail-installation", installationId })
+        }
+      />
+      <Box className="min-h-0 min-w-0 flex-1">
+        <ScrollArea className="h-full w-full">
+          <Box
+            p="6"
+            mx="auto"
+            style={{ zIndex: 1 }}
+            className="relative max-w-[960px]"
           >
-            {installMutation.isPending ? <Spinner size="1" /> : null}
-            Add server
-          </Button>
-        </Flex>
-      </Dialog.Content>
-    </Dialog.Root>
+            {mainContent}
+          </Box>
+        </ScrollArea>
+      </Box>
+      <UninstallConfirmDialog
+        target={uninstallTarget}
+        isPending={uninstallMutation.isPending}
+        onCancel={() => setUninstallTarget(null)}
+        onConfirm={handleUninstallConfirm}
+      />
+    </Flex>
   );
 }
 
 function UninstallConfirmDialog({
-  serverName,
-  open,
-  onOpenChange,
-  onConfirm,
+  target,
   isPending,
+  onCancel,
+  onConfirm,
 }: {
-  serverName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  target: McpServerInstallation | null;
   isPending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
+  const open = !!target;
+  const name =
+    target?.display_name || target?.name || target?.url || "this server";
   return (
-    <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
+    <AlertDialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
+    >
       <AlertDialog.Content maxWidth="450px">
-        <AlertDialog.Title>Uninstall MCP server</AlertDialog.Title>
-        <AlertDialog.Description size="2">
-          Are you sure you want to uninstall{" "}
-          <Text weight="bold">{serverName}</Text>? This will remove the server
-          and its configuration.
+        <AlertDialog.Title>Remove MCP server</AlertDialog.Title>
+        <AlertDialog.Description className="text-sm">
+          Are you sure you want to remove{" "}
+          <Text className="font-bold">{name}</Text>? This will revoke its tools
+          from your agent.
         </AlertDialog.Description>
         <Flex gap="3" mt="4" justify="end">
           <AlertDialog.Cancel>
@@ -244,334 +328,11 @@ function UninstallConfirmDialog({
               disabled={isPending}
             >
               {isPending ? <Spinner size="1" /> : null}
-              Uninstall
+              Remove
             </Button>
           </AlertDialog.Action>
         </Flex>
       </AlertDialog.Content>
     </AlertDialog.Root>
-  );
-}
-
-function ServerRow({
-  name,
-  description,
-  status,
-  isEnabled,
-  onToggle,
-  onUninstall,
-}: {
-  name: string;
-  description?: string;
-  status: "active" | "pending_oauth" | "needs_reauth";
-  isEnabled: boolean;
-  onToggle: (enabled: boolean) => void;
-  onUninstall: () => void;
-}) {
-  return (
-    <Flex
-      align="center"
-      justify="between"
-      py="3"
-      px="3"
-      className="rounded border border-gray-5 bg-gray-2"
-    >
-      <Flex align="center" gap="3" style={{ minWidth: 0, flex: 1 }}>
-        <Flex
-          align="center"
-          justify="center"
-          className="size-8 shrink-0 rounded bg-gray-4"
-        >
-          <PlugIcon size={16} className="text-gray-10" />
-        </Flex>
-        <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
-          <Text size="2" weight="medium" truncate>
-            {name}
-          </Text>
-          {description && (
-            <Text size="1" color="gray">
-              {description}
-            </Text>
-          )}
-        </Flex>
-      </Flex>
-
-      <Flex align="center" gap="2" className="shrink-0">
-        {status === "active" && (
-          <Switch size="1" checked={isEnabled} onCheckedChange={onToggle} />
-        )}
-        {status === "pending_oauth" && (
-          <Badge color="amber" variant="soft" size="1">
-            Pending
-          </Badge>
-        )}
-        {status === "needs_reauth" && (
-          <Badge color="red" variant="soft" size="1">
-            Reconnect
-          </Badge>
-        )}
-        <IconButton variant="ghost" color="gray" size="1" onClick={onUninstall}>
-          <Trash size={14} />
-        </IconButton>
-      </Flex>
-    </Flex>
-  );
-}
-
-function RecommendedServerRow({
-  server,
-  onInstall,
-  isInstalling,
-}: {
-  server: McpRecommendedServer;
-  onInstall: () => void;
-  isInstalling: boolean;
-}) {
-  return (
-    <Flex
-      align="center"
-      justify="between"
-      py="3"
-      px="3"
-      className="rounded border border-gray-5 bg-gray-2"
-    >
-      <Flex align="center" gap="3">
-        <Flex
-          align="center"
-          justify="center"
-          className="size-8 shrink-0 rounded bg-gray-4"
-        >
-          <PlugIcon size={16} className="text-gray-10" />
-        </Flex>
-        <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
-          <Text size="2" weight="medium" truncate>
-            {server.name}
-          </Text>
-          {server.description && (
-            <Text size="1" color="gray">
-              {server.description}
-            </Text>
-          )}
-        </Flex>
-      </Flex>
-
-      <Flex align="center" className="shrink-0">
-        <Button
-          variant="soft"
-          size="1"
-          onClick={onInstall}
-          disabled={isInstalling}
-        >
-          {isInstalling ? <Spinner size="1" /> : null}
-          Connect
-        </Button>
-      </Flex>
-    </Flex>
-  );
-}
-
-function getInstallationStatus(
-  installation: McpServerInstallation,
-): "active" | "pending_oauth" | "needs_reauth" {
-  if (installation.pending_oauth) return "pending_oauth";
-  if (installation.needs_reauth) return "needs_reauth";
-  return "active";
-}
-
-export function McpServersSettings() {
-  const queryClient = useQueryClient();
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [uninstallTarget, setUninstallTarget] =
-    useState<McpServerInstallation | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const {
-    installations,
-    installationsLoading,
-    servers,
-    serversLoading,
-    installedUrls,
-    installingUrl,
-    uninstallMutation,
-    toggleEnabled,
-    installRecommended,
-    invalidateInstallations,
-  } = useMcpServers();
-
-  useEffect(() => {
-    const refreshMcpState = () => {
-      queryClient.invalidateQueries({ queryKey: ["mcp"] });
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        refreshMcpState();
-      }
-    };
-
-    window.addEventListener("focus", refreshMcpState);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("focus", refreshMcpState);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [queryClient]);
-
-  const filteredServers = useMemo(() => {
-    if (!servers) return [];
-    const available = servers.filter((s) => !installedUrls.has(s.url));
-    if (!searchTerm) return available;
-    const term = searchTerm.toLowerCase();
-    return available.filter(
-      (s) =>
-        s.name.toLowerCase().includes(term) ||
-        s.description.toLowerCase().includes(term),
-    );
-  }, [servers, searchTerm, installedUrls]);
-
-  const handleUninstall = useCallback(() => {
-    if (uninstallTarget) {
-      uninstallMutation.mutate(uninstallTarget.id, {
-        onSuccess: () => setUninstallTarget(null),
-      });
-    }
-  }, [uninstallTarget, uninstallMutation]);
-
-  return (
-    <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
-      <Flex direction="column" gap="1">
-        <Text size="2" color="gray">
-          Manage MCP servers for your AI agents. Connect external services to
-          extend your agent&apos;s capabilities.
-        </Text>
-      </Flex>
-
-      {/* Installed servers */}
-      <Flex direction="column" gap="3">
-        <Flex align="center" justify="between">
-          <Text size="2" weight="medium">
-            Installed servers
-          </Text>
-          <Button
-            variant="soft"
-            size="1"
-            onClick={() => setAddDialogOpen(true)}
-          >
-            <Plus size={14} />
-            Add custom server
-          </Button>
-        </Flex>
-
-        {installationsLoading ? (
-          <Flex align="center" justify="center" py="6">
-            <Spinner size="2" />
-          </Flex>
-        ) : !installations || installations.length === 0 ? (
-          <Flex
-            align="center"
-            justify="center"
-            py="6"
-            className="rounded border border-gray-6 border-dashed"
-          >
-            <Text size="2" color="gray">
-              No servers installed yet. Browse recommended servers below or add
-              a custom one.
-            </Text>
-          </Flex>
-        ) : (
-          <Flex direction="column" gap="2">
-            {installations.map((installation) => (
-              <ServerRow
-                key={installation.id}
-                name={installation.name || installation.display_name || ""}
-                description={installation.description}
-                status={getInstallationStatus(installation)}
-                isEnabled={installation.is_enabled !== false}
-                onToggle={(enabled) => toggleEnabled(installation.id, enabled)}
-                onUninstall={() => setUninstallTarget(installation)}
-              />
-            ))}
-          </Flex>
-        )}
-      </Flex>
-
-      {/* Recommended servers */}
-      {(servers ?? []).length > 0 && (
-        <Flex direction="column" gap="3">
-          <Flex align="center" justify="between">
-            <Text size="2" weight="medium">
-              Pre-configured servers
-            </Text>
-          </Flex>
-
-          <TextField.Root
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search servers..."
-            size="2"
-          >
-            <TextField.Slot>
-              <MagnifyingGlassIcon size={14} />
-            </TextField.Slot>
-            {searchTerm && (
-              <TextField.Slot>
-                <IconButton
-                  variant="ghost"
-                  size="1"
-                  onClick={() => setSearchTerm("")}
-                >
-                  <X size={12} />
-                </IconButton>
-              </TextField.Slot>
-            )}
-          </TextField.Root>
-
-          {serversLoading ? (
-            <Flex align="center" justify="center" py="6">
-              <Spinner size="2" />
-            </Flex>
-          ) : (
-            <Flex direction="column" gap="2">
-              {filteredServers.map((server) => (
-                <RecommendedServerRow
-                  key={server.url}
-                  server={server}
-                  onInstall={() => installRecommended(server)}
-                  isInstalling={installingUrl === server.url}
-                />
-              ))}
-              {filteredServers.length === 0 && searchTerm && (
-                <Flex align="center" justify="center" py="4">
-                  <Text size="2" color="gray">
-                    No servers match your search.
-                  </Text>
-                </Flex>
-              )}
-            </Flex>
-          )}
-        </Flex>
-      )}
-
-      <AddCustomServerDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        onInstalled={invalidateInstallations}
-      />
-
-      <UninstallConfirmDialog
-        serverName={
-          uninstallTarget?.name ||
-          uninstallTarget?.display_name ||
-          "this server"
-        }
-        open={!!uninstallTarget}
-        onOpenChange={(open) => {
-          if (!open) setUninstallTarget(null);
-        }}
-        onConfirm={handleUninstall}
-        isPending={uninstallMutation.isPending}
-      />
-    </Flex>
   );
 }

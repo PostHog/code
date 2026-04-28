@@ -8,6 +8,10 @@ export interface PostHogCall {
   keyEndCol: number;
   /** True when the first argument is a non-literal expression (ternary, variable, etc.) */
   dynamic?: boolean;
+  /** Name of the user-defined wrapper function this call was synthesized from, if any. */
+  viaWrapper?: string;
+  /** True when the call sits inside a JSX element so `//` comments aren't valid on its line. */
+  inJsx?: boolean;
 }
 
 export interface FunctionInfo {
@@ -15,7 +19,52 @@ export interface FunctionInfo {
   params: string[];
   isComponent: boolean;
   bodyLine: number;
+  bodyEndLine: number;
   bodyIndent: string;
+}
+
+// ── Wrapper detection ──
+
+export type WrapperClassification =
+  | { kind: "fixed-key"; key: string }
+  | { kind: "pass-through"; paramIndex: number };
+
+export interface LocalWrapper {
+  /** Function name as defined (e.g. `track`). */
+  name: string;
+  /** Whether this wrapper calls a capture method or a flag method. */
+  methodKind: "capture" | "flag";
+  /** The underlying PostHog SDK method (`capture`, `getFeatureFlag`, `isFeatureEnabled`, …). */
+  posthogMethod: string;
+  classification: WrapperClassification;
+  isDefaultExport?: boolean;
+  isNamedExport?: boolean;
+}
+
+// ── Parse context ──
+
+/**
+ * Optional context threaded into `findPostHogCalls` so the caller can inject
+ * cross-file wrapper knowledge without turning the detector into an I/O layer.
+ */
+export interface ParseContext {
+  /** Wrappers keyed by the local identifier they appear as in the caller file. */
+  wrappersByLocalName?: Map<string, LocalWrapper>;
+  /** `import * as ns from "..."` → `Map<methodName, wrapper>` per namespace. */
+  namespaceWrappers?: Map<string, Map<string, LocalWrapper>>;
+}
+
+// ── Import resolution ──
+
+export interface ImportEdge {
+  /** Local identifier in the importing file. */
+  localName: string;
+  /** Original exported name from the source module (same as localName unless aliased). */
+  importedName: string;
+  isDefault?: boolean;
+  isNamespace?: boolean;
+  /** Absolute path of the resolved source file, or `null` if resolution failed. */
+  resolvedAbsPath: string | null;
 }
 
 export interface VariantBranch {
@@ -140,13 +189,21 @@ export type FlagType = "boolean" | "multivariate" | "remote_config";
 export interface CapturedEvent {
   name: string;
   line: number;
+  keyStartCol: number;
+  keyEndCol: number;
   dynamic: boolean;
+  viaWrapper?: string;
+  inJsx?: boolean;
 }
 
 export interface FlagCheck {
   method: string;
   flagKey: string;
   line: number;
+  keyStartCol: number;
+  keyEndCol: number;
+  viaWrapper?: string;
+  inJsx?: boolean;
 }
 
 export interface ListItem {
@@ -155,12 +212,18 @@ export interface ListItem {
   name: string;
   method: string;
   detail?: string;
+  viaWrapper?: string;
+  inJsx?: boolean;
 }
 
 export interface EnrichedListItem extends ListItem {
   flagType?: FlagType;
   staleness?: StalenessReason | null;
   rollout?: number | null;
+  active?: boolean;
+  url?: string | null;
+  evaluations?: number;
+  evaluationUsers?: number;
   experimentName?: string | null;
   experimentStatus?: "running" | "complete" | null;
   verified?: boolean;
@@ -177,11 +240,20 @@ export interface EventStats {
   lastSeenAt?: string | null;
 }
 
+export interface FlagEvaluationStats {
+  evaluations: number;
+  uniqueUsers: number;
+  windowDays: number;
+}
+
 export interface EnrichmentContext {
   flags?: Map<string, FeatureFlag>;
   experiments?: Experiment[];
   eventDefinitions?: Map<string, EventDefinition>;
   eventStats?: Map<string, EventStats>;
+  flagEvaluationStats?: Map<string, FlagEvaluationStats>;
+  flagEvaluationStatsError?: boolean;
+  flagUrls?: Map<string, string>;
   stalenessOptions?: StalenessCheckOptions;
 }
 
@@ -198,6 +270,9 @@ export interface EnrichedFlag {
   rollout: number | null;
   variants: { key: string; rollout_percentage: number }[];
   experiment: Experiment | undefined;
+  url: string | null;
+  evaluationStats: FlagEvaluationStats | undefined;
+  evaluationStatsError: boolean;
 }
 
 export interface EnrichedEvent {

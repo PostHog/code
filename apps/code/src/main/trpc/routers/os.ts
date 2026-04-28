@@ -113,6 +113,57 @@ export const osRouter = router({
   }),
 
   /**
+   * Show an attachment picker that can return files, directories, or both.
+   * Stats each returned path so the renderer knows which is which.
+   */
+  selectAttachments: publicProcedure
+    .input(
+      z.object({
+        mode: z.enum(["files", "directories", "both"]).default("both"),
+      }),
+    )
+    .output(
+      z.array(
+        z.object({
+          path: z.string(),
+          kind: z.enum(["file", "directory"]),
+        }),
+      ),
+    )
+    .query(async ({ input }) => {
+      const dialog = getDialog();
+      const titleByMode = {
+        files: "Select files",
+        directories: "Select folders",
+        both: "Select files or folders",
+      } as const;
+      const paths = await dialog.pickFile({
+        title: titleByMode[input.mode],
+        multiple: true,
+        directories: input.mode === "directories",
+        filesAndDirectories: input.mode === "both",
+      });
+      const statResults = await Promise.all(
+        paths.map(async (p) => {
+          try {
+            const stat = await fsPromises.stat(p);
+            return {
+              path: p,
+              kind: stat.isDirectory()
+                ? ("directory" as const)
+                : ("file" as const),
+            };
+          } catch {
+            return null;
+          }
+        }),
+      );
+      return statResults.filter(
+        (r): r is { path: string; kind: "file" | "directory" } => r !== null,
+      );
+    }),
+
+  /**
    * Check if a directory has write access
    */
   checkWriteAccess: publicProcedure
@@ -302,5 +353,28 @@ export const osRouter = router({
       await fsPromises.writeFile(filePath, Buffer.from(buffer));
 
       return { path: filePath, name: displayName, mimeType };
+    }),
+
+  /**
+   * Save arbitrary file bytes to a temp file
+   * Returns the file path for use as a file attachment
+   */
+  saveClipboardFile: publicProcedure
+    .input(
+      z.object({
+        base64Data: z.string(),
+        originalName: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const displayName = path.basename(input.originalName ?? "attachment");
+      const filePath = await createClipboardTempFilePath(displayName);
+
+      await fsPromises.writeFile(
+        filePath,
+        Buffer.from(input.base64Data, "base64"),
+      );
+
+      return { path: filePath, name: displayName };
     }),
 });

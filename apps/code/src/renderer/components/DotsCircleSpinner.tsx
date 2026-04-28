@@ -46,13 +46,10 @@ export function DotsCircleSpinner({
 
   return (
     <span
-      className={className}
+      className={`inline-flex items-center justify-center ${className}`}
       style={{
-        display: "inline-flex",
         width: size,
         height: size,
-        alignItems: "center",
-        justifyContent: "center",
         fontSize: size,
         lineHeight: 1,
       }}

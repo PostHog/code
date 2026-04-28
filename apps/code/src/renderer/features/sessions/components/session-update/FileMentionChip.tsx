@@ -76,6 +76,12 @@ export const FileMentionChip = memo(function FileMentionChip({
 
   const isClickable = !!taskId;
 
+  const relativePath = toRelativePath(filePath, repoPath ?? null);
+  const directory =
+    relativePath && relativePath !== filename
+      ? relativePath.replace(`/${filename}`, "")
+      : null;
+
   return (
     <Flex
       align="center"
@@ -83,11 +89,20 @@ export const FileMentionChip = memo(function FileMentionChip({
       asChild
       onClick={isClickable ? handleClick : undefined}
       onContextMenu={handleContextMenu}
-      className={isClickable ? "cursor-pointer hover:underline" : ""}
+      className={`relative top-[1px] inline-flex min-w-0 max-w-full ${isClickable ? "cursor-pointer hover:underline" : ""}`}
     >
-      <Text size="1">
+      <Text className="text-[13px]">
         <FileIcon filename={filename} size={12} />
-        <span className="font-mono">{filename}</span>
+        <span className="flex min-w-0 flex-1 items-baseline gap-1 overflow-hidden font-mono text-[13px] leading-none">
+          <span className="flex-shrink-0 whitespace-nowrap font-semibold">
+            {filename}
+          </span>
+          {directory && (
+            <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-gray-9">
+              {directory}
+            </span>
+          )}
+        </span>
       </Text>
     </Flex>
   );

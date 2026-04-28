@@ -1,6 +1,14 @@
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { TaskInput } from "@features/task-detail/components/TaskInput";
-import { ArrowsOut, Plus, X } from "@phosphor-icons/react";
+import type { WorkspaceMode } from "@main/services/workspace/schemas";
+import {
+  ArrowsOut,
+  Cloud,
+  Desktop,
+  GitFork,
+  Plus,
+  X,
+} from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import type { Task } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -17,6 +25,27 @@ import { TaskSelector } from "./TaskSelector";
 interface CommandCenterPanelProps {
   cell: CommandCenterCellData;
   isActiveSession: boolean;
+}
+
+const environmentConfig: Record<
+  WorkspaceMode,
+  { label: string; icon: typeof Desktop }
+> = {
+  local: { label: "Local", icon: Desktop },
+  worktree: { label: "Worktree", icon: GitFork },
+  cloud: { label: "Cloud", icon: Cloud },
+};
+
+function EnvironmentBadge({ mode }: { mode: WorkspaceMode | null }) {
+  if (!mode) return null;
+  const config = environmentConfig[mode];
+  const Icon = config.icon;
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">
+      <Icon size={10} />
+      {config.label}
+    </span>
+  );
 }
 
 function EmptyCell({ cellIndex }: { cellIndex: number }) {
@@ -62,11 +91,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           py="1"
           className="shrink-0 border-gray-6 border-b"
         >
-          <Text
-            size="1"
-            weight="medium"
-            className="font-mono text-[11px] text-gray-11"
-          >
+          <Text className="font-medium font-mono text-[11px] text-gray-11">
             New task
           </Text>
           <button
@@ -103,7 +128,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
             Add task
           </button>
         </TaskSelector>
-        <Text size="1" className="text-[11px] text-gray-9">
+        <Text className="text-[11px] text-gray-9">
           or drag a task from the sidebar
         </Text>
       </Flex>
@@ -139,15 +164,14 @@ function PopulatedCell({
         className="shrink-0 border-gray-6 border-b"
       >
         <Text
-          size="1"
-          weight="medium"
-          className="min-w-0 flex-1 truncate text-[12px]"
+          className="min-w-0 flex-1 truncate font-medium text-[12px]"
           title={cell.task.title}
         >
           {cell.task.title}
         </Text>
         <Flex align="center" gap="1" className="shrink-0">
           <StatusBadge status={cell.status} />
+          <EnvironmentBadge mode={cell.workspaceMode} />
           {cell.repoName && (
             <span className="rounded bg-gray-3 px-1 py-0.5 text-[9px] text-gray-10">
               {cell.repoName}

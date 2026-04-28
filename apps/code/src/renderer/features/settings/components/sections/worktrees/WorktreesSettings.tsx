@@ -178,7 +178,6 @@ export function WorktreesSettings() {
             key={`max-${settings.maxActiveWorktrees}`}
             type="number"
             size="1"
-            style={{ width: 64 }}
             min={1}
             disabled={!settings.autoSuspendEnabled}
             defaultValue={settings.maxActiveWorktrees}
@@ -187,6 +186,7 @@ export function WorktreesSettings() {
               if (e.key === "Enter")
                 commitNumericField(e, "maxActiveWorktrees", 5);
             }}
+            className="w-[64px]"
           />
         </SettingRow>
         <SettingRow
@@ -198,7 +198,6 @@ export function WorktreesSettings() {
             key={`days-${settings.autoSuspendAfterDays}`}
             type="number"
             size="1"
-            style={{ width: 64 }}
             min={1}
             disabled={!settings.autoSuspendEnabled}
             defaultValue={settings.autoSuspendAfterDays}
@@ -207,16 +206,17 @@ export function WorktreesSettings() {
               if (e.key === "Enter")
                 commitNumericField(e, "autoSuspendAfterDays", 7);
             }}
+            className="w-[64px]"
           />
         </SettingRow>
       </Flex>
 
       {isLoading ? (
-        <Text size="2" color="gray">
+        <Text color="gray" className="text-sm">
           Loading worktrees...
         </Text>
       ) : worktreeGroups.length === 0 ? (
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Tasks that are run in a worktree will show up here.
         </Text>
       ) : (

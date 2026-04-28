@@ -12,8 +12,15 @@ import { AsyncReaderWriterLock } from "./rw-lock";
  * Chromium browser (GPU init → SIGTRAP crash). We strip most ELECTRON_/
  * CHROME_ vars but explicitly keep ELECTRON_RUN_AS_NODE=1 so any such
  * shim still behaves as plain Node.js.
+ *
+ * GIT_LFS_SKIP_SMUDGE=1 prevents the LFS filter from running during
+ * checkout/clone/worktree operations. Users who don't have git-lfs
+ * installed (but whose repo declares `filter=lfs` in .gitattributes)
+ * would otherwise hit `git-lfs: command not found` and fail the op.
+ * Pointer files are preserved; real LFS content can be fetched later
+ * with `git lfs pull` if the user installs git-lfs.
  */
-function getCleanEnv(): Record<string, string> {
+export function getCleanEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined) continue;
@@ -22,6 +29,7 @@ function getCleanEnv(): Record<string, string> {
     env[key] = value;
   }
   env.ELECTRON_RUN_AS_NODE = "1";
+  env.GIT_LFS_SKIP_SMUDGE = "1";
   return env;
 }
 

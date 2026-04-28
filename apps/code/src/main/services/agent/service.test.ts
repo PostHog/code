@@ -154,14 +154,18 @@ function createMockDependencies() {
         refreshApiKey: vi.fn().mockResolvedValue("fresh-access-token"),
         projectId: credentials.projectId,
       })),
-      buildMcpServers: vi.fn().mockResolvedValue([
-        {
-          name: "posthog",
-          type: "http",
-          url: "https://mcp.posthog.com/mcp",
-          headers: [],
-        },
-      ]),
+      buildMcpServers: vi.fn().mockResolvedValue({
+        servers: [
+          {
+            name: "posthog",
+            type: "http",
+            url: "https://mcp.posthog.com/mcp",
+            headers: [],
+          },
+        ],
+        toolApprovals: {},
+        toolInstallations: {},
+      }),
     },
     mcpAppsService: {
       setServerConfigs: vi.fn(),
@@ -301,6 +305,8 @@ describe("AgentService", () => {
         config: {},
         promptPending: false,
         inFlightMcpToolCalls: new Map(),
+        mcpToolApprovals: {},
+        toolInstallations: {},
         ...overrides,
       });
     }

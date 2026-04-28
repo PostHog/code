@@ -120,7 +120,6 @@ export function UpdatesSettings() {
                 <XCircle size={14} weight="fill" className="text-red-9" />
               )}
               <Text
-                size="1"
                 color={
                   updateStatus.type === "error"
                     ? "red"
@@ -128,6 +127,7 @@ export function UpdatesSettings() {
                       ? "green"
                       : "gray"
                 }
+                className="text-[13px]"
               >
                 {updateStatus.message}
               </Text>

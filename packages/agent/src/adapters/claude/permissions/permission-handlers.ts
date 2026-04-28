@@ -2,10 +2,17 @@ import type {
   AgentSideConnection,
   RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  PermissionRuleValue,
+  PermissionUpdate,
+} from "@anthropic-ai/claude-agent-sdk";
 import { text } from "../../../utils/acp-content";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
+import {
+  getMcpToolApprovalState,
+  getMcpToolMetadata,
+} from "../mcp/tool-metadata";
 import {
   getClaudePlansDir,
   getLatestAssistantText,
@@ -49,6 +56,7 @@ interface ToolHandlerContext {
   fileContentCache: { [key: string]: string };
   logger: Logger;
   updateConfigOption: (configId: string, value: string) => Promise<void>;
+  applySessionMode: (modeId: string) => Promise<void>;
   allowedDomains?: string[];
 }
 
@@ -160,24 +168,14 @@ async function applyPlanApproval(
   context: ToolHandlerContext,
   updatedInput: Record<string, unknown>,
 ): Promise<ToolPermissionResult> {
-  const { session } = context;
-
   if (
     response.outcome?.outcome === "selected" &&
-    (response.outcome.optionId === "default" ||
+    (response.outcome.optionId === "auto" ||
+      response.outcome.optionId === "default" ||
       response.outcome.optionId === "acceptEdits" ||
       response.outcome.optionId === "bypassPermissions")
   ) {
-    session.permissionMode = response.outcome
-      .optionId as typeof session.permissionMode;
-    await session.query.setPermissionMode(response.outcome.optionId);
-    await context.client.sessionUpdate({
-      sessionId: context.sessionId,
-      update: {
-        sessionUpdate: "current_mode_update",
-        currentModeId: response.outcome.optionId,
-      },
-    });
+    await context.applySessionMode(response.outcome.optionId);
     await context.updateConfigOption("mode", response.outcome.optionId);
 
     return {
@@ -207,10 +205,9 @@ async function applyPlanApproval(
 async function handleEnterPlanModeTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { session, toolInput } = context;
+  const { toolInput } = context;
 
-  session.permissionMode = "plan";
-  await session.query.setPermissionMode("plan");
+  await context.applySessionMode("plan");
   await context.updateConfigOption("mode", "plan");
 
   return {
@@ -346,7 +343,7 @@ async function handleDefaultPermissionFlow(
   const options = buildPermissionOptions(
     toolName,
     toolInput as Record<string, unknown>,
-    session?.cwd,
+    session.settingsManager.getRepoRoot(),
     suggestions,
   );
 
@@ -373,17 +370,19 @@ async function handleDefaultPermissionFlow(
       response.outcome.optionId === "allow_always")
   ) {
     if (response.outcome.optionId === "allow_always") {
+      const rules = extractAllowRules(suggestions, toolName);
+      try {
+        await session.settingsManager.addAllowRules(rules);
+      } catch (error) {
+        context.logger.warn(
+          "[canUseTool] Failed to persist allow rules to repository settings",
+          { error: error instanceof Error ? error.message : String(error) },
+        );
+      }
       return {
         behavior: "allow",
         updatedInput: toolInput as Record<string, unknown>,
-        updatedPermissions: suggestions ?? [
-          {
-            type: "addRules",
-            rules: [{ toolName }],
-            behavior: "allow",
-            destination: "localSettings",
-          },
-        ],
+        updatedPermissions: buildSessionPermissions(suggestions, rules),
       };
     }
     return {
@@ -400,6 +399,92 @@ async function handleDefaultPermissionFlow(
     await emitToolDenial(context, message);
     return { behavior: "deny", message, interrupt: !feedback };
   }
+}
+
+function parseMcpToolName(toolName: string): {
+  serverName: string;
+  tool: string;
+} {
+  const parts = toolName.split("__");
+  return {
+    serverName: parts[1] ?? toolName,
+    tool: parts.slice(2).join("__") || toolName,
+  };
+}
+
+async function handleMcpApprovalFlow(
+  context: ToolHandlerContext,
+): Promise<ToolPermissionResult> {
+  const { toolName, toolInput, toolUseID, client, sessionId } = context;
+
+  const { serverName, tool: displayTool } = parseMcpToolName(toolName);
+  const metadata = getMcpToolMetadata(toolName);
+  const description = metadata?.description
+    ? `\n\n${metadata.description}`
+    : "";
+
+  const response = await client.requestPermission({
+    options: [
+      { kind: "allow_once", name: "Yes", optionId: "allow" },
+      {
+        kind: "allow_always",
+        name: "Yes, always allow",
+        optionId: "allow_always",
+      },
+      {
+        kind: "reject_once",
+        name: "Type here to tell the agent what to do differently",
+        optionId: "reject",
+        _meta: { customInput: true },
+      },
+    ],
+    sessionId,
+    toolCall: {
+      toolCallId: toolUseID,
+      title: `The agent wants to call ${displayTool} (${serverName})`,
+      kind: "other",
+      content: description
+        ? [{ type: "content" as const, content: text(description) }]
+        : [],
+      rawInput: { ...(toolInput as Record<string, unknown>), toolName },
+    },
+  });
+
+  if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
+    throw new Error("Tool use aborted");
+  }
+
+  if (
+    response.outcome?.outcome === "selected" &&
+    (response.outcome.optionId === "allow" ||
+      response.outcome.optionId === "allow_always")
+  ) {
+    if (response.outcome.optionId === "allow_always") {
+      return {
+        behavior: "allow",
+        updatedInput: toolInput as Record<string, unknown>,
+        updatedPermissions: [
+          {
+            type: "addRules",
+            rules: [{ toolName }],
+            behavior: "allow",
+            destination: "localSettings",
+          },
+        ],
+      };
+    }
+    return {
+      behavior: "allow",
+      updatedInput: toolInput as Record<string, unknown>,
+    };
+  }
+
+  const feedback = (response._meta?.customInput as string | undefined)?.trim();
+  const message = feedback
+    ? `User refused permission to run tool with feedback: ${feedback}`
+    : "User refused permission to run tool";
+  await emitToolDenial(context, message);
+  return { behavior: "deny", message, interrupt: !feedback };
 }
 
 function handlePlanFileException(
@@ -426,6 +511,44 @@ function handlePlanFileException(
     behavior: "allow",
     updatedInput: toolInput as Record<string, unknown>,
   };
+}
+
+function extractAllowRules(
+  suggestions: PermissionUpdate[] | undefined,
+  toolName: string,
+): PermissionRuleValue[] {
+  if (!suggestions || suggestions.length === 0) {
+    return [{ toolName }];
+  }
+  return suggestions
+    .filter(
+      (update) => update.type === "addRules" && update.behavior === "allow",
+    )
+    .flatMap((update) => ("rules" in update ? update.rules : []));
+}
+
+/**
+ * Forwards any non-addRules suggestions from the SDK (e.g. addDirectories)
+ * with their destination remapped to `session`. Our own allow rules are
+ * persisted via `settingsManager.addAllowRules`, so the SDK must not write
+ * them to its default per-cwd location.
+ */
+function buildSessionPermissions(
+  suggestions: PermissionUpdate[] | undefined,
+  rules: PermissionRuleValue[],
+): PermissionUpdate[] {
+  const passthrough = (suggestions ?? [])
+    .filter(
+      (update) => !(update.type === "addRules" && update.behavior === "allow"),
+    )
+    .map((update) => ({ ...update, destination: "session" as const }));
+  if (rules.length === 0) {
+    return passthrough;
+  }
+  return [
+    { type: "addRules", rules, behavior: "allow", destination: "session" },
+    ...passthrough,
+  ];
 }
 
 function extractDomainFromUrl(url: string): string | null {
@@ -463,6 +586,21 @@ export async function canUseTool(
           return { behavior: "deny", message, interrupt: false };
         }
       }
+    }
+  }
+
+  if (toolName.startsWith("mcp__")) {
+    const approvalState = getMcpToolApprovalState(toolName);
+
+    if (approvalState === "do_not_use") {
+      const message =
+        "This tool has been blocked. To re-enable it, go to Settings > MCP Servers in PostHog Code.";
+      await emitToolDenial(context, message);
+      return { behavior: "deny", message, interrupt: false };
+    }
+
+    if (approvalState === "needs_approval") {
+      return handleMcpApprovalFlow(context);
     }
   }
 

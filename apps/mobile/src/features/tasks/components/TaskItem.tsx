@@ -36,7 +36,7 @@ function TaskItemComponent({ task, onPress }: TaskItemProps) {
   const prUrl = task.latest_run?.output?.pr_url as string | undefined;
   const hasPR = !!prUrl;
   const status = hasPR ? "completed" : task.latest_run?.status || "backlog";
-  const isCloudTask = task.latest_run?.environment === "cloud";
+  const environment = task.latest_run?.environment;
 
   const statusColors = statusColorMap[status] || statusColorMap.backlog;
 
@@ -56,10 +56,15 @@ function TaskItemComponent({ task, onPress }: TaskItemProps) {
           </Text>
         </View>
 
-        {/* Cloud indicator */}
-        {isCloudTask && (
-          <View className="flex-row items-center gap-1 opacity-70">
-            <Text className="text-gray-9 text-xs">☁️</Text>
+        {/* Environment badge */}
+        {environment === "cloud" && (
+          <View className="rounded bg-accent-3 px-1.5 py-0.5">
+            <Text className="text-accent-11 text-xs">Cloud</Text>
+          </View>
+        )}
+        {environment === "local" && (
+          <View className="rounded bg-gray-4 px-1.5 py-0.5">
+            <Text className="text-gray-11 text-xs">Local</Text>
           </View>
         )}
       </View>

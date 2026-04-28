@@ -1,20 +1,17 @@
 import type { SagaLogger } from "@posthog/shared";
 import { afterEach, beforeEach, describe, expect, it, type vi } from "vitest";
-import { POSTHOG_NOTIFICATIONS } from "../acp-extensions";
 import type { PostHogAPIClient } from "../posthog-api";
 import { ResumeSaga } from "./resume-saga";
 import {
   createAgentChunk,
   createAgentMessage,
-  createArchiveBuffer,
+  createGitCheckpointNotification,
   createMockApiClient,
   createMockLogger,
-  createNotification,
   createTaskRun,
   createTestRepo,
   createToolCall,
   createToolResult,
-  createTreeSnapshotNotification,
   createUserMessage,
   type TestRepo,
 } from "./test-fixtures";
@@ -51,8 +48,7 @@ describe("ResumeSaga", () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.conversation).toHaveLength(0);
-        expect(result.data.latestSnapshot).toBeNull();
-        expect(result.data.snapshotApplied).toBe(false);
+        expect(result.data.latestGitCheckpoint).toBeNull();
         expect(result.data.logEntryCount).toBe(0);
       }
     });
@@ -414,42 +410,24 @@ describe("ResumeSaga", () => {
     });
   });
 
-  describe("snapshot finding", () => {
-    it("finds latest tree snapshot", async () => {
+  describe("checkpoint finding", () => {
+    it("finds latest git checkpoint", async () => {
       (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
         createTaskRun(),
       );
       (
         mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
       ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1"),
+        createGitCheckpointNotification({
+          checkpointId: "checkpoint-1",
+          checkpointRef: "refs/posthog-code-checkpoint/checkpoint-1",
+          head: "head-1",
+        }),
         createUserMessage("continue"),
-        createTreeSnapshotNotification("hash-2", "gs://bucket/hash-2.tar.gz"),
-      ]);
-
-      const saga = new ResumeSaga(mockLogger);
-      const result = await saga.run({
-        taskId: "task-1",
-        runId: "run-1",
-        repositoryPath: repo.path,
-        apiClient: mockApiClient,
-      });
-
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.latestSnapshot?.treeHash).toBe("hash-2");
-    });
-
-    it("returns interrupted flag from snapshot", async () => {
-      (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createTaskRun(),
-      );
-      (
-        mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
-      ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1", "gs://bucket/file.tar.gz", {
-          interrupted: true,
+        createGitCheckpointNotification({
+          checkpointId: "checkpoint-2",
+          checkpointRef: "refs/posthog-code-checkpoint/checkpoint-2",
+          head: "head-2",
         }),
       ]);
 
@@ -464,35 +442,23 @@ describe("ResumeSaga", () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.interrupted).toBe(true);
+      expect(result.data.latestGitCheckpoint?.checkpointId).toBe(
+        "checkpoint-2",
+      );
     });
-  });
 
-  describe("snapshot application", () => {
-    it("applies snapshot when archive URL present", async () => {
-      const baseCommit = await repo.git(["rev-parse", "HEAD"]);
-
-      const archive = await createArchiveBuffer([
-        { path: "restored.ts", content: "restored content" },
-      ]);
-
+    it("does not mark resume as interrupted from checkpoint state", async () => {
       (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
         createTaskRun(),
       );
       (
         mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
       ).mockResolvedValue([
-        createNotification(POSTHOG_NOTIFICATIONS.TREE_SNAPSHOT, {
-          treeHash: "hash-1",
-          baseCommit,
-          archiveUrl: "gs://bucket/hash-1.tar.gz",
-          changes: [{ path: "restored.ts", status: "A" }],
-          timestamp: new Date().toISOString(),
+        createGitCheckpointNotification({
+          checkpointId: "checkpoint-1",
+          checkpointRef: "refs/posthog-code-checkpoint/checkpoint-1",
         }),
       ]);
-      (
-        mockApiClient.downloadArtifact as ReturnType<typeof vi.fn>
-      ).mockResolvedValue(archive);
 
       const saga = new ResumeSaga(mockLogger);
       const result = await saga.run({
@@ -505,67 +471,7 @@ describe("ResumeSaga", () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.snapshotApplied).toBe(true);
-
-      const content = await repo.readFile("restored.ts");
-      expect(content).toBe("restored content");
-    });
-
-    it("continues without snapshot when no archive URL", async () => {
-      (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createTaskRun(),
-      );
-      (
-        mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
-      ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1"),
-        createUserMessage("hello"),
-      ]);
-
-      const saga = new ResumeSaga(mockLogger);
-      const result = await saga.run({
-        taskId: "task-1",
-        runId: "run-1",
-        repositoryPath: repo.path,
-        apiClient: mockApiClient,
-      });
-
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.snapshotApplied).toBe(false);
-      expect(result.data.latestSnapshot).not.toBeNull();
-      expect(result.data.conversation).toHaveLength(1);
-    });
-
-    it("continues without snapshot when apply fails", async () => {
-      (mockApiClient.getTaskRun as ReturnType<typeof vi.fn>).mockResolvedValue(
-        createTaskRun(),
-      );
-      (
-        mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
-      ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1", "gs://bucket/hash-1.tar.gz"),
-        createUserMessage("hello"),
-      ]);
-      (
-        mockApiClient.downloadArtifact as ReturnType<typeof vi.fn>
-      ).mockRejectedValue(new Error("Download failed"));
-
-      const saga = new ResumeSaga(mockLogger);
-      const result = await saga.run({
-        taskId: "task-1",
-        runId: "run-1",
-        repositoryPath: repo.path,
-        apiClient: mockApiClient,
-      });
-
-      expect(result.success).toBe(true);
-      if (!result.success) return;
-
-      expect(result.data.snapshotApplied).toBe(false);
-      expect(result.data.conversation).toHaveLength(1);
-      expect(mockLogger.warn).toHaveBeenCalled();
+      expect(result.data.interrupted).toBe(false);
     });
   });
 
@@ -577,10 +483,14 @@ describe("ResumeSaga", () => {
       (
         mockApiClient.fetchTaskRunLogs as ReturnType<typeof vi.fn>
       ).mockResolvedValue([
-        createTreeSnapshotNotification("hash-1", undefined, {
+        createGitCheckpointNotification({
+          checkpointId: "checkpoint-1",
+          checkpointRef: "refs/posthog-code-checkpoint/checkpoint-1",
           device: { type: "local" },
         }),
-        createTreeSnapshotNotification("hash-2", undefined, {
+        createGitCheckpointNotification({
+          checkpointId: "checkpoint-2",
+          checkpointRef: "refs/posthog-code-checkpoint/checkpoint-2",
           device: { type: "cloud" },
         }),
       ]);

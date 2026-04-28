@@ -52,6 +52,36 @@ describe("cloud-prompt", () => {
     );
   });
 
+  it("strips folder tags from the prompt", () => {
+    const prompt =
+      'look at <folder path="src/foo" /> and <file path="src/index.ts" />';
+
+    expect(stripAbsoluteFileTags(prompt)).toBe(
+      'look at  and <file path="src/index.ts" />',
+    );
+  });
+
+  it("excludes folder paths from absolute attachment list", async () => {
+    mockFs.readAbsoluteFile.query.mockResolvedValue("hi");
+
+    const prompt =
+      'scan <folder path="/abs/dir" /> and <file path="/tmp/test.txt" />';
+    const blocks = await buildCloudPromptBlocks(prompt, [
+      "/abs/dir",
+      "/tmp/test.txt",
+    ]);
+
+    const uris = blocks.flatMap((b) =>
+      b.type === "resource" ? [b.resource.uri] : [],
+    );
+    expect(uris).toHaveLength(1);
+    expect(uris[0]).toContain("test.txt");
+    expect(mockFs.readAbsoluteFile.query).toHaveBeenCalledTimes(1);
+    expect(mockFs.readAbsoluteFile.query).toHaveBeenCalledWith({
+      filePath: "/tmp/test.txt",
+    });
+  });
+
   it("builds a safe cloud task description for local attachments", () => {
     const description = buildCloudTaskDescription(
       'review <file path="src/index.ts" /> and <file path="/tmp/test.txt" />',

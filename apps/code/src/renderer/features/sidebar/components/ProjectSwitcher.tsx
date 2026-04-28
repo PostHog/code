@@ -119,7 +119,7 @@ export function ProjectSwitcher() {
                 <ItemTitle>
                   {currentProject?.name ?? "No project selected"}
                 </ItemTitle>
-                <ItemDescription>
+                <ItemDescription className="text-[11px]">
                   {currentUser?.email ?? "No email"}
                 </ItemDescription>
               </ItemContent>
@@ -149,7 +149,9 @@ export function ProjectSwitcher() {
                         </span>
                       )}
                     </ItemTitle>
-                    <ItemDescription>{currentUser.email}</ItemDescription>
+                    <ItemDescription className="text-[11px]">
+                      {currentUser.email}
+                    </ItemDescription>
                   </ItemContent>
                 </Item>
               ) : (
@@ -271,10 +273,7 @@ function ProjectPickerDialogInner({
         }
       }}
     >
-      <Dialog.Content
-        className="project-picker-dialog"
-        style={{ maxWidth: 600, padding: 0 }}
-      >
+      <Dialog.Content className="project-picker-dialog max-w-[600px] p-0">
         <Command.Root
           shouldFilter={true}
           label="Project picker"
@@ -292,7 +291,7 @@ function ProjectPickerDialogInner({
                   onSelect={() => handleProjectSelect(project.id)}
                 >
                   <Flex align="center" justify="between" width="100%">
-                    <Text size="1">{project.name}</Text>
+                    <Text className="text-[13px]">{project.name}</Text>
                     {project.id === currentProjectId && (
                       <Check size={14} className="text-accent-11" />
                     )}

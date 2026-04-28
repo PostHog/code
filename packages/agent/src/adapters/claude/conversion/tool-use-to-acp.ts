@@ -31,6 +31,7 @@ function stripSystemReminders(value: string): string {
 }
 
 import { resourceLink, text, toolContent } from "../../../utils/acp-content";
+import type { EnrichedReadCache } from "../hooks";
 import { getMcpToolMetadata } from "../mcp/tool-metadata";
 
 type ToolInfo = Pick<ToolCall, "title" | "kind" | "content" | "locations">;
@@ -526,6 +527,7 @@ export function toolUpdateFromToolResult(
     supportsTerminalOutput?: boolean;
     toolUseId?: string;
     cachedFileContent?: Record<string, string>;
+    enrichedReadCache?: EnrichedReadCache;
   },
 ): Pick<ToolCallUpdate, "title" | "content" | "locations" | "_meta"> {
   if (
@@ -538,7 +540,21 @@ export function toolUpdateFromToolResult(
   }
 
   switch (toolUse?.name) {
-    case "Read":
+    case "Read": {
+      const cache = options?.enrichedReadCache;
+      const enriched =
+        cache && options?.toolUseId ? cache.get(options.toolUseId) : undefined;
+      if (enriched !== undefined && cache && options?.toolUseId) {
+        cache.delete(options.toolUseId);
+        return {
+          content: [
+            {
+              type: "content" as const,
+              content: text(markdownEscape(enriched)),
+            },
+          ],
+        };
+      }
       if (Array.isArray(toolResult.content) && toolResult.content.length > 0) {
         return {
           content: toolResult.content.map((item) => {
@@ -582,6 +598,7 @@ export function toolUpdateFromToolResult(
         };
       }
       return {};
+    }
 
     case "Bash": {
       const result = toolResult.content;

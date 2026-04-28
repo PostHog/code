@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockExecGh = vi.hoisted(() => vi.fn());
+const mockGetRemoteUrl = vi.hoisted(() => vi.fn());
 
 vi.mock("@posthog/git/gh", () => ({
   execGh: mockExecGh,
 }));
+
+vi.mock("@posthog/git/queries", async () => {
+  const actual = await vi.importActual<object>("@posthog/git/queries");
+  return { ...actual, getRemoteUrl: mockGetRemoteUrl };
+});
 
 vi.mock("../../utils/logger.js", () => ({
   logger: {
@@ -183,5 +189,82 @@ describe("GitService.getGhAuthToken", () => {
       token: null,
       error: "GitHub auth token is empty",
     });
+  });
+});
+
+describe("GitService.getPrUrlForBranch", () => {
+  let service: GitService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new GitService({} as LlmGatewayService);
+  });
+
+  it("returns the PR URL for a branch via gh pr list", async () => {
+    mockGetRemoteUrl.mockResolvedValue("https://github.com/posthog/code.git");
+    mockExecGh.mockResolvedValue({
+      exitCode: 0,
+      stdout: JSON.stringify([
+        { url: "https://github.com/posthog/code/pull/42" },
+      ]),
+    });
+
+    const result = await service.getPrUrlForBranch("/repo", "feat/x");
+
+    expect(mockExecGh).toHaveBeenCalledWith([
+      "pr",
+      "list",
+      "--head",
+      "feat/x",
+      "--state",
+      "all",
+      "--json",
+      "url",
+      "--limit",
+      "1",
+      "--repo",
+      "posthog/code",
+    ]);
+    expect(result).toBe("https://github.com/posthog/code/pull/42");
+  });
+
+  it("returns null when no PR exists for the branch", async () => {
+    mockGetRemoteUrl.mockResolvedValue("https://github.com/posthog/code.git");
+    mockExecGh.mockResolvedValue({ exitCode: 0, stdout: "[]" });
+
+    const result = await service.getPrUrlForBranch("/repo", "feat/no-pr");
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a non-GitHub remote", async () => {
+    mockGetRemoteUrl.mockResolvedValue("https://gitlab.com/foo/bar.git");
+
+    const result = await service.getPrUrlForBranch("/repo", "feat/x");
+
+    expect(result).toBeNull();
+    expect(mockExecGh).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the repo has no remote", async () => {
+    mockGetRemoteUrl.mockResolvedValue(null);
+
+    const result = await service.getPrUrlForBranch("/repo", "feat/x");
+
+    expect(result).toBeNull();
+    expect(mockExecGh).not.toHaveBeenCalled();
+  });
+
+  it("returns null when gh command fails", async () => {
+    mockGetRemoteUrl.mockResolvedValue("https://github.com/posthog/code.git");
+    mockExecGh.mockResolvedValue({
+      exitCode: 1,
+      stdout: "",
+      stderr: "auth required",
+    });
+
+    const result = await service.getPrUrlForBranch("/repo", "feat/x");
+
+    expect(result).toBeNull();
   });
 });

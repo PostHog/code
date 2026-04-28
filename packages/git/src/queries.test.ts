@@ -1,9 +1,13 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createGitClient } from "./client";
-import { detectDefaultBranch } from "./queries";
+import {
+  detectDefaultBranch,
+  getBranchDiffPatchesByPath,
+  splitUnifiedDiffByFile,
+} from "./queries";
 
 async function setupRepo(defaultBranch = "main"): Promise<string> {
   const dir = await mkdtemp(path.join(tmpdir(), "posthog-code-queries-"));
@@ -92,5 +96,149 @@ describe("detectDefaultBranch", () => {
     expect(result).toBe("production");
 
     await rm(remoteDir, { recursive: true, force: true });
+  });
+});
+
+describe("splitUnifiedDiffByFile", () => {
+  it("returns an empty map for empty input", () => {
+    expect(splitUnifiedDiffByFile("")).toEqual(new Map());
+  });
+
+  it("splits a two-file diff keyed by post-image path", () => {
+    const raw = [
+      "diff --git a/one.txt b/one.txt",
+      "index 0000000..1111111 100644",
+      "--- a/one.txt",
+      "+++ b/one.txt",
+      "@@ -1 +1 @@",
+      "-hello",
+      "+hello world",
+      "diff --git a/two.txt b/two.txt",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/two.txt",
+      "@@ -0,0 +1 @@",
+      "+brand new",
+      "",
+    ].join("\n");
+
+    const result = splitUnifiedDiffByFile(raw);
+
+    expect([...result.keys()]).toEqual(["one.txt", "two.txt"]);
+    expect(result.get("one.txt")).toContain("diff --git a/one.txt b/one.txt");
+    expect(result.get("one.txt")).toContain("+hello world");
+    expect(result.get("two.txt")).toContain("diff --git a/two.txt b/two.txt");
+    expect(result.get("two.txt")).toContain("+brand new");
+  });
+
+  it("keys renames by the post-rename (b/) path", () => {
+    const raw = [
+      "diff --git a/old.txt b/new.txt",
+      "similarity index 100%",
+      "rename from old.txt",
+      "rename to new.txt",
+      "",
+    ].join("\n");
+
+    const result = splitUnifiedDiffByFile(raw);
+    expect(result.has("new.txt")).toBe(true);
+    expect(result.has("old.txt")).toBe(false);
+    expect(result.get("new.txt")).toContain("rename from old.txt");
+  });
+
+  it("handles binary diffs", () => {
+    const raw = [
+      "diff --git a/image.png b/image.png",
+      "Binary files a/image.png and b/image.png differ",
+      "",
+    ].join("\n");
+
+    const result = splitUnifiedDiffByFile(raw);
+    expect(result.get("image.png")).toContain("Binary files");
+  });
+});
+
+describe("getBranchDiffPatchesByPath", () => {
+  let repoDir: string | undefined;
+
+  afterEach(async () => {
+    if (repoDir) {
+      await rm(repoDir, { recursive: true, force: true });
+      repoDir = undefined;
+    }
+  });
+
+  async function setupBranchWithCommits(): Promise<{
+    repoDir: string;
+    remoteDir: string;
+  }> {
+    const workDir = await mkdtemp(path.join(tmpdir(), "posthog-code-branch-"));
+    const remoteDir = await mkdtemp(path.join(tmpdir(), "posthog-code-bare-"));
+
+    const remoteGit = createGitClient(remoteDir);
+    await remoteGit.init(["--bare", "--initial-branch", "main"]);
+
+    const git = createGitClient(workDir);
+    await git.init(["--initial-branch", "main"]);
+    await git.addConfig("user.name", "Test");
+    await git.addConfig("user.email", "test@example.com");
+    await git.addConfig("commit.gpgsign", "false");
+    await git.addRemote("origin", remoteDir);
+
+    await writeFile(path.join(workDir, "file.txt"), "line1\nline2\n");
+    await git.add(["file.txt"]);
+    await git.commit("initial");
+    await git.push(["origin", "main"]);
+
+    await git.checkoutLocalBranch("feature");
+    await writeFile(path.join(workDir, "file.txt"), "line1\nchanged\n");
+    await writeFile(path.join(workDir, "added.txt"), "new file\n");
+    await git.add(["file.txt", "added.txt"]);
+    await git.commit("feature work, not pushed");
+
+    return { repoDir: workDir, remoteDir };
+  }
+
+  it("returns per-file patches for commits not yet pushed", async () => {
+    const { repoDir: workDir, remoteDir } = await setupBranchWithCommits();
+    repoDir = workDir;
+
+    try {
+      const patches = await getBranchDiffPatchesByPath(
+        workDir,
+        "main",
+        "feature",
+      );
+
+      expect(patches.has("file.txt")).toBe(true);
+      expect(patches.has("added.txt")).toBe(true);
+      expect(patches.get("file.txt")).toContain("-line2");
+      expect(patches.get("file.txt")).toContain("+changed");
+      expect(patches.get("added.txt")).toContain("+new file");
+    } finally {
+      await rm(remoteDir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns deletions keyed by their path", async () => {
+    const { repoDir: workDir, remoteDir } = await setupBranchWithCommits();
+    repoDir = workDir;
+
+    try {
+      const git = createGitClient(workDir);
+      await unlink(path.join(workDir, "file.txt"));
+      await git.add(["file.txt"]);
+      await git.commit("delete file.txt");
+
+      const patches = await getBranchDiffPatchesByPath(
+        workDir,
+        "main",
+        "feature",
+      );
+
+      expect(patches.get("file.txt")).toContain("deleted file mode");
+    } finally {
+      await rm(remoteDir, { recursive: true, force: true });
+    }
   });
 });

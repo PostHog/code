@@ -2,12 +2,14 @@ import { CodeBlock } from "@components/CodeBlock";
 import { Divider } from "@components/Divider";
 import { HighlightedCode } from "@components/HighlightedCode";
 import { List, ListItem } from "@components/List";
+import { parseGithubIssueUrl } from "@features/message-editor/utils/githubIssueUrl";
 import { Blockquote, Checkbox, Code, Em, Kbd, Text } from "@radix-ui/themes";
 import { memo, useMemo } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { PluggableList } from "unified";
+import { GithubRefChip } from "./GithubRefChip";
 
 interface MarkdownRendererProps {
   content: string;
@@ -23,7 +25,7 @@ function preprocessMarkdown(content: string): string {
 }
 
 const HeadingText = ({ children }: { children: React.ReactNode }) => (
-  <Text as="p" size="2" mb="3" style={{ color: "var(--accent-11)" }}>
+  <Text as="p" mb="3" className="text-(--accent-11) text-sm">
     <strong>{children}</strong>
   </Text>
 );
@@ -42,7 +44,7 @@ export const baseComponents: Components = {
       node.children[0].tagName === "strong";
 
     return (
-      <Text as="p" size="1" mb={isStrongOnly ? "2" : "3"}>
+      <Text as="p" mb={isStrongOnly ? "2" : "3"}>
         {children}
       </Text>
     );
@@ -56,7 +58,7 @@ export const baseComponents: Components = {
     const match = className?.match(/language-(\w+)/);
     if (!match) {
       return (
-        <Code size="1" variant="ghost" style={{ color: "var(--accent-11)" }}>
+        <Code variant="ghost" className="text-(--accent-11)">
           {children}
         </Code>
       );
@@ -69,58 +71,56 @@ export const baseComponents: Components = {
     );
   },
   pre: ({ children }) => <CodeBlock size="1">{children}</CodeBlock>,
-  em: ({ children }) => (
-    <Em style={{ fontSize: "var(--font-size-1)" }}>{children}</Em>
-  ),
-  i: ({ children }) => (
-    <i style={{ fontSize: "var(--font-size-1)" }}>{children}</i>
-  ),
+  em: ({ children }) => <Em>{children}</Em>,
+  i: ({ children }) => <i>{children}</i>,
   strong: ({ children }) => (
-    <strong
-      style={{ fontSize: "var(--font-size-1)", color: "var(--accent-11)" }}
-    >
-      {children}
-    </strong>
+    <strong className="text-(--accent-11)">{children}</strong>
   ),
   del: ({ children }) => (
-    <del style={{ textDecoration: "line-through", color: "var(--gray-9)" }}>
-      {children}
-    </del>
+    <del className="text-(--gray-9) line-through">{children}</del>
   ),
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="markdown-link"
-      style={{
-        fontSize: "var(--font-size-1)",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "2px",
-      }}
-    >
-      {children}
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 12 12"
-        fill="none"
-        stroke="var(--accent-11)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ marginLeft: "var(--space-1)", flexShrink: 0 }}
-        aria-label="external link icon"
-        role="img"
+  a: ({ href, children }) => {
+    const githubRef = href ? parseGithubIssueUrl(href) : null;
+    if (githubRef) {
+      const isAutoLink = typeof children === "string" && children === href;
+      const label = isAutoLink
+        ? `${githubRef.owner}/${githubRef.repo}#${githubRef.number}`
+        : children;
+      return (
+        <GithubRefChip href={githubRef.normalizedUrl} kind={githubRef.kind}>
+          {label}
+        </GithubRefChip>
+      );
+    }
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="markdown-link inline-flex items-center gap-[2px]"
       >
-        <path d="M4.5 1.5H2.25C1.836 1.5 1.5 1.836 1.5 2.25V9.75C1.5 10.164 1.836 10.5 2.25 10.5H9.75C10.164 10.5 10.5 10.164 10.5 9.75V7.5" />
-        <path d="M7.5 1.5H10.5V4.5" />
-        <path d="M5.25 6.75L10.5 1.5" />
-      </svg>
-    </a>
-  ),
-  kbd: ({ children }) => <Kbd size="1">{children}</Kbd>,
+        {children}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="var(--accent-11)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-label="external link icon"
+          role="img"
+          className="ml-1 shrink-0"
+        >
+          <path d="M4.5 1.5H2.25C1.836 1.5 1.5 1.836 1.5 2.25V9.75C1.5 10.164 1.836 10.5 2.25 10.5H9.75C10.164 10.5 10.5 10.164 10.5 9.75V7.5" />
+          <path d="M7.5 1.5H10.5V4.5" />
+          <path d="M5.25 6.75L10.5 1.5" />
+        </svg>
+      </a>
+    );
+  },
+  kbd: ({ children }) => <Kbd>{children}</Kbd>,
   ul: ({ children }) => (
     <List as="ul" size="1">
       {children}
@@ -140,18 +140,15 @@ export const baseComponents: Components = {
         <Checkbox
           checked={checked}
           size="1"
-          style={{ marginRight: "var(--space-2)", verticalAlign: "middle" }}
+          style={{ verticalAlign: "middle" }}
+          className="mr-2"
         />
       );
     }
     return <input type={type} />;
   },
   // Table components - plain HTML for size control
-  table: ({ children }) => (
-    <table className="mb-3" style={{ fontSize: "var(--font-size-1)" }}>
-      {children}
-    </table>
-  ),
+  table: ({ children }) => <table className="mb-3">{children}</table>,
   thead: ({ children }) => <thead>{children}</thead>,
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => <tr className="border-gray-6 border-b">{children}</tr>,

@@ -44,13 +44,46 @@ export function parseAttachmentUri(uri: string): AttachmentRef | null {
   return { id: uri, label };
 }
 
-function getBlockAttachmentUri(block: ContentBlock): string | null {
+function parseFileUri(
+  uri: string,
+  fallbackLabel?: string,
+): AttachmentRef | null {
+  if (!uri.startsWith("file://")) {
+    return null;
+  }
+
+  try {
+    const pathname = decodeURIComponent(new URL(uri).pathname);
+    const label =
+      fallbackLabel?.trim() || getFileName(pathname) || "attachment";
+    return { id: uri, label };
+  } catch {
+    const label = fallbackLabel?.trim() || getFileName(uri) || "attachment";
+    return { id: uri, label };
+  }
+}
+
+function getBlockAttachmentRef(block: ContentBlock): AttachmentRef | null {
   if (block.type === "resource") {
-    return block.resource.uri ?? null;
+    const uri = block.resource.uri;
+    if (!uri) {
+      return null;
+    }
+
+    return parseAttachmentUri(uri) ?? parseFileUri(uri);
   }
 
   if (block.type === "image") {
-    return block.uri ?? null;
+    const uri = block.uri;
+    if (!uri) {
+      return null;
+    }
+
+    return parseAttachmentUri(uri) ?? parseFileUri(uri);
+  }
+
+  if (block.type === "resource_link") {
+    return parseAttachmentUri(block.uri) ?? parseFileUri(block.uri, block.name);
   }
 
   return null;
@@ -80,11 +113,11 @@ export function extractPromptDisplayContent(
   const seen = new Set<string>();
   const attachments: AttachmentRef[] = [];
   for (const block of blocks) {
-    const uri = getBlockAttachmentUri(block);
-    if (!uri || seen.has(uri)) continue;
-    const ref = parseAttachmentUri(uri);
-    if (!ref) continue;
-    seen.add(uri);
+    const ref = getBlockAttachmentRef(block);
+    if (!ref || seen.has(ref.id)) continue;
+    const { id } = ref;
+    if (!id) continue;
+    seen.add(id);
     attachments.push(ref);
   }
 

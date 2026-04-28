@@ -56,7 +56,7 @@ describe("api", () => {
         },
       },
       router: testRouter,
-      subscriptions: new Map(),
+      operations: new Map(),
     });
 
     expect(event.reply).toHaveBeenCalledOnce();
@@ -96,14 +96,14 @@ describe("api", () => {
         },
       },
       router: testRouter,
-      subscriptions: new Map(),
+      operations: new Map(),
     });
 
     expect(event.reply).not.toHaveBeenCalled();
   });
 
   test("handles subscriptions using observables", async () => {
-    const subscriptions = new Map();
+    const operations = new Map();
     const ee = new EventEmitter();
     const t = trpc.initTRPC.create();
     const testRouter = t.router({
@@ -143,7 +143,7 @@ describe("api", () => {
         },
       },
       internalId: "1-1:1",
-      subscriptions,
+      operations,
       router: testRouter,
       event,
     });
@@ -176,7 +176,7 @@ describe("api", () => {
         id: 1,
       },
       internalId: "1-1:1",
-      subscriptions,
+      operations,
       router: testRouter,
       event,
     });
@@ -194,7 +194,7 @@ describe("api", () => {
   });
 
   test("handles subscriptions using async generators", async () => {
-    const subscriptions = new Map();
+    const operations = new Map();
     const t = trpc.initTRPC.create();
 
     // Simple async generator that yields a single value
@@ -226,7 +226,7 @@ describe("api", () => {
         },
       },
       internalId: "1-1:1",
-      subscriptions,
+      operations,
       router: testRouter,
       event,
     });
@@ -252,6 +252,110 @@ describe("api", () => {
         data: "test response",
       },
     });
+  });
+
+  test("operation.cancel aborts in-flight mutation signal", async () => {
+    const event = makeEvent({
+      reply: vi.fn(),
+      sender: {
+        isDestroyed: () => false,
+        on: () => {},
+      },
+    });
+
+    const signalCaptured = vi.fn();
+    const t = trpc.initTRPC.create();
+    const cancelRouter = t.router({
+      slowMutation: t.procedure.mutation(async ({ signal }) => {
+        signalCaptured(signal);
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => {
+            reject(new Error("aborted"));
+          });
+        });
+        return "should not reach";
+      }),
+    });
+
+    const operations = new Map();
+
+    const mutationCall = handleIPCMessage({
+      createContext: async () => ({}),
+      event,
+      internalId: "1-1:1",
+      message: {
+        method: "request",
+        operation: {
+          context: {},
+          id: 1,
+          input: undefined,
+          path: "slowMutation",
+          type: "mutation",
+          signal: undefined,
+        },
+      },
+      router: cancelRouter,
+      operations,
+    });
+
+    await vi.waitFor(() => {
+      expect(signalCaptured).toHaveBeenCalled();
+    });
+
+    expect(operations.has("1-1:1")).toBe(true);
+
+    await handleIPCMessage({
+      createContext: async () => ({}),
+      event,
+      internalId: "1-1:1",
+      message: { method: "operation.cancel", id: 1 },
+      router: cancelRouter,
+      operations,
+    });
+
+    await mutationCall;
+
+    expect(signalCaptured.mock.calls[0][0].aborted).toBe(true);
+    expect(event.reply).toHaveBeenCalled();
+    const lastResponse = event.reply.mock.lastCall?.[1] as {
+      id: number;
+      error?: unknown;
+    };
+    expect(lastResponse).toMatchObject({ id: 1, error: expect.anything() });
+    expect(operations.has("1-1:1")).toBe(false);
+  });
+
+  test("query removes itself from operations map on success", async () => {
+    const event = makeEvent({
+      reply: vi.fn(),
+      sender: {
+        isDestroyed: () => false,
+        on: () => {},
+      },
+    });
+
+    const operations = new Map();
+
+    await handleIPCMessage({
+      createContext: async () => ({}),
+      event,
+      internalId: "1-1:9",
+      message: {
+        method: "request",
+        operation: {
+          context: {},
+          id: 9,
+          input: { id: "test" },
+          path: "testQuery",
+          type: "query",
+          signal: undefined,
+        },
+      },
+      router: testRouter,
+      operations,
+    });
+
+    expect(operations.has("1-1:9")).toBe(false);
   });
 
   test("subscription responds using custom serializer", async () => {
@@ -304,7 +408,7 @@ describe("api", () => {
         },
       },
       internalId: "1-1:1",
-      subscriptions: new Map(),
+      operations: new Map(),
       router: testRouter,
       event,
     });

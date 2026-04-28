@@ -130,10 +130,7 @@ function RepositoryFilterHeader({
   onSelect: (repo: string | null) => void;
 }) {
   return (
-    <Table.ColumnHeaderCell
-      className="font-normal text-[13px] text-gray-11"
-      style={{ width: "20%" }}
-    >
+    <Table.ColumnHeaderCell className="w-[20%] font-normal text-[13px] text-gray-11">
       <Popover.Root>
         <Popover.Trigger>
           <button
@@ -151,7 +148,7 @@ function RepositoryFilterHeader({
           align="start"
           side="bottom"
           sideOffset={4}
-          style={{ padding: 6, minWidth: 180 }}
+          className="min-w-[180px] p-[6px]"
         >
           <Flex direction="column" gap="0">
             <button
@@ -321,10 +318,7 @@ export function ArchivedTasksViewPresentation({
           >
             <Table.Header>
               <Table.Row>
-                <Table.ColumnHeaderCell
-                  className="font-normal text-[13px] text-gray-11"
-                  style={{ width: "40%" }}
-                >
+                <Table.ColumnHeaderCell className="w-[40%] font-normal text-[13px] text-gray-11">
                   Title
                 </Table.ColumnHeaderCell>
                 <SortableColumnHeader
@@ -346,7 +340,7 @@ export function ArchivedTasksViewPresentation({
                   selectedRepo={repoFilter}
                   onSelect={setRepoFilter}
                 />
-                <Table.ColumnHeaderCell style={{ width: 160 }} />
+                <Table.ColumnHeaderCell className="w-[160px]" />
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -379,7 +373,7 @@ export function ArchivedTasksViewPresentation({
                       {item.repoName}
                     </Text>
                   </Table.Cell>
-                  <Table.Cell style={{ overflow: "visible" }}>
+                  <Table.Cell className="overflow-visible">
                     <Flex gap="2" className="invisible group-hover:visible">
                       <Button
                         variant="outline"
@@ -413,11 +407,13 @@ export function ArchivedTasksViewPresentation({
         }}
       >
         <Dialog.Content maxWidth="420px" size="1">
-          <Dialog.Title size="2">Unarchive to new branch?</Dialog.Title>
-          <Dialog.Description size="1">
-            <Text size="1" color="gray">
+          <Dialog.Title className="text-sm">
+            Unarchive to new branch?
+          </Dialog.Title>
+          <Dialog.Description className="text-[13px]">
+            <Text color="gray" className="text-[13px]">
               This workspace was last on{" "}
-              <Text size="1" weight="medium">
+              <Text className="font-medium text-[13px]">
                 {branchNotFound?.branchName}
               </Text>
               , but that branch has been deleted or renamed.
@@ -443,11 +439,13 @@ export function ArchivedTasksViewPresentation({
         }}
       >
         <AlertDialog.Content maxWidth="420px" size="1">
-          <AlertDialog.Title size="2">Delete archived task</AlertDialog.Title>
-          <AlertDialog.Description size="1">
-            <Text size="1" color="gray">
+          <AlertDialog.Title className="text-sm">
+            Delete archived task
+          </AlertDialog.Title>
+          <AlertDialog.Description className="text-[13px]">
+            <Text color="gray" className="text-[13px]">
               Permanently delete{" "}
-              <Text size="1" weight="medium">
+              <Text className="font-medium text-[13px]">
                 {items.find((i) => i.archived.taskId === deleteTargetId)?.task
                   ?.title ?? "Unknown task"}
               </Text>
@@ -489,9 +487,7 @@ export function ArchivedTasksView() {
   const queryClient = useQueryClient();
 
   useSetHeaderContent(
-    <Text size="1" weight="medium" className="text-[13px]">
-      Archived tasks
-    </Text>,
+    <Text className="font-medium text-[13px]">Archived tasks</Text>,
   );
 
   const [branchNotFound, setBranchNotFound] =

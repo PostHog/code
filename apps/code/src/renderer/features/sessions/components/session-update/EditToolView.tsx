@@ -92,7 +92,7 @@ export function EditToolView({
           <LoadingIcon icon={PencilSimple} isLoading={isLoading} />
           {filePath && <FileMentionChip filePath={filePath} />}
           {diffStats && (
-            <Text size="1" className="font-mono">
+            <Text className="font-mono text-[13px]">
               <span className="text-green-11">+{diffStats.added}</span>{" "}
               <span className="text-red-11">-{diffStats.removed}</span>
             </Text>

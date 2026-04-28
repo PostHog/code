@@ -48,15 +48,11 @@ export function SkillCard({ skill, isSelected, onClick }: SkillCardProps) {
       </Box>
 
       <Flex direction="column" gap="0" className="min-w-0 flex-1">
-        <Text
-          size="2"
-          weight="medium"
-          className="truncate text-[13px] text-gray-12"
-        >
+        <Text className="truncate font-medium text-[13px] text-gray-12">
           {skill.name}
         </Text>
         {skill.description && (
-          <Text size="1" className="truncate text-[12px] text-gray-10">
+          <Text className="truncate text-[12px] text-gray-10">
             {skill.description}
           </Text>
         )}
@@ -86,11 +82,7 @@ export function SkillSection({
 }: SkillSectionProps) {
   return (
     <Flex direction="column" gap="1">
-      <Text
-        size="1"
-        weight="medium"
-        className="mb-1 text-[12px] text-gray-9 uppercase tracking-wider"
-      >
+      <Text className="mb-1 font-medium text-[12px] text-gray-9 uppercase tracking-wider">
         {title}
       </Text>
       <Flex direction="column" gap="1">

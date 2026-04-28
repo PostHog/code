@@ -1,10 +1,14 @@
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { Brain } from "phosphor-react-native";
-import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
+import { formatRelativeTime } from "@/lib/format";
 import { useThemeColors } from "@/lib/theme";
 import { usePeriodicRerender } from "../hooks/usePeriodicRerender";
 import type { AssistantToolCall } from "../types";
 import { getRandomThinkingMessage } from "../utils/thinkingMessages";
+import { MarkdownText } from "./MarkdownText";
 import { ToolMessage } from "./ToolMessage";
 
 interface AgentMessageProps {
@@ -14,6 +18,7 @@ interface AgentMessageProps {
   toolCalls?: AssistantToolCall[];
   hasHumanMessageAfter?: boolean;
   onOpenTask?: (taskId: string) => void;
+  timestamp?: number;
 }
 
 interface ReasoningBlockProps {
@@ -67,11 +72,20 @@ export function AgentMessage({
   toolCalls,
   hasHumanMessageAfter,
   onOpenTask,
+  timestamp,
 }: AgentMessageProps) {
   usePeriodicRerender(isLoading ? THINKING_MESSAGE_INTERVAL_MS : 0);
 
   const hasContent = !!content;
   const isComplete = !isLoading && hasContent;
+
+  const handleLongPress = useCallback(() => {
+    if (!content) return;
+    Clipboard.setStringAsync(content).then(() => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Copied", "Message copied to clipboard.");
+    });
+  }, [content]);
 
   return (
     <View className="py-2">
@@ -104,13 +118,19 @@ export function AgentMessage({
         </View>
       )}
 
-      {/* Show final content */}
+      {/* Show final content — long-press to copy */}
       {content && (
-        <View className="max-w-[95%] px-4 py-1">
-          <Text className="font-mono text-[13px] text-gray-12 leading-5">
-            {content}
-          </Text>
-        </View>
+        <Pressable onLongPress={handleLongPress} delayLongPress={400}>
+          <View className="max-w-[95%] px-4 py-1">
+            <MarkdownText content={content} />
+          </View>
+        </Pressable>
+      )}
+
+      {timestamp && !isLoading && (
+        <Text className="px-4 pt-1 font-mono text-[10px] text-gray-8">
+          {formatRelativeTime(timestamp)}
+        </Text>
       )}
     </View>
   );

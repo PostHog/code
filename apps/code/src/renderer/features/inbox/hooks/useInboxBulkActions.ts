@@ -27,6 +27,7 @@ const suppressibleStatuses = new Set<SignalReport["status"]>([
 const snoozableStatuses = new Set<SignalReport["status"]>([
   "in_progress",
   "ready",
+  "pending_input",
 ]);
 
 /** Clause after "Disabled because …" (see `@components/ui/Button`). */
@@ -34,7 +35,11 @@ const DISABLED_NO_SELECTION = "you haven't selected a report";
 
 /** Matches labels in the inbox list/filter (`inboxStatusLabel`). */
 const SNOOZE_ALLOWED_STATUS_PHRASE = (
-  ["in_progress", "ready"] as const satisfies readonly SignalReport["status"][]
+  [
+    "in_progress",
+    "ready",
+    "pending_input",
+  ] as const satisfies readonly SignalReport["status"][]
 )
   .map((status) => inboxStatusLabel(status))
   .join(" or ");

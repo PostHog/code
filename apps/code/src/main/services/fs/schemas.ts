@@ -21,9 +21,12 @@ export const writeRepoFileInput = z.object({
   content: z.string(),
 });
 
+export const fileEntryKind = z.enum(["file", "directory"]);
+
 const fileEntry = z.object({
   path: z.string(),
   name: z.string(),
+  kind: fileEntryKind.default("file"),
   changed: z.boolean().optional(),
 });
 
@@ -34,3 +37,4 @@ export type ListRepoFilesInput = z.infer<typeof listRepoFilesInput>;
 export type ReadRepoFileInput = z.infer<typeof readRepoFileInput>;
 export type WriteRepoFileInput = z.infer<typeof writeRepoFileInput>;
 export type FileEntry = z.infer<typeof fileEntry>;
+export type FileEntryKind = z.infer<typeof fileEntryKind>;

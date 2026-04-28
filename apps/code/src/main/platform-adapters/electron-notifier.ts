@@ -30,7 +30,6 @@ export class ElectronNotifier implements INotifier {
   public setUnreadIndicator(on: boolean): void {
     if (on) {
       app.dock?.setBadge("•");
-      this.mainWindow.getBrowserWindow()?.flashFrame(true);
     } else {
       app.dock?.setBadge("");
       this.mainWindow.getBrowserWindow()?.flashFrame(false);

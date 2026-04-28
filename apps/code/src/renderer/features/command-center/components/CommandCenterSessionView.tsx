@@ -31,6 +31,7 @@ export function CommandCenterSessionView({
     promptStartedAt,
     isInitializing,
     cloudBranch,
+    cloudStatus,
     errorTitle,
     errorMessage,
   } = useSessionViewState(taskId, task);
@@ -68,6 +69,8 @@ export function CommandCenterSessionView({
         onRetry={isCloud ? undefined : handleRetry}
         onNewSession={isCloud ? undefined : handleNewSession}
         isInitializing={isInitializing}
+        isCloud={isCloud}
+        cloudStatus={cloudStatus}
         compact
         isActiveSession={isActiveSession}
       />

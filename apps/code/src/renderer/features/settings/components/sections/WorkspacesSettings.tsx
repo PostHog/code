@@ -45,7 +45,7 @@ export function WorkspacesSettings() {
         description="Directory where isolated workspaces are created for each task"
         noBorder
       >
-        <div style={{ minWidth: "200px" }}>
+        <div className="min-w-[200px]">
           <FolderPicker
             value={localWorktreeLocation}
             onChange={handleWorktreeLocationChange}

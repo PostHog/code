@@ -37,7 +37,7 @@ export function DeleteToolView({
         <LoadingIcon icon={Trash} isLoading={isLoading} />
         {filePath && <FileMentionChip filePath={filePath} />}
         {deletedLines !== null && (
-          <Text size="1" className="font-mono">
+          <Text className="font-mono text-[13px]">
             <span className="text-red-11">-{deletedLines}</span>
           </Text>
         )}

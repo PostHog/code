@@ -75,11 +75,10 @@ export function FetchToolView({
               }
             >
               <Link
-                size="1"
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="break-all"
+                className="break-all text-[13px]"
                 onClick={(e) => e.stopPropagation()}
               >
                 {url}

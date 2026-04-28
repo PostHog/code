@@ -3,6 +3,7 @@ import type { Socket } from "node:net";
 import type { IUrlLauncher } from "@posthog/platform/url-launcher";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
+import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { DeepLinkService } from "../deep-link/service";
@@ -16,13 +17,9 @@ import {
 
 const log = logger.scope("mcp-callback");
 
-const PROTOCOL = "posthog-code";
 const MCP_CALLBACK_KEY = "mcp-oauth-complete";
 const DEV_CALLBACK_PORT = 8238;
 const OAUTH_TIMEOUT_MS = 180_000; // 3 minutes
-
-// Use HTTP callback in development, deep link in production
-const IS_DEV = process.defaultApp || false;
 
 interface PendingCallback {
   resolve: (result: McpCallbackResult) => void;
@@ -55,9 +52,9 @@ export class McpCallbackService extends TypedEventEmitter<McpCallbackEvents> {
    * Get the callback URL based on environment (dev vs prod).
    */
   public getCallbackUrl(): GetCallbackUrlOutput {
-    const callbackUrl = IS_DEV
+    const callbackUrl = isDevBuild()
       ? `http://localhost:${DEV_CALLBACK_PORT}/${MCP_CALLBACK_KEY}`
-      : `${PROTOCOL}://${MCP_CALLBACK_KEY}`;
+      : `${this.deepLinkService.getProtocol()}://${MCP_CALLBACK_KEY}`;
     return { callbackUrl };
   }
 
@@ -72,7 +69,7 @@ export class McpCallbackService extends TypedEventEmitter<McpCallbackEvents> {
       // Cancel any existing pending callback
       this.cancelPending();
 
-      const result = IS_DEV
+      const result = isDevBuild()
         ? await this.waitForHttpCallback(redirectUrl)
         : await this.waitForDeepLinkCallback(redirectUrl);
 

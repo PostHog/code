@@ -8,6 +8,7 @@ import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import type {
   AvailableSuggestedReviewersResponse,
   SignalProcessingStateResponse,
+  SignalReport,
   SignalReportArtefactsResponse,
   SignalReportSignalsResponse,
   SignalReportsQueryParams,
@@ -17,12 +18,14 @@ import { useEffect, useMemo } from "react";
 
 const REPORTS_PAGE_SIZE = 100;
 
-const reportKeys = {
+export const reportKeys = {
   all: ["inbox", "signal-reports"] as const,
   list: (params?: SignalReportsQueryParams) =>
     [...reportKeys.all, "list", params ?? {}] as const,
   infiniteList: (params?: SignalReportsQueryParams) =>
     [...reportKeys.all, "infinite-list", params ?? {}] as const,
+  detail: (reportId: string) =>
+    [...reportKeys.all, reportId, "detail"] as const,
   artefacts: (reportId: string) =>
     [...reportKeys.all, reportId, "artefacts"] as const,
   signals: (reportId: string) =>
@@ -161,6 +164,27 @@ export function useInboxSignalProcessingState(options?: {
     reportKeys.signalProcessingState,
     (client) => client.getSignalProcessingState(),
     options,
+  );
+}
+
+export function useInboxReportById(
+  reportId: string | null,
+  options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false | (() => number | false | undefined);
+    refetchIntervalInBackground?: boolean;
+    staleTime?: number;
+  },
+) {
+  return useAuthenticatedQuery<SignalReport | null>(
+    reportKeys.detail(reportId ?? ""),
+    (client) => client.getSignalReport(reportId ?? ""),
+    {
+      enabled: !!reportId && (options?.enabled ?? true),
+      refetchInterval: options?.refetchInterval,
+      refetchIntervalInBackground: options?.refetchIntervalInBackground,
+      staleTime: options?.staleTime,
+    },
   );
 }
 

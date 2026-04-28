@@ -143,7 +143,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: {
       unpack:
-        "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/node_modules/file-uri-to-path/**}",
+        "{**/*.node,**/spawn-helper,**/.vite/build/claude-cli/**,**/.vite/build/plugins/posthog/**,**/.vite/build/codex-acp/**,**/.vite/build/grammars/**,**/node_modules/node-pty/**,**/node_modules/@parcel/**,**/node_modules/file-icon/**,**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/node_modules/file-uri-to-path/**}",
     },
     prune: false,
     name: "PostHog Code",
@@ -175,10 +175,10 @@ const config: ForgeConfig = {
       format: "ULFO",
       background: "./build/dmg-background.png",
       iconSize: 80,
-      window: { size: { width: 540, height: 380 } },
+      window: { size: { width: 560, height: 380 } },
       contents: (opts) => [
-        { x: 135, y: 225, type: "file", path: opts.appPath },
-        { x: 405, y: 225, type: "link", path: "/Applications" },
+        { x: 104, y: 55, type: "file", path: opts.appPath },
+        { x: 104, y: 243, type: "link", path: "/Applications" },
       ],
       ...(shouldSignMacApp && appleCodesignIdentity
         ? {

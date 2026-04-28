@@ -8,6 +8,8 @@ const execFileAsync = promisify(execFile);
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
+  getBranchDiffPatchesByPath,
+  getChangedFilesBetweenBranches,
   getChangedFilesDetailed,
   getCommitConventions,
   getCommitsBetweenBranches,
@@ -55,7 +57,8 @@ import type {
   GhStatusOutput,
   GitCommitInfo,
   GitFileStatus,
-  GitHubIssue,
+  GithubRef,
+  GithubRefKind,
   GitRepoInfo,
   GitStateSnapshot,
   GitStatusOutput,
@@ -110,13 +113,12 @@ function toUnifiedDiffPatch(
 @injectable()
 export class GitService extends TypedEventEmitter<GitServiceEvents> {
   private lastFetchTime = new Map<string, number>();
-  private llmGateway: LlmGatewayService;
 
   constructor(
-    @inject(MAIN_TOKENS.LlmGatewayService) llmGateway: LlmGatewayService,
+    @inject(MAIN_TOKENS.LlmGatewayService)
+    private readonly llmGateway: LlmGatewayService,
   ) {
     super();
-    this.llmGateway = llmGateway;
   }
 
   private async getStateSnapshot(
@@ -435,6 +437,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     remote = "origin",
     branch?: string,
     setUpstream = false,
+    signal?: AbortSignal,
   ): Promise<PushOutput> {
     const saga = new PushSaga();
     const result = await saga.run({
@@ -442,6 +445,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       remote,
       branch: branch || undefined,
       setUpstream,
+      signal,
     });
     if (!result.success) {
       return { success: false, message: result.error };
@@ -464,12 +468,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     directoryPath: string,
     remote = "origin",
     branch?: string,
+    signal?: AbortSignal,
   ): Promise<PullOutput> {
     const saga = new PullSaga();
     const result = await saga.run({
       baseDir: directoryPath,
       remote,
       branch: branch || undefined,
+      signal,
     });
     if (!result.success) {
       return { success: false, message: result.error };
@@ -488,6 +494,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async publish(
     directoryPath: string,
     remote = "origin",
+    signal?: AbortSignal,
   ): Promise<PublishOutput> {
     const currentBranch = await getCurrentBranch(directoryPath);
     if (!currentBranch) {
@@ -499,6 +506,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       remote,
       currentBranch,
       true,
+      signal,
     );
     return {
       success: pushResult.success,
@@ -511,8 +519,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   public async sync(
     directoryPath: string,
     remote = "origin",
+    signal?: AbortSignal,
   ): Promise<SyncOutput> {
-    const pullResult = await this.pull(directoryPath, remote);
+    const pullResult = await this.pull(
+      directoryPath,
+      remote,
+      undefined,
+      signal,
+    );
     if (!pullResult.success) {
       return {
         success: false,
@@ -521,7 +535,13 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
       };
     }
 
-    const pushResult = await this.push(directoryPath, remote);
+    const pushResult = await this.push(
+      directoryPath,
+      remote,
+      undefined,
+      false,
+      signal,
+    );
 
     const state = await this.getStateSnapshot(directoryPath);
 
@@ -832,6 +852,54 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     }
   }
 
+  /**
+   * Look up the PR URL for any branch name (not just the currently checked-out
+   * one). Uses `gh pr list --head` rather than `gh pr view` so the lookup works
+   * regardless of which branch the working tree is on.
+   */
+  public async getPrUrlForBranch(
+    directoryPath: string,
+    branchName: string,
+  ): Promise<string | null> {
+    try {
+      const remoteUrl = await getRemoteUrl(directoryPath);
+      if (!remoteUrl) return null;
+
+      const parsed = parseGitHubUrl(remoteUrl);
+      if (!parsed) return null;
+
+      const repoSlug = `${parsed.organization}/${parsed.repository}`;
+      const result = await execGh([
+        "pr",
+        "list",
+        "--head",
+        branchName,
+        "--state",
+        "all",
+        "--json",
+        "url",
+        "--limit",
+        "1",
+        "--repo",
+        repoSlug,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to list PRs for branch", {
+          branchName,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as Array<{ url?: string }>;
+      return data[0]?.url ?? null;
+    } catch (error) {
+      log.warn("Failed to resolve PR URL for branch", { branchName, error });
+      return null;
+    }
+  }
+
   private async createPrViaGh(
     directoryPath: string,
     title?: string,
@@ -1104,85 +1172,104 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
 
     const [owner, repoName] = parts;
 
-    try {
-      const repoResult = await execGh([
-        "api",
-        `repos/${owner}/${repoName}`,
-        "--jq",
-        ".default_branch",
-      ]);
+    const repoResult = await execGh([
+      "api",
+      `repos/${owner}/${repoName}`,
+      "--jq",
+      ".default_branch",
+    ]);
 
-      if (repoResult.exitCode !== 0 || !repoResult.stdout.trim()) {
-        return [];
-      }
-      const defaultBranch = repoResult.stdout.trim();
-
-      const result = await execGh([
-        "api",
-        `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
-      ]);
-
-      if (result.exitCode !== 0) {
-        throw new Error(
-          `Failed to fetch branch files: ${result.stderr || result.error || "Unknown error"}`,
-        );
-      }
-
-      const response = JSON.parse(result.stdout) as {
-        files?: Array<{
-          filename: string;
-          status: string;
-          previous_filename?: string;
-          additions: number;
-          deletions: number;
-          patch?: string;
-        }>;
-      };
-      const files = response.files;
-
-      if (!files) return [];
-
-      return files.map((f) => {
-        let status: ChangedFile["status"];
-        switch (f.status) {
-          case "added":
-            status = "added";
-            break;
-          case "removed":
-            status = "deleted";
-            break;
-          case "renamed":
-            status = "renamed";
-            break;
-          default:
-            status = "modified";
-            break;
-        }
-
-        return {
-          path: f.filename,
-          status,
-          originalPath: f.previous_filename,
-          linesAdded: f.additions,
-          linesRemoved: f.deletions,
-          patch: f.patch
-            ? toUnifiedDiffPatch(
-                f.patch,
-                f.filename,
-                f.previous_filename,
-                status,
-              )
-            : undefined,
-        };
-      });
-    } catch (error) {
-      log.warn("Failed to fetch branch changed files", {
-        repo,
-        branch,
-        error,
-      });
-      throw error;
+    if (repoResult.exitCode !== 0 || !repoResult.stdout.trim()) {
+      return [];
     }
+    const defaultBranch = repoResult.stdout.trim();
+
+    const result = await execGh([
+      "api",
+      `repos/${owner}/${repoName}/compare/${defaultBranch}...${branch}`,
+    ]);
+
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Failed to fetch branch files: ${result.stderr || result.error || "Unknown error"}`,
+      );
+    }
+
+    const response = JSON.parse(result.stdout) as {
+      files?: Array<{
+        filename: string;
+        status: string;
+        previous_filename?: string;
+        additions: number;
+        deletions: number;
+        patch?: string;
+      }>;
+    };
+    const files = response.files;
+
+    if (!files) return [];
+
+    return files.map((f) => {
+      let status: ChangedFile["status"];
+      switch (f.status) {
+        case "added":
+          status = "added";
+          break;
+        case "removed":
+          status = "deleted";
+          break;
+        case "renamed":
+          status = "renamed";
+          break;
+        default:
+          status = "modified";
+          break;
+      }
+
+      return {
+        path: f.filename,
+        status,
+        originalPath: f.previous_filename,
+        linesAdded: f.additions,
+        linesRemoved: f.deletions,
+        patch: f.patch
+          ? toUnifiedDiffPatch(f.patch, f.filename, f.previous_filename, status)
+          : undefined,
+      };
+    });
+  }
+
+  public async getLocalBranchChangedFiles(
+    directoryPath: string,
+    branch: string,
+  ): Promise<ChangedFile[]> {
+    await this.fetchIfStale(directoryPath);
+
+    const defaultBranch = await getDefaultBranch(directoryPath);
+    if (!defaultBranch) return [];
+
+    const files = await getChangedFilesBetweenBranches(
+      directoryPath,
+      defaultBranch,
+      branch,
+      { excludePatterns: [".claude", "CLAUDE.local.md"] },
+    );
+    if (files.length === 0) return [];
+
+    const patchByPath = await getBranchDiffPatchesByPath(
+      directoryPath,
+      defaultBranch,
+      branch,
+    );
+
+    return files.map((f) => ({
+      path: f.path,
+      status: f.status,
+      originalPath: f.originalPath,
+      linesAdded: f.linesAdded,
+      linesRemoved: f.linesRemoved,
+      patch: patchByPath.get(f.path),
+    }));
   }
 
   public async generateCommitMessage(
@@ -1385,90 +1472,188 @@ ${truncatedDiff || "(no diff available)"}${contextSection}`;
     return result.stdout.trim() || repo;
   }
 
-  private parseGhIssues(stdout: string, repo: string): GitHubIssue[] {
+  private normalizeRefState(raw: string): GithubRef["state"] {
+    const upper = raw.toUpperCase();
+    if (upper === "OPEN") return "OPEN";
+    if (upper === "MERGED") return "MERGED";
+    return "CLOSED";
+  }
+
+  private parseGhRefs(
+    stdout: string,
+    repo: string,
+    kind: GithubRefKind,
+  ): GithubRef[] {
     const raw = JSON.parse(stdout) as Array<{
       number: number;
       title: string;
       state: string;
-      labels: Array<{ name: string }>;
+      labels?: Array<{ name: string }>;
       url: string;
+      isDraft?: boolean;
     }>;
     const items = Array.isArray(raw) ? raw : [raw];
-    return items.map((issue) => ({
-      number: issue.number,
-      title: issue.title,
-      state: issue.state.toUpperCase(),
-      labels: issue.labels.map((l) => l.name),
-      url: issue.url,
-      repo,
-    }));
+    return items.map((item) => {
+      // GitHub's issues API returns PRs too, so derive kind from the URL path.
+      const resolvedKind: GithubRefKind = item.url.includes("/pull/")
+        ? "pr"
+        : kind;
+      return {
+        kind: resolvedKind,
+        number: item.number,
+        title: item.title,
+        state: this.normalizeRefState(item.state),
+        labels: (item.labels ?? []).map((l) => l.name),
+        url: item.url,
+        repo,
+        isDraft: resolvedKind === "pr" ? Boolean(item.isDraft) : undefined,
+      };
+    });
   }
 
-  public async searchGithubIssues(
+  public async searchGithubRefs(
     directoryPath: string,
     query?: string,
     limit = 5,
-  ): Promise<GitHubIssue[]> {
+    kinds: GithubRefKind[] = ["issue", "pr"],
+  ): Promise<GithubRef[]> {
     const repoInfo = await this.getGitRepoInfo(directoryPath);
     if (!repoInfo) return [];
 
     const repo = await this.resolveCanonicalRepo(
       `${repoInfo.organization}/${repoInfo.repository}`,
     );
+
     const trimmed = query?.trim().replace(/^#/, "");
-    const issueNumber = trimmed ? Number(trimmed) : Number.NaN;
+    const refNumber = trimmed ? Number(trimmed) : Number.NaN;
 
-    if (!Number.isNaN(issueNumber) && Number.isInteger(issueNumber)) {
-      return this.fetchGhIssues(
-        ["issue", "view", String(issueNumber), "--repo", repo],
+    // Number lookup: `gh issue view` returns PRs too (shared number space).
+    if (!Number.isNaN(refNumber) && Number.isInteger(refNumber)) {
+      return this.fetchGhRefs(
+        ["issue", "view", String(refNumber), "--repo", repo],
         repo,
-      );
-    }
-
-    if (trimmed) {
-      return this.fetchGhIssues(
-        [
-          "search",
-          "issues",
-          trimmed,
-          "--repo",
-          repo,
-          "--limit",
-          String(limit),
-          "--match",
-          "title",
-        ],
-        repo,
-      );
-    }
-
-    return this.fetchGhIssues(
-      [
         "issue",
-        "list",
+      );
+    }
+
+    // Text search: one call via `gh search issues --include-prs` when both kinds are wanted.
+    if (trimmed) {
+      const includeIssues = kinds.includes("issue");
+      const includePrs = kinds.includes("pr");
+      const searchNoun = !includeIssues && includePrs ? "prs" : "issues";
+      const args = [
+        "search",
+        searchNoun,
+        trimmed,
         "--repo",
         repo,
         "--limit",
         String(limit),
-        "--state",
-        "all",
-      ],
-      repo,
-    );
+        "--match",
+        "title",
+      ];
+      if (searchNoun === "issues" && includePrs) args.push("--include-prs");
+      return this.fetchGhRefs(args, repo, "issue");
+    }
+
+    // Empty query: list defaults per-kind in parallel (`gh search` requires a query).
+    const tasks: Promise<GithubRef[]>[] = [];
+    if (kinds.includes("issue")) {
+      tasks.push(
+        this.fetchGhRefs(
+          [
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--limit",
+            String(limit),
+            "--state",
+            "all",
+          ],
+          repo,
+          "issue",
+        ),
+      );
+    }
+    if (kinds.includes("pr")) {
+      tasks.push(
+        this.fetchGhRefs(
+          [
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--limit",
+            String(limit),
+            "--state",
+            "all",
+          ],
+          repo,
+          "pr",
+        ),
+      );
+    }
+    const results = await Promise.all(tasks);
+    return this.sortRefs(this.dedupeRefsByUrl(results.flat()));
   }
 
-  private async fetchGhIssues(
+  private dedupeRefsByUrl(refs: GithubRef[]): GithubRef[] {
+    const byUrl = new Map<string, GithubRef>();
+    for (const ref of refs) {
+      if (!byUrl.has(ref.url)) byUrl.set(ref.url, ref);
+    }
+    return [...byUrl.values()];
+  }
+
+  private sortRefs(refs: GithubRef[]): GithubRef[] {
+    return refs.sort((a, b) => b.number - a.number);
+  }
+
+  public async getGithubIssue(
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<GithubRef | null> {
+    const repoSlug = `${owner}/${repo}`;
+    const refs = await this.fetchGhRefs(
+      ["issue", "view", String(number), "--repo", repoSlug],
+      repoSlug,
+      "issue",
+    );
+    return refs[0] ?? null;
+  }
+
+  public async getGithubPullRequest(
+    owner: string,
+    repo: string,
+    number: number,
+  ): Promise<GithubRef | null> {
+    const repoSlug = `${owner}/${repo}`;
+    const refs = await this.fetchGhRefs(
+      ["pr", "view", String(number), "--repo", repoSlug],
+      repoSlug,
+      "pr",
+    );
+    return refs[0] ?? null;
+  }
+
+  private async fetchGhRefs(
     args: string[],
     repo: string,
-  ): Promise<GitHubIssue[]> {
-    const jsonFields = "number,title,state,labels,url";
+    kind: GithubRefKind,
+  ): Promise<GithubRef[]> {
+    const jsonFields =
+      kind === "pr"
+        ? "number,title,state,url,isDraft"
+        : "number,title,state,labels,url";
     const result = await execGh([...args, "--json", jsonFields]);
     if (result.exitCode !== 0) return [];
 
     try {
-      return this.parseGhIssues(result.stdout, repo);
+      return this.parseGhRefs(result.stdout, repo, kind);
     } catch {
-      log.warn("Failed to parse GitHub issues response", { repo, args });
+      log.warn("Failed to parse GitHub refs response", { repo, kind, args });
       return [];
     }
   }

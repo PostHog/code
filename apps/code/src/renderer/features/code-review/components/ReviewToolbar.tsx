@@ -4,10 +4,12 @@ import { ArrowsClockwise, Columns, Rows, X } from "@phosphor-icons/react";
 import { Button } from "@posthog/quill";
 import { Flex, Separator, Text } from "@radix-ui/themes";
 import { DiffSettingsMenu } from "@renderer/features/code-review/components/DiffSettingsMenu";
+import { DiffSourceSelector } from "@renderer/features/code-review/components/DiffSourceSelector";
 import {
   type ReviewMode,
   useReviewNavigationStore,
 } from "@renderer/features/code-review/stores/reviewNavigationStore";
+import type { ResolvedDiffSource } from "@renderer/features/code-review/utils/resolveDiffSource";
 import { FoldVertical, Maximize, Minimize, UnfoldVertical } from "lucide-react";
 import { memo } from "react";
 
@@ -20,6 +22,10 @@ interface ReviewToolbarProps {
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefresh?: () => void;
+  effectiveSource?: ResolvedDiffSource;
+  branchSourceAvailable?: boolean;
+  prSourceAvailable?: boolean;
+  defaultBranch?: string | null;
 }
 
 export const ReviewToolbar = memo(function ReviewToolbar({
@@ -29,6 +35,10 @@ export const ReviewToolbar = memo(function ReviewToolbar({
   onExpandAll,
   onCollapseAll,
   onRefresh,
+  effectiveSource,
+  branchSourceAvailable,
+  prSourceAvailable,
+  defaultBranch,
 }: ReviewToolbarProps) {
   const viewMode = useDiffViewerStore((s) => s.viewMode);
   const toggleViewMode = useDiffViewerStore((s) => s.toggleViewMode);
@@ -53,18 +63,24 @@ export const ReviewToolbar = memo(function ReviewToolbar({
       align="center"
       gap="3"
       style={{
-        borderBottom: "1px solid var(--gray-6)",
-        background: "var(--color-background)",
-        position: "sticky",
-        height: "32px",
-        top: 0,
         zIndex: 2,
-        flexShrink: 0,
       }}
+      className="sticky top-0 h-[32px] shrink-0 border-b border-b-(--gray-6) bg-(--color-background)"
     >
-      <Text size="1" weight="medium">
-        {fileCount} file{fileCount !== 1 ? "s" : ""} changed
-      </Text>
+      <Flex align="center" gap="2">
+        <Text className="font-medium text-[13px]">
+          {fileCount} file{fileCount !== 1 ? "s" : ""} changed
+        </Text>
+        {effectiveSource && (
+          <DiffSourceSelector
+            taskId={taskId}
+            effectiveSource={effectiveSource}
+            branchAvailable={branchSourceAvailable ?? false}
+            prSourceAvailable={prSourceAvailable ?? false}
+            defaultBranch={defaultBranch ?? null}
+          />
+        )}
+      </Flex>
 
       <Flex align="center" gap="1" ml="auto">
         {onRefresh && (

@@ -5,6 +5,7 @@ type AnyHttpResponse = Response | ReturnType<typeof HttpResponse.json>;
 export interface PostHogHandlersOptions {
   baseUrl?: string;
   onAppendLog?: (entries: unknown[]) => void;
+  onUpdateTaskRun?: (body: unknown) => void;
   getTask?: () => unknown;
   getTaskRun?: () => unknown;
   appendLogResponse?: () => AnyHttpResponse;
@@ -14,6 +15,7 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
   const {
     baseUrl = "http://localhost:8000",
     onAppendLog,
+    onUpdateTaskRun,
     getTask,
     getTaskRun,
     appendLogResponse,
@@ -85,7 +87,8 @@ export function createPostHogHandlers(options: PostHogHandlersOptions = {}) {
     // PATCH /runs/:runId - Update task run
     http.patch(
       `${baseUrl}/api/projects/:projectId/tasks/:taskId/runs/:runId/`,
-      () => {
+      async ({ request }) => {
+        onUpdateTaskRun?.(await request.json());
         return HttpResponse.json({});
       },
     ),

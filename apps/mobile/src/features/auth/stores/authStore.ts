@@ -29,6 +29,11 @@ interface AuthState {
 
   // Methods
   loginWithOAuth: (region: CloudRegion) => Promise<void>;
+  loginWithPersonalApiKey: (params: {
+    token: string;
+    projectId: number;
+    region: CloudRegion;
+  }) => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   scheduleTokenRefresh: () => void;
   initializeAuth: () => Promise<boolean>;
@@ -96,6 +101,40 @@ export const useAuthStore = create<AuthState>()(
         get().scheduleTokenRefresh();
       },
 
+      loginWithPersonalApiKey: async ({ token, projectId, region }) => {
+        if (!__DEV__) {
+          throw new Error(
+            "Dev sign-in is only available in development builds",
+          );
+        }
+        const trimmed = token.trim();
+        if (!trimmed) {
+          throw new Error("Personal API key is required");
+        }
+        if (!Number.isFinite(projectId) || projectId <= 0) {
+          throw new Error("Valid project ID is required");
+        }
+
+        const storedTokens: StoredTokens = {
+          accessToken: trimmed,
+          refreshToken: "",
+          expiresAt: Number.MAX_SAFE_INTEGER,
+          cloudRegion: region,
+          scopedTeams: [projectId],
+        };
+
+        await saveTokens(storedTokens);
+
+        set({
+          oauthAccessToken: trimmed,
+          oauthRefreshToken: null,
+          tokenExpiry: null,
+          cloudRegion: region,
+          projectId,
+          isAuthenticated: true,
+        });
+      },
+
       refreshAccessToken: async () => {
         const state = get();
 
@@ -140,7 +179,8 @@ export const useAuthStore = create<AuthState>()(
           refreshTimeoutId = null;
         }
 
-        if (!state.tokenExpiry) {
+        // Personal API key sessions have no refresh token — nothing to schedule.
+        if (!state.tokenExpiry || !state.oauthRefreshToken) {
           return;
         }
 

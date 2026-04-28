@@ -172,6 +172,49 @@ export function TaskDetail({ task: initialTask }: TaskDetailProps) {
 }
 ```
 
+### Tailwind over inline styles
+
+Always reach for Tailwind utility classes first. The codebase uses Tailwind v4
+with CSS variables from Radix Themes (e.g. `--gray-12`, `--space-3`,
+`--radius-2`); use Tailwind v4's CSS-var shorthand to bridge them — `text-(--gray-12)`,
+`bg-(--gray-2)`, `rounded-(--radius-2)`, `border-(--gray-5)`. Use arbitrary values
+(`text-[13px]`, `pl-[18px]`) when the design token doesn't have a named match.
+
+Inline `style={{}}` is acceptable in three cases only:
+
+1. **Genuinely dynamic values** computed at runtime that can't be a class —
+   e.g. `style={{ width: `${pxFromHook}px` }}`, `style={{ transform: `translateY(${y}px)` }}`,
+   pixel positions from measurement, data-driven colors that don't fit a fixed palette.
+2. **Library configuration** passed to non-React libraries (CodeMirror's
+   `EditorView.theme(...)`, xterm.js options, etc.).
+3. **CSS variables set from JS** that downstream classes consume —
+   `style={{ "--row-color": item.color }}` paired with `className="bg-(--row-color)"`.
+
+Do NOT use inline `style` for:
+
+- Color tokens (use `text-(--gray-12)`, `bg-(--gray-2)`, `border-(--gray-5)`)
+- Spacing (use `p-3`, `mt-2`, `pl-4`, `gap-2`) — Radix `--space-N` matches Tailwind's
+  spacing scale 1:1 for `--space-1`..`--space-4`; `--space-5` = `6`, `--space-6` = `8`, etc.
+- Layout primitives (`shrink-0`, `min-w-0`, `flex-1`, `overflow-y-auto`, `w-full`, `h-full`)
+- Borders (`border border-(--gray-5)`), radii (`rounded-(--radius-2)` or `rounded-full`)
+- Cursors (`cursor-pointer`, `cursor-col-resize`)
+- Opacity (`opacity-50`), text-align, text-transform (`uppercase`), white-space, word-break
+- Position (`absolute`, `relative`, `fixed`), z-index (`z-10`, `z-[201]`), inset (`inset-0`)
+- Animations that map to a Tailwind utility (`animate-spin`)
+- Conditional values that can be `className={cond ? "x" : "y"}` or
+  `className={\`base-classes ${cond ? "active-classes" : "inactive-classes"}\`}`
+
+Default line-heights have been tightened (`text-sm` ships with etc.)
+in [apps/code/src/renderer/styles/globals.css](./apps/code/src/renderer/styles/globals.css).
+Don't add a `leading-*` class for body text unless you specifically want a non-default
+line-height. For arbitrary sizes (`text-[13px]`), pair with `leading-snug` for body
+text or `leading-tight` for titles.
+
+When writing a custom React component that wraps a styled element, accept BOTH
+`className?: string` and `style?: React.CSSProperties` props and merge the
+`className` into the inner element's classes (e.g. ``className={`base-classes ${className ?? ""}`}``).
+This lets call sites override styling via Tailwind without forcing inline `style`.
+
 ### Store / Service Boundary
 
 Stores and services have a strict separation of concerns:

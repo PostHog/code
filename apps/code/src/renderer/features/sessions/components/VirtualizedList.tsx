@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   forwardRef,
   type ReactNode,
   useCallback,
@@ -15,6 +16,7 @@ interface VirtualizedListProps<T> {
   getItemKey?: (item: T, index: number) => string | number;
   className?: string;
   itemClassName?: string;
+  itemStyle?: CSSProperties;
   footer?: ReactNode;
   onScrollStateChange?: (isAtBottom: boolean) => void;
   keepMounted?: readonly number[];
@@ -33,6 +35,7 @@ function VirtualizedListInner<T>(
     getItemKey,
     className,
     itemClassName,
+    itemStyle,
     footer,
     onScrollStateChange,
     keepMounted,
@@ -104,26 +107,29 @@ function VirtualizedListInner<T>(
   }, []);
 
   return (
-    <div
-      className={className}
-      style={{ height: "100%", display: "flex", flexDirection: "column" }}
-    >
+    <div className={`flex h-full flex-col ${className}`}>
       <VList
         ref={listRef}
         shift={false}
-        style={{ flex: 1, scrollbarGutter: "stable" }}
+        style={{ scrollbarGutter: "stable" }}
         onScroll={handleScroll}
         keepMounted={keepMounted}
+        className="flex-1"
       >
         {items.map((item, index) => (
           <div
             key={getItemKey ? getItemKey(item, index) : index}
             className={itemClassName}
+            style={itemStyle}
           >
             {renderItem(item, index)}
           </div>
         ))}
-        {footer && <div className={itemClassName}>{footer}</div>}
+        {footer && (
+          <div className={itemClassName} style={itemStyle}>
+            {footer}
+          </div>
+        )}
       </VList>
     </div>
   );

@@ -25,7 +25,7 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
   internalId,
   message,
   event,
-  subscriptions,
+  operations,
 }: {
   router: TRouter;
   createContext?: (
@@ -34,10 +34,13 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
   internalId: string;
   message: ETRPCRequest;
   event: IpcMainEvent;
-  subscriptions: Map<string, AbortController>;
+  operations: Map<string, AbortController>;
 }) {
-  if (message.method === "subscription.stop") {
-    subscriptions.get(internalId)?.abort();
+  if (
+    message.method === "subscription.stop" ||
+    message.method === "operation.cancel"
+  ) {
+    operations.get(internalId)?.abort();
     return;
   }
 
@@ -45,6 +48,34 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
   const input = serializedInput
     ? router._def._config.transformer.input.deserialize(serializedInput)
     : undefined;
+
+  const abortController = new AbortController();
+
+  if (operations.has(internalId)) {
+    const error = getTRPCErrorFromUnknown(
+      new TRPCError({
+        message: `Duplicate id ${internalId}`,
+        code: "BAD_REQUEST",
+      }),
+    );
+    if (event.sender.isDestroyed()) return;
+    event.reply(
+      ELECTRON_TRPC_CHANNEL,
+      transformTRPCResponse(router._def._config, {
+        id,
+        error: getErrorShape({
+          config: router._def._config,
+          error,
+          type,
+          path,
+          input,
+          ctx: {},
+        }),
+      }),
+    );
+    return;
+  }
+  operations.set(internalId, abortController);
 
   const ctx = (await createContext?.({ event })) ?? {};
 
@@ -57,7 +88,6 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
   };
 
   try {
-    const abortController = new AbortController();
     const result = await callTRPCProcedure({
       ctx,
       path,
@@ -84,6 +114,7 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
           data: result,
         },
       });
+      operations.delete(internalId);
       return;
     }
 
@@ -91,15 +122,6 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
       throw new TRPCError({
         message: `Subscription ${path} did not return an observable or a AsyncGenerator`,
         code: "INTERNAL_SERVER_ERROR",
-      });
-    }
-
-    if (subscriptions.has(internalId)) {
-      // duplicate request ids for client
-
-      throw new TRPCError({
-        message: `Duplicate id ${internalId}`,
-        code: "BAD_REQUEST",
       });
     }
 
@@ -180,7 +202,7 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
           type: "stopped",
         },
       });
-      subscriptions.delete(internalId);
+      operations.delete(internalId);
     }).catch((cause) => {
       const error = getTRPCErrorFromUnknown(cause);
       respond({
@@ -195,6 +217,7 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
         }),
       });
       abortController.abort();
+      operations.delete(internalId);
     });
 
     respond({
@@ -203,8 +226,8 @@ export async function handleIPCMessage<TRouter extends AnyTRPCRouter>({
         type: "started",
       },
     });
-    subscriptions.set(internalId, abortController);
   } catch (cause) {
+    operations.delete(internalId);
     const error: TRPCError = getTRPCErrorFromUnknown(cause);
 
     return respond({

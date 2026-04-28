@@ -1,7 +1,15 @@
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { QrScanModal, type QrScanResult } from "@/components/QrScanModal";
 import { type CloudRegion, useAuthStore } from "@/features/auth";
 import { useThemeColors } from "@/lib/theme";
 
@@ -28,8 +36,52 @@ export default function AuthScreen() {
   const [selectedRegion, setSelectedRegion] = useState<CloudRegion>("us");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devToken, setDevToken] = useState("");
+  const [devProjectId, setDevProjectId] = useState("");
+  const [scannerVisible, setScannerVisible] = useState(false);
 
-  const { loginWithOAuth } = useAuthStore();
+  const { loginWithOAuth, loginWithPersonalApiKey } = useAuthStore();
+
+  const handleQrScan = async (result: QrScanResult) => {
+    setScannerVisible(false);
+    setDevToken(result.apiKey);
+    setDevProjectId(String(result.projectId));
+    setIsLoading(true);
+    setError(null);
+    try {
+      await loginWithPersonalApiKey({
+        token: result.apiKey,
+        projectId: result.projectId,
+        region: selectedRegion,
+      });
+      router.replace("/(tabs)");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDevSignIn = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const projectIdNum = Number(devProjectId);
+      if (!Number.isFinite(projectIdNum) || projectIdNum <= 0) {
+        throw new Error("Project ID must be a positive number");
+      }
+      await loginWithPersonalApiKey({
+        token: devToken,
+        projectId: projectIdNum,
+        region: selectedRegion,
+      });
+      router.replace("/(tabs)");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignIn = async () => {
     setIsLoading(true);
@@ -57,7 +109,11 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-1">
-      <View className="flex-1 px-6 pt-16">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="px-6 pt-16 pb-10"
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View className="mb-10">
           <Text className="mb-2 font-bold text-3xl text-gray-12">
@@ -131,8 +187,69 @@ export default function AuthScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {__DEV__ && (
+            <View className="mt-8 gap-3 rounded-lg border border-gray-6 bg-gray-2 p-4">
+              <Text className="font-semibold text-gray-12 text-sm">
+                Dev sign-in (personal API key)
+              </Text>
+              <Text className="text-gray-11 text-xs">
+                Skips OAuth. Create a personal API key at Settings → User API
+                keys with scopes: user:read, project:read, task:write,
+                integration:read, conversation:write, query:read.
+              </Text>
+              <TextInput
+                value={devToken}
+                onChangeText={setDevToken}
+                placeholder="phx_..."
+                placeholderTextColor={themeColors.gray[9]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                className="rounded-md border border-gray-6 bg-gray-3 px-3 py-2 text-gray-12"
+              />
+              <TextInput
+                value={devProjectId}
+                onChangeText={setDevProjectId}
+                placeholder="Project ID (e.g. 2)"
+                placeholderTextColor={themeColors.gray[9]}
+                keyboardType="number-pad"
+                className="rounded-md border border-gray-6 bg-gray-3 px-3 py-2 text-gray-12"
+              />
+              <TouchableOpacity
+                className={`items-center rounded-md py-3 ${
+                  isLoading || !devToken || !devProjectId
+                    ? "bg-gray-7"
+                    : "bg-gray-9"
+                }`}
+                onPress={handleDevSignIn}
+                disabled={isLoading || !devToken || !devProjectId}
+              >
+                <Text className="font-medium text-gray-12 text-sm">
+                  Dev sign in
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="items-center rounded-md border border-gray-7 py-3"
+                onPress={() => {
+                  setError(null);
+                  setScannerVisible(true);
+                }}
+                disabled={isLoading}
+              >
+                <Text className="font-medium text-gray-12 text-sm">
+                  Scan QR code
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-      </View>
+      </ScrollView>
+      <QrScanModal
+        visible={scannerVisible}
+        onClose={() => setScannerVisible(false)}
+        onScan={handleQrScan}
+      />
     </SafeAreaView>
   );
 }

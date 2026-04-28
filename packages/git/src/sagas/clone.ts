@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import { Saga } from "@posthog/shared";
 import { createGitClient } from "../client";
-import { getGitOperationManager } from "../operation-manager";
+import { getCleanEnv, getGitOperationManager } from "../operation-manager";
 
 export interface CloneInput {
   repoUrl: string;
@@ -39,7 +39,9 @@ export class CloneSaga extends Saga<CloneInput, CloneOutput> {
                     onProgress(stage, progress, processed, total)
                 : undefined,
             });
-            await git.clone(repoUrl, targetPath, ["--progress"]);
+            await git
+              .env(getCleanEnv())
+              .clone(repoUrl, targetPath, ["--progress"]);
           },
           rollback: async () => {
             try {

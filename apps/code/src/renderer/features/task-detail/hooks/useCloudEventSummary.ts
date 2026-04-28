@@ -7,7 +7,6 @@ import { useMemo } from "react";
 
 const EMPTY_SUMMARY: CloudEventSummary = {
   toolCalls: new Map(),
-  treeSnapshotFiles: [],
 };
 
 export function useCloudEventSummary(

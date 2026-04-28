@@ -5,6 +5,8 @@ import {
   type EditorHandle as PromptInputHandle,
 } from "@features/message-editor/components/PromptInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
+import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
+import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import {
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
@@ -15,6 +17,7 @@ import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
+import type { TaskRunStatus } from "@shared/types";
 import {
   type AcpMessage,
   isJsonRpcNotification,
@@ -23,10 +26,12 @@ import {
 import { getFilePath } from "@utils/getFilePath";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSessionService } from "../service/service";
+import { flattenSelectOptions } from "../stores/sessionStore";
 import {
   useSessionViewActions,
   useShowRawLogs,
 } from "../stores/sessionViewStore";
+import { CloudInitializingView } from "./CloudInitializingView";
 import { ConversationView } from "./ConversationView";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ModelSelector } from "./ModelSelector";
@@ -54,6 +59,8 @@ interface SessionViewProps {
   onRetry?: () => void;
   onNewSession?: () => void;
   isInitializing?: boolean;
+  isCloud?: boolean;
+  cloudStatus?: TaskRunStatus | null;
   slackThreadUrl?: string;
   compact?: boolean;
   isActiveSession?: boolean;
@@ -63,6 +70,25 @@ interface SessionViewProps {
 
 const DEFAULT_ERROR_MESSAGE =
   "Failed to resume this session. The working directory may have been deleted. Please start a new session.";
+
+/**
+ * When an allow_always permission is granted outside a mode-switch prompt,
+ * ratchet the session to the closest "auto-accept edits" preset offered by
+ * this adapter's mode catalog. Claude exposes `acceptEdits`; Codex has no
+ * exact equivalent, so fall back to `auto`. Returns undefined if neither is
+ * available (in which case leave the current mode untouched).
+ */
+function resolveAllowAlwaysUpgradeMode(
+  modeOption: ReturnType<typeof useModeConfigOptionForTask>,
+): string | undefined {
+  if (modeOption?.type !== "select") return undefined;
+  const availableIds = new Set(
+    flattenSelectOptions(modeOption.options).map((opt) => opt.value),
+  );
+  if (availableIds.has("acceptEdits")) return "acceptEdits";
+  if (availableIds.has("auto")) return "auto";
+  return undefined;
+}
 
 export function SessionView({
   events,
@@ -85,6 +111,8 @@ export function SessionView({
   onRetry,
   onNewSession,
   isInitializing = false,
+  isCloud = false,
+  cloudStatus = null,
   slackThreadUrl,
   compact = false,
   isActiveSession = true,
@@ -96,9 +124,16 @@ export function SessionView({
   const modeOption = useModeConfigOptionForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
+  const handoffInProgress =
+    useSessionForTask(taskId)?.handoffInProgress ?? false;
 
   useEffect(() => {
     if (allowBypassPermissions) return;
+    // Cloud runs execute in an isolated sandbox where bypass is safe, and the
+    // agent's own gate (ALLOW_BYPASS = !IS_ROOT || IS_SANDBOX) already permits
+    // it regardless of this local preference. Auto-reverting here would clobber
+    // the user's explicit plan-approval choice and strand them in Plan Mode.
+    if (isCloud) return;
     const isBypass =
       currentModeId === "bypassPermissions" || currentModeId === "full-access";
     if (isBypass && taskId) {
@@ -108,7 +143,7 @@ export function SessionView({
         "default",
       );
     }
-  }, [allowBypassPermissions, currentModeId, taskId]);
+  }, [allowBypassPermissions, currentModeId, taskId, isCloud]);
 
   const handleModeChange = useCallback(
     (nextMode: string) => {
@@ -217,11 +252,18 @@ export function SessionView({
       const isModeSwitch =
         firstPendingPermission.toolCall?.kind === "switch_mode";
       if (selectedOption?.kind === "allow_always" && !isModeSwitch) {
-        getSessionService().setSessionConfigOptionByCategory(
-          taskId,
-          "mode",
-          "acceptEdits",
-        );
+        // Pick the adapter-appropriate "upgrade" mode. Claude exposes
+        // acceptEdits; Codex does not — its closest analogue is auto. Resolve
+        // against the session's advertised mode catalog so the footer label
+        // stays coherent with the dropdown contents.
+        const upgradeMode = resolveAllowAlwaysUpgradeMode(modeOption);
+        if (upgradeMode) {
+          getSessionService().setSessionConfigOptionByCategory(
+            taskId,
+            "mode",
+            upgradeMode,
+          );
+        }
       }
 
       if (customInput) {
@@ -258,7 +300,14 @@ export function SessionView({
 
       requestFocus(sessionId);
     },
-    [firstPendingPermission, taskId, onSendPrompt, requestFocus, sessionId],
+    [
+      firstPendingPermission,
+      taskId,
+      onSendPrompt,
+      requestFocus,
+      sessionId,
+      modeOption,
+    ],
   );
 
   const handlePermissionCancel = useCallback(async () => {
@@ -339,24 +388,44 @@ export function SessionView({
 
   useAutoFocusOnTyping(editorRef, !isActiveSession);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('input, textarea, [contenteditable="true"], .ProseMirror')
+    ) {
+      e.stopPropagation();
+    }
+  }, []);
+
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>
-        <Flex
-          direction="column"
-          height="100%"
-          className="relative bg-background"
-          onClick={handlePaneClick}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          {isSuspended ? (
-            <>
-              {showRawLogs ? (
-                <RawLogsView events={events} />
-              ) : (
+        {showRawLogs ? (
+          <Flex
+            direction="column"
+            height="100%"
+            className="relative bg-background"
+            onContextMenu={handleContextMenu}
+          >
+            <RawLogsView
+              events={events}
+              onClose={() => setShowRawLogs(false)}
+            />
+          </Flex>
+        ) : (
+          <Flex
+            direction="column"
+            height="100%"
+            className="relative bg-background"
+            onClick={handlePaneClick}
+            onContextMenu={handleContextMenu}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            {isSuspended ? (
+              <>
                 <ConversationView
                   events={events}
                   isPromptPending={isPromptPending}
@@ -365,65 +434,68 @@ export function SessionView({
                   taskId={taskId}
                   slackThreadUrl={slackThreadUrl}
                 />
-              )}
-              <Box className="border-gray-4 border-t">
-                <Box className="mx-auto max-w-[750px] p-2">
-                  <Flex
-                    align="center"
-                    justify="between"
-                    gap="3"
-                    py="2"
-                    px="3"
-                    className="rounded-2 bg-gray-3"
+                <Box className="border-gray-4 border-t">
+                  <Box
+                    className="mx-auto p-2"
+                    style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
                   >
-                    <Flex align="center" gap="2">
-                      <Pause
-                        size={14}
-                        weight="duotone"
-                        color="var(--gray-11)"
-                      />
-                      <Text size="1" weight="medium">
-                        Worktree suspended
-                      </Text>
-                      <Text size="1" color="gray">
-                        Worktree was removed to save disk space
-                      </Text>
+                    <Flex
+                      align="center"
+                      justify="between"
+                      gap="3"
+                      py="2"
+                      px="3"
+                      className="rounded-2 bg-gray-3"
+                    >
+                      <Flex align="center" gap="2">
+                        <Pause
+                          size={14}
+                          weight="duotone"
+                          color="var(--gray-11)"
+                        />
+                        <Text className="font-medium text-[13px]">
+                          Worktree suspended
+                        </Text>
+                        <Text color="gray" className="text-[13px]">
+                          Worktree was removed to save disk space
+                        </Text>
+                      </Flex>
+                      {onRestoreWorktree && (
+                        <Button
+                          variant="outline"
+                          size="1"
+                          onClick={onRestoreWorktree}
+                          disabled={isRestoring}
+                        >
+                          {isRestoring ? (
+                            <>
+                              <Spinner size={14} className="animate-spin" />
+                              Restoring...
+                            </>
+                          ) : (
+                            "Restore worktree"
+                          )}
+                        </Button>
+                      )}
                     </Flex>
-                    {onRestoreWorktree && (
-                      <Button
-                        variant="outline"
-                        size="1"
-                        onClick={onRestoreWorktree}
-                        disabled={isRestoring}
-                      >
-                        {isRestoring ? (
-                          <>
-                            <Spinner size={14} className="animate-spin" />
-                            Restoring...
-                          </>
-                        ) : (
-                          "Restore worktree"
-                        )}
-                      </Button>
-                    )}
-                  </Flex>
+                  </Box>
                 </Box>
-              </Box>
-            </>
-          ) : isInitializing ? (
-            <Flex
-              align="center"
-              justify="center"
-              className="absolute inset-0 bg-background"
-            >
-              <Spinner size={32} className="animate-spin text-gray-9" />
-            </Flex>
-          ) : (
-            <>
-              <DropZoneOverlay isVisible={isDraggingFile} />
-              {showRawLogs ? (
-                <RawLogsView events={events} />
+              </>
+            ) : isInitializing ? (
+              isCloud ? (
+                <CloudInitializingView cloudStatus={cloudStatus} />
               ) : (
+                <Flex
+                  align="center"
+                  justify="center"
+                  className="absolute inset-0 bg-background"
+                >
+                  <Spinner size={32} className="animate-spin text-gray-9" />
+                </Flex>
+              )
+            ) : (
+              <>
+                <DropZoneOverlay isVisible={isDraggingFile} />
                 <ConversationView
                   events={events}
                   isPromptPending={isPromptPending}
@@ -433,126 +505,146 @@ export function SessionView({
                   slackThreadUrl={slackThreadUrl}
                   compact={compact}
                 />
-              )}
 
-              <PlanStatusBar plan={latestPlan} />
+                <PlanStatusBar plan={latestPlan} />
 
-              {hasError ? (
-                <Flex
-                  align="center"
-                  justify="center"
-                  direction="column"
-                  gap="2"
-                  className="absolute inset-0 bg-background"
-                >
-                  <Warning size={32} weight="duotone" color="var(--red-9)" />
-                  {errorTitle && (
-                    <Text size="3" weight="bold" align="center" color="red">
-                      {errorTitle}
-                    </Text>
-                  )}
-                  <Text
-                    size={errorTitle ? "2" : "3"}
-                    weight={errorTitle ? "regular" : "medium"}
+                {hasError ? (
+                  <Flex
                     align="center"
-                    color={errorTitle ? "gray" : "red"}
-                    className="max-w-md px-4"
+                    justify="center"
+                    direction="column"
+                    gap="2"
+                    className="absolute inset-0 bg-background"
                   >
-                    {errorMessage}
-                  </Text>
-                  <Flex gap="2" mt="2">
-                    {onRetry && (
-                      <Button variant="soft" size="2" onClick={onRetry}>
-                        Retry
-                      </Button>
-                    )}
-                    {onNewSession && (
-                      <Button
-                        variant="soft"
-                        size="2"
-                        color="green"
-                        onClick={onNewSession}
+                    <Warning size={32} weight="duotone" color="var(--red-9)" />
+                    {errorTitle && (
+                      <Text
+                        align="center"
+                        color="red"
+                        className="font-bold text-base"
                       >
-                        New Session
-                      </Button>
+                        {errorTitle}
+                      </Text>
                     )}
-                  </Flex>
-                </Flex>
-              ) : hideInput ? null : firstPendingPermission ? (
-                <Box className="border-gray-4 border-t">
-                  <Box className="mx-auto max-w-[750px] p-2">
-                    <PermissionSelector
-                      toolCall={firstPendingPermission.toolCall}
-                      options={firstPendingPermission.options}
-                      onSelect={handlePermissionSelect}
-                      onCancel={handlePermissionCancel}
-                    />
-                  </Box>
-                </Box>
-              ) : (
-                <Box className="relative border-gray-4 border-t">
-                  <Box
-                    className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity duration-200 ${
-                      isRunning
-                        ? "pointer-events-none opacity-0"
-                        : "opacity-100"
-                    }`}
-                    style={{ minHeight: 66 }}
-                  >
-                    <Spinner size={28} className="animate-spin text-gray-9" />
-                    <Text size="3" color="gray">
-                      Connecting to agent...
-                    </Text>
-                  </Box>
-                  <Box
-                    className={`transition-all duration-300 ease-out ${
-                      isRunning
-                        ? "translate-y-0 opacity-100"
-                        : "pointer-events-none translate-y-4 opacity-0"
-                    }`}
-                  >
-                    <Box
-                      className={compact ? "p-1" : "mx-auto max-w-[750px] p-2"}
+                    <Text
+                      align="center"
+                      color={errorTitle ? "gray" : "red"}
+                      className={`max-w-md px-4 ${errorTitle ? "text-sm" : "font-medium text-base"}`}
                     >
-                      <PromptInput
-                        ref={editorRef}
-                        sessionId={sessionId}
-                        placeholder="Type a message... @ to mention files, ! for bash mode, / for skills"
-                        disabled={!isRunning}
-                        isLoading={!!isPromptPending}
-                        isActiveSession={isActiveSession}
-                        taskId={taskId}
-                        repoPath={repoPath}
-                        modeOption={modeOption}
-                        onModeChange={modeOption ? handleModeChange : undefined}
-                        allowBypassPermissions={allowBypassPermissions}
-                        enableBashMode={!isCloudRun}
-                        modelSelector={
-                          <ModelSelector
-                            taskId={taskId}
-                            disabled={!isRunning}
-                          />
-                        }
-                        onBeforeSubmit={onBeforeSubmit}
-                        onSubmit={handleSubmit}
-                        onBashCommand={onBashCommand}
-                        onCancel={onCancelPrompt}
+                      {errorMessage}
+                    </Text>
+                    <Flex gap="2" mt="2">
+                      {onRetry && (
+                        <Button variant="soft" size="2" onClick={onRetry}>
+                          Retry
+                        </Button>
+                      )}
+                      {onNewSession && (
+                        <Button
+                          variant="soft"
+                          size="2"
+                          color="green"
+                          onClick={onNewSession}
+                        >
+                          New Session
+                        </Button>
+                      )}
+                    </Flex>
+                  </Flex>
+                ) : hideInput ? null : firstPendingPermission ? (
+                  <Box className="border-gray-4 border-t">
+                    <Box
+                      className="mx-auto p-2"
+                      style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
+                    >
+                      <PermissionSelector
+                        toolCall={firstPendingPermission.toolCall}
+                        options={firstPendingPermission.options}
+                        onSelect={handlePermissionSelect}
+                        onCancel={handlePermissionCancel}
                       />
                     </Box>
                   </Box>
-                </Box>
-              )}
-            </>
-          )}
-        </Flex>
+                ) : (
+                  <Box className="relative border-gray-4 border-t">
+                    <Box
+                      className={`absolute inset-0 flex min-h-[66px] items-center justify-center gap-2 transition-opacity duration-200 ${
+                        isRunning
+                          ? "pointer-events-none opacity-0"
+                          : "opacity-100"
+                      }`}
+                    >
+                      <Spinner size={28} className="animate-spin text-gray-9" />
+                      <Text color="gray" className="text-base">
+                        Connecting to agent...
+                      </Text>
+                    </Box>
+                    <Box
+                      className={`transition-all duration-300 ease-out ${
+                        isRunning
+                          ? "translate-y-0 opacity-100"
+                          : "pointer-events-none translate-y-4 opacity-0"
+                      }`}
+                    >
+                      <Box
+                        className={compact ? "p-1" : "mx-auto p-2"}
+                        style={
+                          compact
+                            ? undefined
+                            : { maxWidth: CHAT_CONTENT_MAX_WIDTH }
+                        }
+                      >
+                        <PromptInput
+                          ref={editorRef}
+                          sessionId={sessionId}
+                          placeholder="Type a message... @ to mention files, ! for bash mode, / for skills"
+                          disabled={!isRunning && !handoffInProgress}
+                          submitDisabledExternal={handoffInProgress}
+                          isLoading={!!isPromptPending}
+                          isActiveSession={isActiveSession}
+                          taskId={taskId}
+                          repoPath={repoPath}
+                          modeOption={modeOption}
+                          onModeChange={
+                            modeOption ? handleModeChange : undefined
+                          }
+                          allowBypassPermissions={allowBypassPermissions}
+                          enableBashMode={!isCloudRun}
+                          modelSelector={
+                            <ModelSelector
+                              taskId={taskId}
+                              disabled={!isRunning}
+                            />
+                          }
+                          onBeforeSubmit={onBeforeSubmit}
+                          onSubmit={handleSubmit}
+                          onBashCommand={onBashCommand}
+                          onCancel={onCancelPrompt}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
+          </Flex>
+        )}
       </ContextMenu.Trigger>
       <ContextMenu.Content size="1">
-        <ContextMenu.CheckboxItem
-          checked={showRawLogs}
-          onCheckedChange={setShowRawLogs}
+        <ContextMenu.Item
+          onSelect={() => {
+            const text = window.getSelection()?.toString();
+            if (text) {
+              navigator.clipboard.writeText(text);
+            }
+          }}
         >
-          Show raw logs
-        </ContextMenu.CheckboxItem>
+          Copy
+        </ContextMenu.Item>
+        <ContextMenu.Separator />
+        <ContextMenu.Item onSelect={() => setShowRawLogs(!showRawLogs)}>
+          {showRawLogs ? "Back to conversation" : "Show raw logs"}
+        </ContextMenu.Item>
       </ContextMenu.Content>
     </ContextMenu.Root>
   );

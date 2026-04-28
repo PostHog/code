@@ -4,6 +4,7 @@ import type {
   EventStats,
   Experiment,
   FeatureFlag,
+  FlagEvaluationStats,
 } from "./types.js";
 
 export class PostHogApi {
@@ -87,6 +88,9 @@ export class PostHogApi {
       return new Map();
     }
 
+    // HogQL over `/query/` rejects typed placeholders (`{name:Type}`) and
+    // placeholder values in INTERVAL, so `days` is inlined (clamped).
+    const days = Math.max(1, Math.min(365, Math.floor(daysBack)));
     const query = `
       SELECT
         event,
@@ -94,8 +98,8 @@ export class PostHogApi {
         count(DISTINCT person_id) AS unique_users,
         max(timestamp) AS last_seen
       FROM events
-      WHERE event IN ({eventNames:Array(String)})
-        AND timestamp >= now() - INTERVAL {daysBack:Int32} DAY
+      WHERE event IN {eventNames}
+        AND timestamp >= now() - INTERVAL ${days} DAY
       GROUP BY event
     `;
 
@@ -105,7 +109,7 @@ export class PostHogApi {
       query: {
         kind: "HogQLQuery",
         query,
-        values: { eventNames, daysBack },
+        values: { eventNames },
       },
     });
 
@@ -116,6 +120,46 @@ export class PostHogApi {
         uniqueUsers,
         lastSeenAt: lastSeen || null,
       });
+    }
+    return stats;
+  }
+
+  async getFlagEvaluationStats(
+    flagKeys: string[],
+    daysBack = 7,
+  ): Promise<Map<string, FlagEvaluationStats>> {
+    if (flagKeys.length === 0) {
+      return new Map();
+    }
+
+    // HogQL over `/query/` rejects typed placeholders (`{name:Type}`) and
+    // placeholder values in INTERVAL, so `days` is inlined (clamped).
+    const days = Math.max(1, Math.min(365, Math.floor(daysBack)));
+    const query = `
+      SELECT
+        properties.$feature_flag AS flag_key,
+        count() AS evaluations,
+        count(DISTINCT person_id) AS unique_users
+      FROM events
+      WHERE event = '$feature_flag_called'
+        AND properties.$feature_flag IN {flagKeys}
+        AND timestamp >= now() - INTERVAL ${days} DAY
+      GROUP BY flag_key
+    `;
+
+    const data = await this.post<{
+      results: [string, number, number][];
+    }>("/query/", {
+      query: {
+        kind: "HogQLQuery",
+        query,
+        values: { flagKeys },
+      },
+    });
+
+    const stats = new Map<string, FlagEvaluationStats>();
+    for (const [flagKey, evaluations, uniqueUsers] of data.results) {
+      stats.set(flagKey, { evaluations, uniqueUsers, windowDays: days });
     }
     return stats;
   }

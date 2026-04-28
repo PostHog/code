@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSaveClipboardImage = vi.hoisted(() => vi.fn());
 const mockSaveClipboardText = vi.hoisted(() => vi.fn());
+const mockSaveClipboardFile = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
@@ -11,6 +12,9 @@ vi.mock("@renderer/trpc/client", () => ({
       },
       saveClipboardText: {
         mutate: mockSaveClipboardText,
+      },
+      saveClipboardFile: {
+        mutate: mockSaveClipboardFile,
       },
     },
   },
@@ -98,28 +102,47 @@ describe("persistFile", () => {
     });
   });
 
-  it("throws for unsupported file types", async () => {
-    const file = { name: "archive.zip" } as unknown as File;
-    await expect(persistBrowserFile(file)).rejects.toThrow(/Unsupported/);
+  it("persists arbitrary non-image files via saveClipboardFile", async () => {
+    mockSaveClipboardFile.mockResolvedValue({
+      path: "/tmp/posthog-code-clipboard/attachment-def/archive.zip",
+      name: "archive.zip",
+    });
+
+    const file = {
+      name: "archive.zip",
+      type: "application/zip",
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    } as unknown as File;
+
+    await expect(persistBrowserFile(file)).resolves.toEqual({
+      id: "/tmp/posthog-code-clipboard/attachment-def/archive.zip",
+      label: "archive.zip",
+    });
+
+    expect(mockSaveClipboardFile).toHaveBeenCalledWith({
+      base64Data: expect.any(String),
+      originalName: "archive.zip",
+    });
   });
 
   it("returns the preserved filename for browser-selected text files", async () => {
-    mockSaveClipboardText.mockResolvedValue({
+    mockSaveClipboardFile.mockResolvedValue({
       path: "/tmp/posthog-code-clipboard/attachment-456/config.json",
       name: "config.json",
     });
 
     const file = {
       name: "config.json",
-      text: vi.fn().mockResolvedValue('{"ok":true}'),
+      type: "application/json",
+      arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
     } as unknown as File;
 
     await expect(persistBrowserFile(file)).resolves.toEqual({
       id: "/tmp/posthog-code-clipboard/attachment-456/config.json",
       label: "config.json",
     });
-    expect(mockSaveClipboardText).toHaveBeenCalledWith({
-      text: '{"ok":true}',
+    expect(mockSaveClipboardFile).toHaveBeenCalledWith({
+      base64Data: expect.any(String),
       originalName: "config.json",
     });
   });

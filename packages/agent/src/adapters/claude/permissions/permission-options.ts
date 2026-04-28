@@ -1,5 +1,5 @@
 import type { PermissionUpdate } from "@anthropic-ai/claude-agent-sdk";
-import { IS_ROOT } from "../../../utils/common";
+import { ALLOW_BYPASS } from "../../../utils/common";
 import { BASH_TOOLS, READ_TOOLS, SEARCH_TOOLS, WRITE_TOOLS } from "../tools";
 
 export interface PermissionOption {
@@ -25,7 +25,7 @@ function permissionOptions(allowAlwaysLabel: string): PermissionOption[] {
 export function buildPermissionOptions(
   toolName: string,
   toolInput: Record<string, unknown>,
-  cwd?: string,
+  repoRoot?: string,
   suggestions?: PermissionUpdate[],
 ): PermissionOption[] {
   if (BASH_TOOLS.has(toolName)) {
@@ -36,11 +36,11 @@ export function buildPermissionOptions(
 
     const command = toolInput?.command as string | undefined;
     const cmdName = command?.split(/\s+/)[0] ?? "this command";
-    const cwdLabel = cwd ? ` in ${cwd}` : "";
+    const scopeLabel = repoRoot ? ` in ${repoRoot}` : "";
     const label = ruleContent ?? `\`${cmdName}\` commands`;
 
     return permissionOptions(
-      `Yes, and don't ask again for ${label}${cwdLabel}`,
+      `Yes, and don't ask again for ${label}${scopeLabel}`,
     );
   }
 
@@ -92,8 +92,6 @@ export function buildPermissionOptions(
   return permissionOptions("Yes, always allow");
 }
 
-const ALLOW_BYPASS = !IS_ROOT || !!process.env.IS_SANDBOX;
-
 export function buildExitPlanModePermissionOptions(): PermissionOption[] {
   const options: PermissionOption[] = [];
 
@@ -106,6 +104,11 @@ export function buildExitPlanModePermissionOptions(): PermissionOption[] {
   }
 
   options.push(
+    {
+      kind: "allow_always",
+      name: 'Yes, and use "auto" mode',
+      optionId: "auto",
+    },
     {
       kind: "allow_always",
       name: "Yes, and auto-accept edits",

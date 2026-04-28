@@ -7,9 +7,17 @@ import type {
   TaskRun,
   TaskRunArtifact,
 } from "./types";
-import { getGatewayUsageUrl, getLlmGatewayUrl } from "./utils/gateway";
+import {
+  getGatewayInvalidatePlanCacheUrl,
+  getGatewayUsageUrl,
+  getLlmGatewayUrl,
+} from "./utils/gateway";
 
-export { getGatewayUsageUrl, getLlmGatewayUrl };
+export {
+  getGatewayInvalidatePlanCacheUrl,
+  getGatewayUsageUrl,
+  getLlmGatewayUrl,
+};
 
 const DEFAULT_USER_AGENT = `posthog/agent.hog.dev; version: ${packageJson.version}`;
 
@@ -31,7 +39,9 @@ export type TaskRunUpdate = Partial<
     | "state"
     | "environment"
   >
->;
+> & {
+  state_remove_keys?: string[];
+};
 
 export class PostHogAPIClient {
   private config: PostHogAPIConfig;
@@ -143,6 +153,14 @@ export class PostHogAPIClient {
     );
   }
 
+  async resumeRunInCloud(taskId: string, runId: string): Promise<TaskRun> {
+    const teamId = this.getTeamId();
+    return this.apiRequest<TaskRun>(
+      `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/resume_in_cloud/`,
+      { method: "POST" },
+    );
+  }
+
   async updateTaskRun(
     taskId: string,
     runId: string,
@@ -220,48 +238,33 @@ export class PostHogAPIClient {
       },
     );
 
-    return response.artifacts ?? [];
-  }
+    const manifest = response.artifacts ?? [];
 
-  async getArtifactPresignedUrl(
-    taskId: string,
-    runId: string,
-    storagePath: string,
-  ): Promise<string | null> {
-    const teamId = this.getTeamId();
-    try {
-      const response = await this.apiRequest<{
-        url: string;
-        expires_in: number;
-      }>(
-        `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/presign/`,
-        {
-          method: "POST",
-          body: JSON.stringify({ storage_path: storagePath }),
-        },
-      );
-      return response.url;
-    } catch {
-      return null;
-    }
+    // The backend returns the full run artifact manifest after each upload.
+    // Callers want the artifacts corresponding to this upload request only.
+    return manifest.slice(-artifacts.length);
   }
 
   /**
    * Download artifact content by storage path
-   * Gets a presigned URL and fetches the content
+   * Streams the file through the PostHog backend so the sandbox does not need
+   * direct access to object storage.
    */
   async downloadArtifact(
     taskId: string,
     runId: string,
     storagePath: string,
   ): Promise<ArrayBuffer | null> {
-    const url = await this.getArtifactPresignedUrl(taskId, runId, storagePath);
-    if (!url) {
-      return null;
-    }
+    const teamId = this.getTeamId();
 
     try {
-      const response = await fetch(url);
+      const response = await this.performRequestWithRetry(
+        `/api/projects/${teamId}/tasks/${taskId}/runs/${runId}/artifacts/download/`,
+        {
+          method: "POST",
+          body: JSON.stringify({ storage_path: storagePath }),
+        },
+      );
       if (!response.ok) {
         throw new Error(`Failed to download artifact: ${response.status}`);
       }

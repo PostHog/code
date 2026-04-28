@@ -1,4 +1,4 @@
-import { formatComments } from "./comment-formatter.js";
+import { formatComments, formatInlineComments } from "./comment-formatter.js";
 import {
   classifyFlagType,
   extractRollout,
@@ -37,6 +37,7 @@ export class EnrichedResult {
       let entry = flagMap.get(check.flagKey);
       if (!entry) {
         const flag = this.context.flags?.get(check.flagKey);
+        const url = this.context.flagUrls?.get(check.flagKey) ?? null;
         entry = {
           flagKey: check.flagKey,
           occurrences: [],
@@ -53,6 +54,9 @@ export class EnrichedResult {
           experiment: experiments.find(
             (e) => e.feature_flag_key === check.flagKey,
           ),
+          url,
+          evaluationStats: this.context.flagEvaluationStats?.get(check.flagKey),
+          evaluationStatsError: this.context.flagEvaluationStatsError ?? false,
         };
         flagMap.set(check.flagKey, entry);
       }
@@ -120,6 +124,10 @@ export class EnrichedResult {
           enriched.flagType = flag.flagType;
           enriched.staleness = flag.staleness;
           enriched.rollout = flag.rollout;
+          enriched.active = flag.flag?.active;
+          enriched.url = flag.url;
+          enriched.evaluations = flag.evaluationStats?.evaluations;
+          enriched.evaluationUsers = flag.evaluationStats?.uniqueUsers;
           if (flag.experiment) {
             enriched.experimentName = flag.experiment.name;
             enriched.experimentStatus = flag.experiment.end_date
@@ -155,6 +163,26 @@ export class EnrichedResult {
     }
 
     return formatComments(
+      this.parsed.source,
+      this.parsed.languageId,
+      this.toList(),
+      flagLookup,
+      eventLookup,
+    );
+  }
+
+  toInlineComments(): string {
+    const flagLookup = new Map<string, EnrichedFlag>();
+    for (const f of this.flags) {
+      flagLookup.set(f.flagKey, f);
+    }
+
+    const eventLookup = new Map<string, EnrichedEvent>();
+    for (const e of this.events) {
+      eventLookup.set(e.eventName, e);
+    }
+
+    return formatInlineComments(
       this.parsed.source,
       this.parsed.languageId,
       this.toList(),

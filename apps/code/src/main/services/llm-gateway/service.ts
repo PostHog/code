@@ -1,4 +1,5 @@
 import {
+  getGatewayInvalidatePlanCacheUrl,
   getGatewayUsageUrl,
   getLlmGatewayUrl,
 } from "@posthog/agent/posthog-api";
@@ -157,5 +158,25 @@ export class LlmGatewayService {
     }
 
     return usageOutput.parse(await response.json());
+  }
+
+  async invalidatePlanCache(): Promise<void> {
+    const auth = await this.authService.getValidAccessToken();
+    const url = getGatewayInvalidatePlanCacheUrl(auth.apiHost);
+
+    log.debug("Invalidating plan cache", { url });
+
+    const response = await this.authService.authenticatedFetch(fetch, url, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new LlmGatewayError(
+        `Failed to invalidate plan cache: HTTP ${response.status}`,
+        "plan_cache_error",
+        undefined,
+        response.status,
+      );
+    }
   }
 }

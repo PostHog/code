@@ -1,8 +1,9 @@
+import { resolveCloudPrUrl } from "@features/git-interaction/hooks/useCloudPrUrl";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { useCloudEventSummary } from "@features/task-detail/hooks/useCloudEventSummary";
 import { extractCloudToolChangedFiles } from "@features/task-detail/utils/cloudToolChanges";
 import { useTasks } from "@features/tasks/hooks/useTasks";
-import type { ChangedFile, Task } from "@shared/types";
+import type { Task } from "@shared/types";
 import { useMemo } from "react";
 
 export function useCloudRunState(taskId: string, task: Task) {
@@ -14,8 +15,7 @@ export function useCloudRunState(taskId: string, task: Task) {
 
   const session = useSessionForTask(taskId);
 
-  const rawPrUrl = freshTask.latest_run?.output?.pr_url;
-  const prUrl = typeof rawPrUrl === "string" ? rawPrUrl : null;
+  const prUrl = resolveCloudPrUrl(freshTask, session);
   const branch = freshTask.latest_run?.branch ?? null;
   const cloudBranch = session?.cloudBranch ?? null;
   const effectiveBranch = branch ?? cloudBranch;
@@ -29,14 +29,10 @@ export function useCloudRunState(taskId: string, task: Task) {
     (cloudStatus === null && session != null);
 
   const summary = useCloudEventSummary(taskId);
-  const toolCallFiles = useMemo(
+  const fallbackFiles = useMemo(
     () => extractCloudToolChangedFiles(summary.toolCalls),
     [summary],
   );
-  const fallbackFiles: ChangedFile[] =
-    summary.treeSnapshotFiles.length > 0
-      ? summary.treeSnapshotFiles
-      : toolCallFiles;
 
   return {
     freshTask,
@@ -47,5 +43,6 @@ export function useCloudRunState(taskId: string, task: Task) {
     cloudStatus,
     isRunActive,
     fallbackFiles,
+    toolCalls: summary.toolCalls,
   };
 }

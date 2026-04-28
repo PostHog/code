@@ -33,12 +33,7 @@ export function FeatureListItem({
         gap="3"
         py="2"
         pr="4"
-        className={`feature-list-item ${active ? "feature-list-item--active" : ""}`}
-        style={{
-          userSelect: "none",
-          cursor: "default",
-          paddingLeft: "var(--space-3)",
-        }}
+        className={`feature-list-item cursor-default select-none pl-3 ${active ? "feature-list-item--active" : ""}`}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
@@ -46,28 +41,19 @@ export function FeatureListItem({
           align="center"
           justify="center"
           style={{
-            color: "var(--gray-12)",
             opacity: active ? 1 : 0.6,
-            flexShrink: 0,
-            marginTop: 2,
             transition: "opacity 0.2s ease, transform 0.2s ease",
             transform: active ? "scale(1.1)" : "scale(1)",
           }}
+          className="mt-[2px] shrink-0 text-(--gray-12)"
         >
           {icon}
         </Flex>
         <Flex direction="column" gap="1">
-          <Text size="3" weight="medium" style={{ color: "var(--gray-12)" }}>
+          <Text className="font-medium text-(--gray-12) text-base">
             {title}
           </Text>
-          <Text
-            size="2"
-            className="feature-list-item__description"
-            style={{
-              color: "var(--gray-12)",
-              opacity: 0.5,
-            }}
-          >
+          <Text className="feature-list-item__description text-(--gray-12) text-sm opacity-50">
             {description}
           </Text>
         </Flex>

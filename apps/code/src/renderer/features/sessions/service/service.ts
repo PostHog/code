@@ -8,11 +8,7 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
-import {
-  buildCloudPromptBlocks,
-  buildCloudTaskDescription,
-  serializeCloudPrompt,
-} from "@features/editor/utils/cloud-prompt";
+import { useUsageLimitStore } from "@features/billing/stores/usageLimitStore";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -33,6 +29,7 @@ import {
 } from "@features/sessions/stores/sessionStore";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { taskViewedApi } from "@features/sidebar/hooks/useTaskViewed";
+import { extractSkillButtonId } from "@features/skill-buttons/prompts";
 import { isNotification, POSTHOG_NOTIFICATIONS } from "@posthog/agent";
 import {
   getAvailableCodexModes,
@@ -40,6 +37,7 @@ import {
 } from "@posthog/agent/execution-mode";
 import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
+import { trpc } from "@renderer/trpc";
 import { trpcClient } from "@renderer/trpc/client";
 import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
@@ -68,14 +66,22 @@ import {
 import { queryClient } from "@utils/queryClient";
 import {
   convertStoredEntriesToEvents,
-  createUserMessageEvent,
+  createUserPromptEvent,
   createUserShellExecuteEvent,
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
   isFatalSessionError,
+  isRateLimitError,
   normalizePromptToBlocks,
   shellExecutesToContextBlocks,
 } from "@utils/session";
+import {
+  cloudPromptToBlocks,
+  combineQueuedCloudPrompts,
+  getCloudPromptTransport,
+  uploadRunAttachments,
+  uploadTaskStagedAttachments,
+} from "../utils/cloudArtifacts";
 
 const log = logger.scope("session-service");
 const LOCAL_SESSION_RECONNECT_ATTEMPTS = 3;
@@ -96,6 +102,35 @@ const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
  * trpc query, which is async. Callers populate them by calling
  * `fetchAndApplyCloudPreviewOptions` after the session exists in the store.
  */
+function extractLatestConfigOptionsFromEntries(
+  entries: StoredLogEntry[],
+): SessionConfigOption[] | undefined {
+  let latest: SessionConfigOption[] | undefined;
+  for (const entry of entries) {
+    if (
+      entry.type !== "notification" ||
+      entry.notification?.method !== "session/update"
+    ) {
+      continue;
+    }
+    const params = entry.notification.params as
+      | {
+          update?: {
+            sessionUpdate?: string;
+            configOptions?: SessionConfigOption[];
+          };
+        }
+      | undefined;
+    if (
+      params?.update?.sessionUpdate === "config_option_update" &&
+      params.update.configOptions
+    ) {
+      latest = params.update.configOptions;
+    }
+  }
+  return latest;
+}
+
 function buildCloudDefaultConfigOptions(
   initialMode: string | undefined,
   adapter: Adapter = "claude",
@@ -129,7 +164,7 @@ function buildCloudDefaultConfigOptions(
 interface AuthCredentials {
   apiHost: string;
   projectId: number;
-  client: Awaited<ReturnType<typeof getAuthenticatedClient>>;
+  client: NonNullable<Awaited<ReturnType<typeof getAuthenticatedClient>>>;
 }
 
 export interface ConnectParams {
@@ -959,6 +994,7 @@ export class SessionService {
           isPromptPending: true,
           promptStartedAt: acpMsg.ts,
           pausedDurationMs: 0,
+          currentPromptId: msg.id,
         });
       }
       if (
@@ -968,9 +1004,17 @@ export class SessionService {
         msg.result !== null &&
         "stopReason" in msg.result
       ) {
+        // Only clear pending state if this response matches the currently
+        // in-flight prompt. A late response from a previously cancelled turn
+        // must not be allowed to mark a newer turn as done.
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (session && session.currentPromptId !== msg.id) {
+          continue;
+        }
         sessionStoreSetters.updateSession(taskRunId, {
           isPromptPending: false,
           promptStartedAt: null,
+          currentPromptId: null,
         });
       }
     }
@@ -1008,6 +1052,17 @@ export class SessionService {
       msg.result !== null &&
       "stopReason" in msg.result
     ) {
+      // Ignore responses that don't match the currently in-flight prompt id.
+      // A late response from a cancelled prior turn must not drain the queue
+      // or fire the "prompt complete" notification for the newer turn.
+      // We check against `session` (captured at the top of this function, pre-update),
+      // because updatePromptStateFromEvents above already cleared currentPromptId
+      // for a valid match — re-reading from the store would lose the distinction
+      // between "valid match just cleared" and "no turn was in flight".
+      if (session.currentPromptId !== msg.id) {
+        return;
+      }
+
       const stopReason = (msg.result as { stopReason?: string }).stopReason;
       const hasQueuedMessages = this.drainQueuedMessages(taskRunId, session);
 
@@ -1329,11 +1384,19 @@ export class SessionService {
       pausedDurationMs: 0,
     });
 
-    sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
-      type: "user_message",
-      content: promptText,
-      timestamp: Date.now(),
-    });
+    const skillButtonId = extractSkillButtonId(blocks);
+    if (skillButtonId) {
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "skill_button_action",
+        buttonId: skillButtonId,
+      });
+    } else {
+      sessionStoreSetters.appendOptimisticItem(session.taskRunId, {
+        type: "user_message",
+        content: promptText,
+        timestamp: Date.now(),
+      });
+    }
 
     try {
       const result = await trpcClient.agent.prompt.mutate({
@@ -1352,6 +1415,18 @@ export class SessionService {
         ?.details;
 
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
+
+      if (isRateLimitError(errorMessage, errorDetails)) {
+        log.warn("Rate limit exceeded, showing usage limit modal", {
+          taskRunId: session.taskRunId,
+        });
+        sessionStoreSetters.updateSession(session.taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+        });
+        useUsageLimitStore.getState().show();
+        return { stopReason: "rate_limited" };
+      }
 
       if (isFatalSessionError(errorMessage, errorDetails)) {
         log.error("Fatal prompt error, attempting recovery", {
@@ -1422,41 +1497,38 @@ export class SessionService {
 
   // --- Cloud Commands ---
 
-  private async prepareCloudPrompt(
-    prompt: string | ContentBlock[],
-  ): Promise<{ blocks: ContentBlock[]; promptText: string }> {
-    const blocks =
-      typeof prompt === "string"
-        ? await buildCloudPromptBlocks(prompt)
-        : prompt;
-
-    if (blocks.length === 0) {
-      throw new Error("Cloud prompt cannot be empty");
-    }
-
-    const promptText =
-      extractPromptText(blocks).trim() ||
-      (typeof prompt === "string" ? buildCloudTaskDescription(prompt) : "");
-
-    return { blocks, promptText };
-  }
-
   private async sendCloudPrompt(
     session: AgentSession,
     prompt: string | ContentBlock[],
     options?: { skipQueueGuard?: boolean },
   ): Promise<{ stopReason: string }> {
-    const rawPromptText = extractPromptText(prompt);
-    if (!rawPromptText.trim()) {
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
       return { stopReason: "empty" };
     }
 
     if (isTerminalStatus(session.cloudStatus)) {
-      return this.resumeCloudRun(session, rawPromptText);
+      return this.resumeCloudRun(session, prompt);
+    }
+
+    if (session.cloudStatus !== "in_progress") {
+      sessionStoreSetters.enqueueMessage(session.taskId, transport.promptText);
+      sessionStoreSetters.updateSession(session.taskRunId, {
+        isPromptPending: true,
+      });
+      log.info("Cloud message queued (sandbox not ready)", {
+        taskId: session.taskId,
+        cloudStatus: session.cloudStatus,
+      });
+      return { stopReason: "queued" };
     }
 
     if (!options?.skipQueueGuard && session.isPromptPending) {
-      sessionStoreSetters.enqueueMessage(session.taskId, rawPromptText);
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
       log.info("Cloud message queued", {
         taskId: session.taskId,
         queueLength: session.messageQueue.length + 1,
@@ -1464,12 +1536,26 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
-    const auth = await this.getCloudCommandAuth();
-    if (!auth) {
+    const [auth, cloudCommandAuth] = await Promise.all([
+      this.getAuthCredentials(),
+      this.getCloudCommandAuth(),
+    ]);
+    if (!auth || !cloudCommandAuth) {
       throw new Error("Authentication required for cloud commands");
     }
-
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const artifactIds = await uploadRunAttachments(
+      auth.client,
+      session.taskId,
+      session.taskRunId,
+      transport.filePaths,
+    );
+    const params: Record<string, unknown> = {};
+    if (transport.messageText) {
+      params.content = transport.messageText;
+    }
+    if (artifactIds.length > 0) {
+      params.artifact_ids = artifactIds;
+    }
 
     sessionStoreSetters.updateSession(session.taskRunId, {
       isPromptPending: true,
@@ -1479,21 +1565,17 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: session.events.length === 0,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     try {
       const result = await trpcClient.cloudTask.sendCommand.mutate({
         taskId: session.taskId,
         runId: session.taskRunId,
-        apiHost: auth.apiHost,
-        teamId: auth.teamId,
+        apiHost: cloudCommandAuth.apiHost,
+        teamId: cloudCommandAuth.teamId,
         method: "user_message",
-        params: {
-          // The live /command API still validates user_message content as a
-          // string, so structured prompts must go through the serialized form.
-          content: serializeCloudPrompt(blocks),
-        },
+        params,
       });
 
       sessionStoreSetters.updateSession(session.taskRunId, {
@@ -1533,12 +1615,13 @@ export class SessionService {
   private async sendQueuedCloudMessages(
     taskId: string,
     attempt = 0,
-    pendingText?: string,
+    pendingPrompt?: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue. Retries reuse the already-dequeued text.
-    const combinedText =
-      pendingText ?? sessionStoreSetters.dequeueMessagesAsText(taskId);
-    if (!combinedText) return { stopReason: "skipped" };
+    // First attempt: atomically dequeue. Retries reuse the already-dequeued prompt.
+    const combinedPrompt =
+      pendingPrompt ??
+      combineQueuedCloudPrompts(sessionStoreSetters.dequeueMessages(taskId));
+    if (!combinedPrompt) return { stopReason: "skipped" };
 
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) {
@@ -1550,12 +1633,12 @@ export class SessionService {
 
     log.info("Sending queued cloud messages", {
       taskId,
-      promptLength: combinedText.length,
+      promptLength: combinedPrompt.length,
       attempt,
     });
 
     try {
-      return await this.sendCloudPrompt(session, combinedText, {
+      return await this.sendCloudPrompt(session, combinedPrompt, {
         skipQueueGuard: true,
       });
     } catch (error) {
@@ -1574,7 +1657,7 @@ export class SessionService {
               this.sendQueuedCloudMessages(
                 taskId,
                 attempt + 1,
-                combinedText,
+                combinedPrompt,
               ).catch((err) => {
                 log.error("Queued cloud message retry failed", {
                   taskId,
@@ -1601,8 +1684,8 @@ export class SessionService {
     session: AgentSession,
     prompt: string | ContentBlock[],
   ): Promise<{ stopReason: string }> {
-    const client = await getAuthenticatedClient();
-    if (!client) {
+    const authCredentials = await this.getAuthCredentials();
+    if (!authCredentials) {
       throw new Error("Authentication required for cloud commands");
     }
     const auth = await this.getCloudCommandAuth();
@@ -1610,11 +1693,19 @@ export class SessionService {
       throw new Error("Authentication required for cloud commands");
     }
 
-    const { blocks, promptText } = await this.prepareCloudPrompt(prompt);
+    const transport = getCloudPromptTransport(prompt);
+    if (!transport.messageText && transport.filePaths.length === 0) {
+      return { stopReason: "empty" };
+    }
+    const artifactIds = await uploadTaskStagedAttachments(
+      authCredentials.client,
+      session.taskId,
+      transport.filePaths,
+    );
 
     const [previousRun, task] = await Promise.all([
-      client.getTaskRun(session.taskId, session.taskRunId),
-      client.getTask(session.taskId),
+      authCredentials.client.getTaskRun(session.taskId, session.taskRunId),
+      authCredentials.client.getTask(session.taskId),
     ]);
     const hasGitHubRepo = !!task.repository && !!task.github_integration;
     const previousState = previousRun.state as Record<string, unknown>;
@@ -1652,7 +1743,7 @@ export class SessionService {
     // Create a new run WITH resume context — backend validates the previous run,
     // derives snapshot_external_id server-side, and passes everything as extra_state.
     // The agent will load conversation history and restore the sandbox snapshot.
-    const updatedTask = await client.runTaskInCloud(
+    const updatedTask = await authCredentials.client.runTaskInCloud(
       session.taskId,
       previousBaseBranch,
       {
@@ -1660,7 +1751,9 @@ export class SessionService {
         model: runtimeOptions.model,
         reasoningLevel: runtimeOptions.reasoningLevel,
         resumeFromRunId: session.taskRunId,
-        pendingUserMessage: serializeCloudPrompt(blocks),
+        pendingUserMessage: transport.messageText,
+        pendingUserArtifactIds:
+          artifactIds.length > 0 ? artifactIds : undefined,
         prAuthorshipMode,
         runSource: this.getCloudRunSource(previousState),
         signalReportId:
@@ -1688,7 +1781,12 @@ export class SessionService {
     // Reset processedLineCount to 0 because the new run's log stream starts fresh.
     newSession.events = [
       ...session.events,
-      createUserMessageEvent(promptText, Date.now()),
+      createUserPromptEvent(
+        transport.filePaths.length > 0
+          ? cloudPromptToBlocks(prompt)
+          : [{ type: "text", text: transport.promptText }],
+        Date.now(),
+      ),
     ];
     newSession.processedLineCount = 0;
     // Skip the first session/prompt from polled logs — we already have the
@@ -1729,7 +1827,7 @@ export class SessionService {
       task_id: session.taskId,
       is_initial: false,
       execution_type: "cloud",
-      prompt_length_chars: promptText.length,
+      prompt_length_chars: transport.promptText.length,
     });
 
     return { stopReason: "queued" };
@@ -1988,6 +2086,15 @@ export class SessionService {
     });
     updatePersistedConfigOptionValue(session.taskRunId, configId, value);
 
+    if (
+      !session.isCloud &&
+      (session.idleKilled ||
+        session.status === "disconnected" ||
+        session.status === "connecting")
+    ) {
+      return;
+    }
+
     try {
       if (session.isCloud) {
         await this.sendCloudCommand(session, "set_config_option", {
@@ -2087,35 +2194,6 @@ export class SessionService {
     cwd: string,
     result: { stdout: string; stderr: string; exitCode: number },
   ): Promise<void> {
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) return;
-
-    const storedEntry: StoredLogEntry = {
-      type: "notification",
-      timestamp: new Date().toISOString(),
-      notification: {
-        method: "_array/user_shell_execute",
-        params: { id, command, cwd, result },
-      },
-    };
-
-    const event = createUserShellExecuteEvent(command, cwd, result, id);
-
-    await this.appendAndPersist(taskId, session, event, storedEntry);
-  }
-
-  /**
-   * Append a user shell execute event (synchronous version for backwards compatibility).
-   */
-  async appendUserShellExecute(
-    taskId: string,
-    command: string,
-    cwd: string,
-    result: { stdout: string; stderr: string; exitCode: number },
-  ): Promise<void> {
-    const id = `user-shell-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 9)}`;
     const session = sessionStoreSetters.getSessionByTaskId(taskId);
     if (!session) return;
 
@@ -2507,12 +2585,17 @@ export class SessionService {
         return;
       }
 
+      const events = convertStoredEntriesToEvents(rawEntries);
       sessionStoreSetters.updateSession(taskRunId, {
-        events: convertStoredEntriesToEvents(rawEntries),
+        events,
         isCloud: true,
         logUrl: logUrl ?? session.logUrl,
         processedLineCount: rawEntries.length,
       });
+      // Without this the "Galumphing…" indicator stays hidden when the hydrated
+      // baseline already contains an in-flight session/prompt — the live delta
+      // path otherwise sees delta <= 0 and never re-evaluates the tail.
+      this.updatePromptStateFromEvents(taskRunId, events);
     })().catch((err: unknown) => {
       log.warn("Failed to hydrate cloud task session from logs", {
         taskId,
@@ -2546,6 +2629,240 @@ export class SessionService {
       .catch((err: unknown) =>
         log.warn("Failed to unwatch cloud task", { taskId, err }),
       );
+  }
+
+  async preflightToLocal(taskId: string, repoPath: string) {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session)
+      return {
+        canHandoff: false as const,
+        localTreeDirty: false as const,
+        reason: "No session found",
+      };
+
+    const auth = await this.getHandoffAuth();
+    if (!auth)
+      return {
+        canHandoff: false as const,
+        localTreeDirty: false as const,
+        reason: "Authentication required",
+      };
+
+    const preflight = await trpcClient.handoff.preflight.query({
+      taskId,
+      runId: session.taskRunId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+    });
+
+    return {
+      canHandoff: preflight.canHandoff,
+      localTreeDirty: preflight.localTreeDirty,
+      localGitState: preflight.localGitState,
+      changedFiles: preflight.changedFiles,
+      reason: preflight.reason,
+    };
+  }
+
+  async handoffToLocal(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      log.warn("No session found for handoff", { taskId });
+      return;
+    }
+
+    const runId = session.taskRunId;
+    const auth = await this.getHandoffAuth();
+    if (!auth) return;
+
+    sessionStoreSetters.updateSession(runId, { handoffInProgress: true });
+
+    try {
+      const preflight = await this.runHandoffPreflight(
+        taskId,
+        runId,
+        repoPath,
+        auth,
+      );
+      this.stopCloudTaskWatch(taskId);
+      sessionStoreSetters.updateSession(runId, { status: "connecting" });
+      await this.executeHandoff(
+        taskId,
+        runId,
+        repoPath,
+        auth,
+        preflight.localGitState,
+      );
+      this.transitionToLocalSession(runId);
+      this.subscribeToChannel(runId);
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["tasks"] }),
+        queryClient.refetchQueries(trpc.workspace.getAll.pathFilter()),
+      ]);
+      sessionStoreSetters.updateSession(runId, { handoffInProgress: false });
+      log.info("Cloud-to-local handoff complete", { taskId, runId });
+    } catch (err) {
+      log.error("Handoff failed", { taskId, err });
+      toast.error(
+        err instanceof Error ? err.message : "Handoff to local failed",
+      );
+      this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+        status: "disconnected",
+      });
+    }
+  }
+
+  async handoffToCloud(taskId: string, repoPath: string): Promise<void> {
+    const session = sessionStoreSetters.getSessionByTaskId(taskId);
+    if (!session) {
+      log.warn("No session found for cloud handoff", { taskId });
+      return;
+    }
+
+    const runId = session.taskRunId;
+    const auth = await this.getHandoffAuth();
+    if (!auth) return;
+
+    sessionStoreSetters.updateSession(runId, { handoffInProgress: true });
+
+    try {
+      const preflight = await trpcClient.handoff.preflightToCloud.query({
+        taskId,
+        runId,
+        repoPath,
+      });
+      if (!preflight.canHandoff) {
+        sessionStoreSetters.updateSession(runId, {
+          handoffInProgress: false,
+        });
+        throw new Error(preflight.reason ?? "Cannot hand off to cloud");
+      }
+
+      this.unsubscribeFromChannel(runId);
+      sessionStoreSetters.updateSession(runId, { status: "connecting" });
+
+      const result = await trpcClient.handoff.executeToCloud.mutate({
+        taskId,
+        runId,
+        repoPath,
+        apiHost: auth.apiHost,
+        teamId: auth.projectId,
+        localGitState: preflight.localGitState,
+      });
+      if (!result.success) {
+        throw new Error(result.error ?? "Handoff to cloud failed");
+      }
+
+      sessionStoreSetters.updateSession(runId, {
+        isCloud: true,
+        cloudStatus: undefined,
+        cloudStage: undefined,
+        cloudOutput: undefined,
+        cloudErrorMessage: undefined,
+        cloudBranch: undefined,
+        status: "disconnected",
+        processedLineCount: result.logEntryCount ?? 0,
+      });
+
+      this.watchCloudTask(taskId, runId, auth.apiHost, auth.projectId);
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["tasks"] }),
+        queryClient.refetchQueries(trpc.workspace.getAll.pathFilter()),
+      ]);
+      sessionStoreSetters.updateSession(runId, { handoffInProgress: false });
+      log.info("Local-to-cloud handoff complete", { taskId, runId });
+    } catch (err) {
+      log.error("Handoff to cloud failed", { taskId, err });
+      toast.error(
+        err instanceof Error ? err.message : "Handoff to cloud failed",
+      );
+      this.subscribeToChannel(runId);
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+        status: "disconnected",
+      });
+    }
+  }
+
+  private async getHandoffAuth(): Promise<{
+    apiHost: string;
+    projectId: number;
+  } | null> {
+    let auth: Awaited<ReturnType<typeof fetchAuthState>>;
+    try {
+      auth = await fetchAuthState();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Authentication required for handoff: ${message}`);
+      return null;
+    }
+    if (!auth.projectId || !auth.cloudRegion) {
+      toast.error("Missing project configuration for handoff");
+      return null;
+    }
+    return {
+      apiHost: getCloudUrlFromRegion(auth.cloudRegion),
+      projectId: auth.projectId,
+    };
+  }
+
+  private async runHandoffPreflight(
+    taskId: string,
+    runId: string,
+    repoPath: string,
+    auth: { apiHost: string; projectId: number },
+  ): Promise<Awaited<ReturnType<typeof trpcClient.handoff.preflight.query>>> {
+    const preflight = await trpcClient.handoff.preflight.query({
+      taskId,
+      runId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+    });
+    if (!preflight.canHandoff) {
+      sessionStoreSetters.updateSession(runId, {
+        handoffInProgress: false,
+      });
+      throw new Error(preflight.reason ?? "Cannot hand off to local");
+    }
+    return preflight;
+  }
+
+  private async executeHandoff(
+    taskId: string,
+    runId: string,
+    repoPath: string,
+    auth: { apiHost: string; projectId: number },
+    localGitState?: Awaited<
+      ReturnType<typeof trpcClient.handoff.preflight.query>
+    >["localGitState"],
+  ): Promise<void> {
+    const result = await trpcClient.handoff.execute.mutate({
+      taskId,
+      runId,
+      repoPath,
+      apiHost: auth.apiHost,
+      teamId: auth.projectId,
+      localGitState,
+    });
+    if (!result.success) {
+      throw new Error(result.error ?? "Handoff failed");
+    }
+  }
+
+  private transitionToLocalSession(runId: string): void {
+    sessionStoreSetters.updateSession(runId, {
+      isCloud: false,
+      cloudStatus: undefined,
+      cloudStage: undefined,
+      cloudOutput: undefined,
+      cloudErrorMessage: undefined,
+      cloudBranch: undefined,
+      status: "connected",
+    });
   }
 
   async retryCloudTaskWatch(taskId: string): Promise<void> {
@@ -2614,6 +2931,20 @@ export class SessionService {
       (update.kind === "logs" || update.kind === "snapshot") &&
       update.newEntries.length > 0
     ) {
+      // Cloud streams deliver `session/update` notifications as regular log
+      // entries rather than live ACP messages. Without this, config changes
+      // made mid-run (e.g. plan-approval switching to bypassPermissions) never
+      // reach the session store and the footer mode selector stays stale.
+      const latestConfigOptions = extractLatestConfigOptionsFromEntries(
+        update.newEntries,
+      );
+      if (latestConfigOptions) {
+        sessionStoreSetters.updateSession(taskRunId, {
+          configOptions: latestConfigOptions,
+        });
+        setPersistedConfigOptions(taskRunId, latestConfigOptions);
+      }
+
       const session = sessionStoreSetters.getSessions()[taskRunId];
       const currentCount = session?.processedLineCount ?? 0;
       const expectedCount = update.totalEntryCount;

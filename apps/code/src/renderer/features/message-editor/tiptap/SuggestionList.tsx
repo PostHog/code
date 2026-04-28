@@ -1,11 +1,22 @@
 import { FileIcon } from "@components/ui/FileIcon";
+import { FolderIcon } from "@phosphor-icons/react";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+  Kbd,
+} from "@posthog/quill";
 import {
   forwardRef,
+  type ReactNode,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
+import { SuggestionStatus } from "../components/SuggestionStatus";
 import type { SuggestionItem } from "../types";
 
 export interface SuggestionListRef {
@@ -15,21 +26,42 @@ export interface SuggestionListRef {
 export interface SuggestionListProps {
   items: SuggestionItem[];
   command: (item: SuggestionItem) => void;
+  renderItem?: (item: SuggestionItem) => ReactNode;
+  loading?: boolean;
 }
 
-const Kbd = ({ children }: { children: string }) => (
-  <kbd className="mx-0.5 rounded border border-[var(--gray-a6)] bg-[var(--gray-a3)] px-1 font-mono text-[11px]">
-    {children}
-  </kbd>
-);
-
 const CONTAINER_CLASS =
-  "flex w-max min-w-[300px] max-w-[600px] flex-col rounded border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] text-[13px] shadow-lg";
+  "flex w-max min-w-[300px] max-w-[440px] flex-col overflow-hidden rounded-md border border-[var(--gray-a6)] bg-[var(--color-panel-solid)] text-[13px] shadow-lg";
+
+function DefaultRow({ item }: { item: SuggestionItem }) {
+  const isFolder = item.chipType === "folder";
+  return (
+    <Item size="xs" className="border-0 p-0">
+      {item.filename && (
+        <ItemMedia variant="icon" className="mt-0.5 self-start">
+          {isFolder ? (
+            <FolderIcon size={14} />
+          ) : (
+            <FileIcon filename={item.filename} size={14} />
+          )}
+        </ItemMedia>
+      )}
+      <ItemContent variant="menuItem">
+        <ItemTitle className="truncate text-left">{item.label}</ItemTitle>
+        {item.description && (
+          <ItemDescription className="truncate text-left">
+            {item.description}
+          </ItemDescription>
+        )}
+      </ItemContent>
+    </Item>
+  );
+}
 
 export const SuggestionList = forwardRef<
   SuggestionListRef,
   SuggestionListProps
->(({ items, command }, ref) => {
+>(({ items, command, renderItem, loading = false }, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [hasMouseMoved, setHasMouseMoved] = useState(false);
@@ -70,7 +102,9 @@ export const SuggestionList = forwardRef<
   if (items.length === 0) {
     return (
       <div className={CONTAINER_CLASS}>
-        <div className="p-2 text-[var(--gray-11)]">No results found</div>
+        <div className="p-2">
+          <SuggestionStatus loading={loading} emptyMessage="No results found" />
+        </div>
       </div>
     );
   }
@@ -79,7 +113,7 @@ export const SuggestionList = forwardRef<
     <div className={CONTAINER_CLASS}>
       <div
         role="listbox"
-        className="max-h-60 flex-1 overflow-y-auto pb-1 [&::-webkit-scrollbar]:hidden"
+        className="max-h-60 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden"
         onMouseMove={() => !hasMouseMoved && setHasMouseMoved(true)}
       >
         {items.map((item, index) => {
@@ -93,36 +127,25 @@ export const SuggestionList = forwardRef<
               }}
               onClick={() => command(item)}
               onMouseEnter={() => hasMouseMoved && setSelectedIndex(index)}
-              className={`flex w-full items-start gap-2 border-none px-2 text-left ${
-                item.description ? "py-1.5" : "py-1"
-              } ${isSelected ? "bg-[var(--accent-a4)]" : ""}`}
+              className={`flex w-full border-none px-2 py-0.5 text-left ${
+                isSelected ? "bg-[var(--accent-a4)]" : ""
+              }`}
             >
-              {item.filename && (
-                <span className="mt-0.5 flex-shrink-0">
-                  <FileIcon filename={item.filename} size={14} />
-                </span>
-              )}
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span
-                  className={`truncate ${isSelected ? "text-[var(--accent-11)]" : "text-[var(--gray-11)]"}`}
-                >
-                  {item.label}
-                </span>
-                {item.description && (
-                  <span
-                    className={`truncate text-[12px] ${isSelected ? "text-[var(--accent-10)]" : "text-[var(--gray-10)]"}`}
-                  >
-                    {item.description}
-                  </span>
-                )}
-              </span>
+              {renderItem ? renderItem(item) : <DefaultRow item={item} />}
             </button>
           );
         })}
       </div>
-      <div className="border-[var(--gray-a4)] border-t bg-[var(--gray-a2)] px-2 py-1 text-[11px] text-[var(--gray-10)]">
+      <div className="flex items-center gap-1 border-[var(--gray-a4)] border-t bg-[var(--gray-a2)] px-2 py-1 text-[11px] text-[var(--gray-10)]">
         <Kbd>↑</Kbd>
-        <Kbd>↓</Kbd> navigate · <Kbd>↵</Kbd> select · <Kbd>esc</Kbd> dismiss
+        <Kbd>↓</Kbd>
+        <span>navigate</span>
+        <span>·</span>
+        <Kbd>↵</Kbd>
+        <span>select</span>
+        <span>·</span>
+        <Kbd>esc</Kbd>
+        <span>dismiss</span>
       </div>
     </div>
   );

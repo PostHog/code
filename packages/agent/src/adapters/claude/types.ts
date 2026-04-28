@@ -10,10 +10,11 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { Pushable } from "../../utils/streams";
 import type { BaseSession } from "../base-acp-agent";
+import type { McpToolApprovals } from "./mcp/tool-metadata";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
 
-export type EffortLevel = "low" | "medium" | "high" | "max";
+export type EffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type AccumulatedUsage = {
   inputTokens: number;
@@ -62,6 +63,7 @@ export type Session = BaseSession & {
   promptRunning: boolean;
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
+  emitRawSDKMessages: boolean | SDKMessageFilter[];
 };
 
 export type ToolUseCache = {
@@ -99,6 +101,11 @@ export type ToolUpdateMeta = {
   terminal_exit?: TerminalExit;
 };
 
+export type SDKMessageFilter = {
+  type: string;
+  subtype?: string;
+};
+
 export type NewSessionMeta = {
   taskRunId?: string;
   disableBuiltInTools?: boolean;
@@ -111,7 +118,9 @@ export type NewSessionMeta = {
   /** Model ID to use for this session (e.g. "claude-sonnet-4-6") */
   model?: string;
   jsonSchema?: Record<string, unknown> | null;
+  mcpToolApprovals?: McpToolApprovals;
   claudeCode?: {
     options?: Options;
+    emitRawSDKMessages?: boolean | SDKMessageFilter[];
   };
 };

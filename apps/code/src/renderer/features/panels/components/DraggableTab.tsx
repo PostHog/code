@@ -130,15 +130,13 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
       align="center"
       gap="1"
       pl="3"
-      pr={onClose ? "1" : "3"}
-      className={`group relative flex-shrink-0 select-none border-r border-b-2 transition-colors ${draggable ? "cursor-grab" : "cursor-pointer"}`}
+      pr={onClose ? "2" : "3"}
+      className={`group relative h-[32px] min-w-[60px] flex-shrink-0 select-none border-r border-b-2 transition-colors ${draggable ? "cursor-grab" : "cursor-pointer"}`}
       style={{
         borderRightColor: "var(--gray-6)",
         borderBottomColor: isActive ? "var(--accent-10)" : "transparent",
         color: isActive ? "var(--accent-12)" : "var(--gray-11)",
         opacity: isDragging ? 0.5 : 1,
-        height: "32px",
-        minWidth: "60px",
       }}
       onClick={onSelect}
       onDoubleClick={handleDoubleClick}
@@ -154,12 +152,9 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
         }
       }}
     >
-      {icon && (
-        <Box style={{ display: "flex", alignItems: "center" }}>{icon}</Box>
-      )}
+      {icon && <Box className="flex items-center">{icon}</Box>}
       <Text
-        size="1"
-        className="max-w-[200px] select-none overflow-hidden text-ellipsis whitespace-nowrap"
+        className="max-w-[200px] select-none overflow-hidden text-ellipsis whitespace-nowrap text-[13px]"
         style={{
           fontStyle: isPreview ? "italic" : "normal",
           opacity: isPreview ? 0.7 : 1,
@@ -169,20 +164,11 @@ export const DraggableTab: React.FC<DraggableTabProps> = ({
       </Text>
       {badge}
       {hasUnsavedChanges && (
-        <Text size="1" style={{ color: "var(--amber-9)", marginLeft: "2px" }}>
-          •
-        </Text>
+        <Text className="ml-[2px] text-(--amber-9) text-[13px]">•</Text>
       )}
 
       {onClose && (
-        <Box
-          style={{
-            width: "14px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <Box className="ml-[2px] flex w-[14px] items-center justify-center">
           <IconButton
             size="1"
             variant="ghost"

@@ -14,7 +14,13 @@ export const executionModeSchema = z.enum([
 export type ExecutionMode = z.infer<typeof executionModeSchema>;
 
 // Effort level schema and type - shared between main and renderer
-export const effortLevelSchema = z.enum(["low", "medium", "high", "max"]);
+export const effortLevelSchema = z.enum([
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]);
 export type EffortLevel = z.infer<typeof effortLevelSchema>;
 
 interface UserBasic {
@@ -72,7 +78,7 @@ export interface TaskRun {
   branch: string | null;
   runtime_adapter?: "claude" | "codex" | null;
   model?: string | null;
-  reasoning_effort?: "low" | "medium" | "high" | "max" | null;
+  reasoning_effort?: "low" | "medium" | "high" | "xhigh" | "max" | null;
   stage?: string | null; // Current stage (e.g., 'research', 'plan', 'build')
   environment?: "local" | "cloud";
   status: TaskRunStatus;
@@ -181,6 +187,7 @@ export type CloudTaskUpdatePayload =
 // Mention types for editors
 type MentionType =
   | "file"
+  | "folder"
   | "error"
   | "experiment"
   | "insight"
@@ -191,6 +198,7 @@ export interface MentionItem {
   // File items
   path?: string;
   name?: string;
+  kind?: "file" | "directory";
   // URL items
   url?: string;
   type?: MentionType;
@@ -218,7 +226,11 @@ export interface ChangedFile {
 }
 
 // External apps detection types
-export type ExternalAppType = "editor" | "terminal" | "file-manager";
+export type ExternalAppType =
+  | "editor"
+  | "terminal"
+  | "file-manager"
+  | "git-client";
 
 export interface DetectedApplication {
   id: string; // "vscode", "cursor", "iterm"
@@ -278,6 +290,10 @@ export interface SignalReport {
   already_addressed?: boolean | null;
   /** Whether the current user is a suggested reviewer for this report (server-annotated). */
   is_suggested_reviewer?: boolean;
+  /** Distinct source products contributing signals to this report. */
+  source_products?: string[];
+  /** PR URL from the latest implementation task run, if available. */
+  implementation_pr_url?: string | null;
 }
 
 export interface SignalReportArtefactContent {

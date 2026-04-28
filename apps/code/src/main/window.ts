@@ -1,7 +1,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "@posthog/electron-trpc/main";
-import { BrowserWindow, screen, shell } from "electron";
+import {
+  BrowserWindow,
+  Menu,
+  type MenuItemConstructorOptions,
+  screen,
+  shell,
+} from "electron";
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
 import { buildApplicationMenu } from "./menu";
@@ -97,6 +103,24 @@ function setupExternalLinkHandlers(window: BrowserWindow): void {
   });
 }
 
+function setupEditableContextMenu(window: BrowserWindow): void {
+  window.webContents.on("context-menu", (_event, params) => {
+    if (!params.isEditable) return;
+    const { editFlags } = params;
+    const template: MenuItemConstructorOptions[] = [
+      { role: "undo", enabled: editFlags.canUndo },
+      { role: "redo", enabled: editFlags.canRedo },
+      { type: "separator" },
+      { role: "cut", enabled: editFlags.canCut },
+      { role: "copy", enabled: editFlags.canCopy },
+      { role: "paste", enabled: editFlags.canPaste },
+      { type: "separator" },
+      { role: "selectAll", enabled: editFlags.canSelectAll },
+    ];
+    Menu.buildFromTemplate(template).popup({ window });
+  });
+}
+
 export function createWindow(): void {
   const isDev = isDevBuild();
   const savedState = getSavedWindowState();
@@ -187,6 +211,7 @@ export function createWindow(): void {
   });
 
   setupExternalLinkHandlers(mainWindow);
+  setupEditableContextMenu(mainWindow);
   buildApplicationMenu();
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {

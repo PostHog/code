@@ -1,8 +1,4 @@
 import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
-import {
-  isSupportedCloudImageAttachment,
-  isSupportedCloudTextAttachment,
-} from "@features/editor/utils/cloud-prompt";
 import { trpcClient } from "@renderer/trpc/client";
 
 const CHUNK_SIZE = 8192;
@@ -46,21 +42,30 @@ export async function persistTextContent(
   return { path: result.path, name: result.name };
 }
 
+export async function persistGenericFile(file: File): Promise<PersistedFile> {
+  const arrayBuffer = await file.arrayBuffer();
+  const base64Data = arrayBufferToBase64(arrayBuffer);
+
+  const result = await trpcClient.os.saveClipboardFile.mutate({
+    base64Data,
+    originalName: file.name,
+  });
+
+  return {
+    path: result.path,
+    name: result.name,
+    mimeType: file.type || undefined,
+  };
+}
+
 export async function persistBrowserFile(
   file: File,
 ): Promise<{ id: string; label: string }> {
-  if (isSupportedCloudImageAttachment(file.name)) {
+  if (file.type.startsWith("image/")) {
     const result = await persistImageFile(file);
     return { id: result.path, label: file.name };
   }
 
-  if (isSupportedCloudTextAttachment(file.name)) {
-    const text = await file.text();
-    const result = await persistTextContent(text, file.name);
-    return { id: result.path, label: result.name };
-  }
-
-  throw new Error(
-    `Unsupported attachment: ${file.name}. Cloud attachments currently support text files and PNG/JPG/GIF/WebP images.`,
-  );
+  const result = await persistGenericFile(file);
+  return { id: result.path, label: result.name };
 }

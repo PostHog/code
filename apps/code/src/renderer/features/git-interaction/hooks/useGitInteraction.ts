@@ -9,6 +9,7 @@ import type {
   CommitNextStep,
   GitMenuAction,
   GitMenuActionId,
+  PushMode,
 } from "@features/git-interaction/types";
 import {
   createBranch,
@@ -27,7 +28,7 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import { track } from "@utils/analytics";
 import { logger } from "@utils/logger";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const log = logger.scope("git-interaction");
 
@@ -48,6 +49,7 @@ interface GitInteractionState {
   behind: number;
   currentBranch: string | null;
   defaultBranch: string | null;
+  isFeatureBranch: boolean;
   prBaseBranch: string | null;
   prHeadBranch: string | null;
   diffStats: DiffStats;
@@ -69,9 +71,9 @@ interface GitInteractionActions {
   setPrTitle: (value: string) => void;
   setPrBody: (value: string) => void;
   setBranchName: (value: string) => void;
-  runCommit: () => Promise<void>;
-  runPush: () => Promise<void>;
-  runBranch: () => Promise<void>;
+  runCommit: () => Promise<boolean>;
+  runPush: (mode?: PushMode) => Promise<void>;
+  runBranch: () => Promise<boolean>;
   runCreatePr: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
   generatePrTitleAndBody: () => Promise<void>;
@@ -150,6 +152,7 @@ export function useGitInteraction(
   const queryClient = useQueryClient();
   const store = useGitInteractionStore();
   const { actions: modal } = store;
+  const pushAbortRef = useRef<AbortController | null>(null);
 
   const git = useGitQueries(repoPath);
 
@@ -194,6 +197,8 @@ export function useGitInteraction(
     [git.changedFiles],
   );
 
+  const createPrDraftKey = `${taskId}:${repoPath ?? ""}`;
+
   const openCreatePr = () => {
     const prExists = git.prStatus?.prExists ?? false;
     const needsBranch = !git.isFeatureBranch || prExists;
@@ -206,6 +211,7 @@ export function useGitInteraction(
       suggestedBranchName: needsBranch
         ? getSuggestedBranchName(taskId, repoPath)
         : undefined,
+      draftKey: createPrDraftKey,
     });
   };
 
@@ -294,6 +300,7 @@ export function useGitInteraction(
         attachPrUrlToTask(taskId, result.prUrl);
       }
 
+      modal.clearCreatePrDraft(createPrDraftKey);
       modal.closeCreatePr();
     } catch (error) {
       log.error("Create PR flow failed", error);
@@ -338,12 +345,12 @@ export function useGitInteraction(
     }
   };
 
-  const runCommit = async () => {
-    if (!repoPath) return;
+  const runCommit = async (): Promise<boolean> => {
+    if (!repoPath) return false;
 
     if (store.commitNextStep === "commit-push" && computed.pushDisabledReason) {
       modal.setCommitError(computed.pushDisabledReason);
-      return;
+      return false;
     }
 
     modal.setIsSubmitting(true);
@@ -363,7 +370,7 @@ export function useGitInteraction(
             "No changes detected to generate a commit message.",
           );
           modal.setIsSubmitting(false);
-          return;
+          return false;
         }
 
         message = generated.message;
@@ -376,7 +383,7 @@ export function useGitInteraction(
             : "Failed to generate commit message.",
         );
         modal.setIsSubmitting(false);
-        return;
+        return false;
       }
     }
 
@@ -394,7 +401,7 @@ export function useGitInteraction(
       if (!result.success) {
         trackGitAction(taskId, "commit", false, commitStagingContext);
         modal.setCommitError(result.message || "Commit failed.");
-        return;
+        return false;
       }
 
       trackGitAction(taskId, "commit", true, commitStagingContext);
@@ -407,50 +414,85 @@ export function useGitInteraction(
       modal.closeCommit();
 
       if (store.commitNextStep === "commit-push") {
-        modal.openPush(git.hasRemote ? "push" : "publish");
+        const mode = git.hasRemote ? "push" : "publish";
+        modal.openPush(mode);
+        await runPush(mode);
+        return true;
       }
+      return true;
     } finally {
       modal.setIsSubmitting(false);
     }
   };
 
-  const runPush = async () => {
+  const runPush = async (mode?: PushMode) => {
     if (!repoPath) return;
+
+    const pushMode = mode ?? useGitInteractionStore.getState().pushMode;
+
+    pushAbortRef.current?.abort();
+    const controller = new AbortController();
+    pushAbortRef.current = controller;
 
     modal.setIsSubmitting(true);
     modal.setPushError(null);
 
     try {
       const pushFn =
-        store.pushMode === "sync"
+        pushMode === "sync"
           ? trpcClient.git.sync
-          : store.pushMode === "publish"
+          : pushMode === "publish"
             ? trpcClient.git.publish
             : trpcClient.git.push;
 
-      const result = await pushFn.mutate({ directoryPath: repoPath });
+      const result = await pushFn.mutate(
+        { directoryPath: repoPath },
+        { signal: controller.signal },
+      );
 
       if (!result.success) {
         const message =
           "message" in result
             ? result.message
             : `Pull: ${result.pullMessage}, Push: ${result.pushMessage}`;
-        trackGitAction(taskId, store.pushMode, false);
+        trackGitAction(taskId, pushMode, false);
         modal.setPushError(message || "Push failed.");
         modal.setPushState("error");
         return;
       }
 
-      trackGitAction(taskId, store.pushMode, true);
+      trackGitAction(taskId, pushMode, true);
 
       if (result.state) {
         updateGitCacheFromSnapshot(queryClient, repoPath, result.state);
       }
 
       modal.setPushState("success");
+    } catch (error) {
+      trackGitAction(taskId, pushMode, false);
+      if (controller.signal.aborted) {
+        return;
+      }
+      log.error("Push failed", error);
+      const message = error instanceof Error ? error.message : "Push failed.";
+      modal.setPushError(message);
+      modal.setPushState("error");
     } finally {
+      if (pushAbortRef.current === controller) {
+        pushAbortRef.current = null;
+      }
       modal.setIsSubmitting(false);
     }
+  };
+
+  const abortPush = () => {
+    pushAbortRef.current?.abort();
+    pushAbortRef.current = null;
+  };
+
+  const closePush = () => {
+    abortPush();
+    modal.closePush();
   };
 
   const generateCommitMessage = async () => {
@@ -516,8 +558,8 @@ export function useGitInteraction(
     }
   };
 
-  const runBranch = async () => {
-    if (!repoPath) return;
+  const runBranch = async (): Promise<boolean> => {
+    if (!repoPath) return false;
 
     modal.setIsSubmitting(true);
     modal.setBranchError(null);
@@ -534,7 +576,7 @@ export function useGitInteraction(
         }
 
         modal.setBranchError(result.error);
-        return;
+        return false;
       }
 
       trackGitAction(taskId, "branch-here", true);
@@ -547,12 +589,14 @@ export function useGitInteraction(
         );
 
       modal.closeBranch();
+      return true;
     } catch (error) {
       log.error("Failed to create branch", error);
       trackGitAction(taskId, "branch-here", false);
       modal.setBranchError(
         error instanceof Error ? error.message : "Failed to create branch.",
       );
+      return false;
     } finally {
       modal.setIsSubmitting(false);
     }
@@ -567,6 +611,7 @@ export function useGitInteraction(
       behind: git.behind,
       currentBranch: git.currentBranch,
       defaultBranch: git.defaultBranch,
+      isFeatureBranch: git.isFeatureBranch,
       prBaseBranch: computed.prBaseBranch,
       prHeadBranch: computed.prHeadBranch,
       diffStats: git.diffStats,
@@ -580,7 +625,7 @@ export function useGitInteraction(
     actions: {
       openAction,
       closeCommit: modal.closeCommit,
-      closePush: modal.closePush,
+      closePush,
       closeBranch: modal.closeBranch,
       setCommitMessage: modal.setCommitMessage,
       setCommitNextStep: modal.setCommitNextStep,

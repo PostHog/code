@@ -63,6 +63,7 @@ function TaskHoverToolbar({
               e.stopPropagation();
               onTogglePin();
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -86,6 +87,7 @@ function TaskHoverToolbar({
               e.stopPropagation();
               onArchive();
             }}
+            onDoubleClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -308,26 +310,20 @@ function InlineEditInput({
 
   return (
     <div
-      className={`flex w-full items-start px-2 py-1.5 text-[13px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
+      className={`flex w-full items-start gap-[4px] px-2 py-1.5 text-[13px]${isActive ? "bg-accent-4 text-gray-12" : ""}`}
       style={{
         paddingLeft: `${depth * INDENT_SIZE + 8 + (depth > 0 ? 4 : 0)}px`,
-        gap: "4px",
       }}
     >
       {icon && (
         <span
-          className={`flex shrink-0 items-center ${isActive ? "text-gray-11" : "text-gray-10"}`}
-          style={{
-            height: "18px",
-            width: "18px",
-            justifyContent: "center",
-          }}
+          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center ${isActive ? "text-gray-11" : "text-gray-10"}`}
         >
           {icon}
         </span>
       )}
       <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <span className="flex items-center" style={{ height: "18px" }}>
+        <span className="flex h-[18px] items-center">
           <input
             ref={inputRef}
             type="text"
@@ -335,8 +331,7 @@ function InlineEditInput({
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSubmit}
-            className="min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 text-[13px] text-gray-12 outline-none"
-            style={{ height: "18px" }}
+            className="h-[18px] min-w-0 flex-1 rounded-sm border border-accent-8 bg-gray-2 px-1 text-[13px] text-gray-12 outline-none"
           />
         </span>
       </span>

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import Parser from "web-tree-sitter";
@@ -8,14 +9,20 @@ import type { DetectionConfig } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
 
 function resolveGrammarsDir(): string {
-  // Works from both dist/ (built) and src/ (tests) — both are one level below package root
   const thisFile = fileURLToPath(import.meta.url);
-  return path.join(path.dirname(thisFile), "..", "grammars");
+  const dir = path.dirname(thisFile);
+  const candidates = [
+    path.join(dir, "..", "grammars"),
+    path.join(dir, "grammars"),
+    path.join(dir, "..", "..", "grammars"),
+  ];
+  return candidates.find((p) => existsSync(p)) ?? candidates[0];
 }
 
 export class ParserManager {
   private parser: Parser | null = null;
   private languages = new Map<string, Parser.Language>();
+  private languageKeys = new WeakMap<Parser.Language, string>();
   private queryCache = new Map<string, Parser.Query>();
   private maxCacheSize = 256;
   private initPromise: Promise<void> | null = null;
@@ -74,6 +81,7 @@ export class ParserManager {
         const wasmPath = path.join(this.wasmDir, family.wasm);
         lang = await Parser.Language.load(wasmPath);
         this.languages.set(family.wasm, lang);
+        this.languageKeys.set(lang, family.wasm);
       } catch (err) {
         warn(`Failed to load grammar ${family.wasm}`, err);
         return null;
@@ -96,7 +104,8 @@ export class ParserManager {
       return null;
     }
 
-    const cacheKey = `${lang.toString()}:${queryStr}`;
+    const langKey = this.languageKeys.get(lang) ?? lang.toString();
+    const cacheKey = `${langKey}:${queryStr}`;
     let query = this.queryCache.get(cacheKey);
     if (query) {
       // LRU: move to end by deleting and re-inserting
@@ -127,6 +136,7 @@ export class ParserManager {
     this.parser = null;
     this.initPromise = null;
     this.languages.clear();
+    this.languageKeys = new WeakMap();
     this.queryCache.clear();
   }
 }

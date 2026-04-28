@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type ViewMode = "split" | "unified";
+export type DiffSource = "local" | "branch" | "pr";
 
 interface DiffViewerStoreState {
   viewMode: ViewMode;
@@ -12,6 +13,7 @@ interface DiffViewerStoreState {
   wordDiffs: boolean;
   hideWhitespaceChanges: boolean;
   showReviewComments: boolean;
+  diffSource: Record<string, DiffSource>;
 }
 
 interface DiffViewerStoreActions {
@@ -22,6 +24,7 @@ interface DiffViewerStoreActions {
   toggleWordDiffs: () => void;
   toggleHideWhitespaceChanges: () => void;
   toggleShowReviewComments: () => void;
+  setDiffSource: (taskId: string, source: DiffSource) => void;
 }
 
 type DiffViewerStore = DiffViewerStoreState & DiffViewerStoreActions;
@@ -35,6 +38,7 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
       wordDiffs: true,
       hideWhitespaceChanges: false,
       showReviewComments: true,
+      diffSource: {},
       setViewMode: (mode) =>
         set((state) => {
           if (state.viewMode === mode) {
@@ -69,6 +73,10 @@ export const useDiffViewerStore = create<DiffViewerStore>()(
         set((s) => ({ hideWhitespaceChanges: !s.hideWhitespaceChanges })),
       toggleShowReviewComments: () =>
         set((s) => ({ showReviewComments: !s.showReviewComments })),
+      setDiffSource: (taskId, source) =>
+        set((s) => ({
+          diffSource: { ...s.diffSource, [taskId]: source },
+        })),
     }),
     {
       name: "diff-viewer-storage",

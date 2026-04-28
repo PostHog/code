@@ -1,5 +1,7 @@
 import { Text } from "@components/text";
 import * as WebBrowser from "expo-web-browser";
+import { CaretRight } from "phosphor-react-native";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,8 +13,9 @@ import { useAuthStore } from "@/features/auth";
 import { useThemeColors } from "@/lib/theme";
 import { useIntegrations } from "../hooks/useIntegrations";
 import { useTasks } from "../hooks/useTasks";
+import { useArchivedTasksStore } from "../stores/archivedTasksStore";
 import type { Task } from "../types";
-import { TaskItem } from "./TaskItem";
+import { SwipeableTaskItem } from "./SwipeableTaskItem";
 
 interface TaskListProps {
   onTaskPress?: (taskId: string) => void;
@@ -108,11 +111,18 @@ function CreateTaskEmptyState({ onCreateTask }: CreateTaskEmptyStateProps) {
   );
 }
 
+type ListItem =
+  | { type: "task"; task: Task; isArchived: boolean }
+  | { type: "archived-header"; count: number; expanded: boolean };
+
 export function TaskList({ onTaskPress, onCreateTask }: TaskListProps) {
   const { tasks, isLoading, error, refetch } = useTasks();
   const { hasGithubIntegration, refetch: refetchIntegrations } =
     useIntegrations();
   const themeColors = useThemeColors();
+  const { archivedTasks, archive, unarchive } = useArchivedTasksStore();
+  const [archivedExpanded, setArchivedExpanded] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const handleTaskPress = (task: Task) => {
     onTaskPress?.(task.id);
@@ -121,6 +131,46 @@ export function TaskList({ onTaskPress, onCreateTask }: TaskListProps) {
   const handleRefresh = async () => {
     await Promise.all([refetch(), refetchIntegrations()]);
   };
+
+  const listItems = useMemo((): ListItem[] => {
+    const active: Task[] = [];
+    const archived: Task[] = [];
+
+    for (const task of tasks) {
+      if (task.id in archivedTasks) {
+        archived.push(task);
+      } else {
+        active.push(task);
+      }
+    }
+
+    // Sort archived by FIFO (earliest archived first)
+    archived.sort(
+      (a, b) => (archivedTasks[a.id] ?? 0) - (archivedTasks[b.id] ?? 0),
+    );
+
+    const items: ListItem[] = active.map((task) => ({
+      type: "task",
+      task,
+      isArchived: false,
+    }));
+
+    if (archived.length > 0) {
+      items.push({
+        type: "archived-header",
+        count: archived.length,
+        expanded: archivedExpanded,
+      });
+
+      if (archivedExpanded) {
+        for (const task of archived) {
+          items.push({ type: "task", task, isArchived: true });
+        }
+      }
+    }
+
+    return items;
+  }, [tasks, archivedTasks, archivedExpanded]);
 
   if (error) {
     return (
@@ -160,14 +210,49 @@ export function TaskList({ onTaskPress, onCreateTask }: TaskListProps) {
     return <CreateTaskEmptyState onCreateTask={onCreateTask} />;
   }
 
-  // Has tasks - show the list (regardless of GitHub connection status)
   return (
     <FlatList
-      data={tasks}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <TaskItem task={item} onPress={handleTaskPress} />
-      )}
+      scrollEnabled={scrollEnabled}
+      data={listItems}
+      keyExtractor={(item) =>
+        item.type === "archived-header"
+          ? "__archived_header__"
+          : `${item.task.id}-${item.isArchived ? "a" : "v"}`
+      }
+      renderItem={({ item }) => {
+        if (item.type === "archived-header") {
+          return (
+            <Pressable
+              onPress={() => setArchivedExpanded(!item.expanded)}
+              className="flex-row items-center gap-2 border-gray-6 border-t bg-gray-2 px-3 py-2.5"
+            >
+              <CaretRight
+                size={14}
+                color={themeColors.gray[9]}
+                style={{
+                  transform: [{ rotate: item.expanded ? "90deg" : "0deg" }],
+                }}
+              />
+              <Text className="flex-1 font-medium text-gray-9 text-xs">
+                Archived
+              </Text>
+              <Text className="text-gray-8 text-xs">{item.count}</Text>
+            </Pressable>
+          );
+        }
+
+        return (
+          <SwipeableTaskItem
+            task={item.task}
+            isArchived={item.isArchived}
+            onPress={handleTaskPress}
+            onArchive={archive}
+            onUnarchive={unarchive}
+            onSwipeStart={() => setScrollEnabled(false)}
+            onSwipeEnd={() => setScrollEnabled(true)}
+          />
+        );
+      }}
       refreshControl={
         <RefreshControl
           refreshing={isLoading}

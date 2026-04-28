@@ -19,10 +19,16 @@ function severityToType(severity?: DialogSeverity): MessageBoxOptions["type"] {
 }
 
 function buildProperties(options: PickFileOptions): OpenDialogProperty[] {
-  const properties: OpenDialogProperty[] = [
-    options.directories ? "openDirectory" : "openFile",
-    "treatPackageAsDirectory",
-  ];
+  const properties: OpenDialogProperty[] = ["treatPackageAsDirectory"];
+  if (options.filesAndDirectories) {
+    // Electron on Windows cannot combine openFile + openDirectory in one
+    // dialog; callers must branch and request each mode separately there.
+    properties.push("openFile", "openDirectory");
+  } else if (options.directories) {
+    properties.push("openDirectory");
+  } else {
+    properties.push("openFile");
+  }
   if (options.multiple) properties.push("multiSelections");
   if (options.createDirectories) properties.push("createDirectory");
   return properties;

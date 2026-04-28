@@ -47,4 +47,22 @@ describe("promptContent", () => {
       { id: secondUri, label: "README.md" },
     ]);
   });
+
+  it("extracts cloud resource_link attachments from file URIs", () => {
+    const fileUri = "file:///tmp/workspace/attachments/Receipt-2264-0277.pdf";
+
+    const result = extractPromptDisplayContent([
+      { type: "text", text: "what is this about?" },
+      {
+        type: "resource_link",
+        uri: fileUri,
+        name: "Receipt-2264-0277.pdf",
+      },
+    ]);
+
+    expect(result.text).toBe("what is this about?");
+    expect(result.attachments).toEqual([
+      { id: fileUri, label: "Receipt-2264-0277.pdf" },
+    ]);
+  });
 });

@@ -9,11 +9,14 @@ import {
   extractClientName,
   extractParams,
   getCapture,
+  isInsideJsx,
 } from "./ast-helpers.js";
 import type { ParserManager } from "./parser-manager.js";
 import type {
   FlagAssignment,
   FunctionInfo,
+  LocalWrapper,
+  ParseContext,
   PostHogCall,
   PostHogInitCall,
 } from "./types.js";
@@ -25,6 +28,7 @@ export async function findPostHogCalls(
   pm: ParserManager,
   source: string,
   languageId: string,
+  context?: ParseContext,
 ): Promise<PostHogCall[]> {
   const ready = await pm.ensureReady(languageId);
   if (!ready) {
@@ -60,6 +64,7 @@ export async function findPostHogCalls(
       const clientNode = getCapture(match.captures, "client");
       const methodNode = getCapture(match.captures, "method");
       const keyNode = getCapture(match.captures, "key");
+      const callNode = getCapture(match.captures, "call");
 
       if (!clientNode || !methodNode || !keyNode) {
         continue;
@@ -102,6 +107,7 @@ export async function findPostHogCalls(
         line: keyNode.startPosition.row,
         keyStartCol: keyNode.startPosition.column,
         keyEndCol: keyNode.endPosition.column,
+        inJsx: callNode ? isInsideJsx(callNode) : undefined,
       });
     }
   }
@@ -167,6 +173,7 @@ export async function findPostHogCalls(
       const methodNode = getCapture(match.captures, "method");
       const propNameNode = getCapture(match.captures, "prop_name");
       const keyNode = getCapture(match.captures, "key");
+      const callNode = getCapture(match.captures, "call");
 
       if (!clientNode || !methodNode || !propNameNode || !keyNode) {
         continue;
@@ -194,6 +201,7 @@ export async function findPostHogCalls(
         line: keyNode.startPosition.row,
         keyStartCol: keyNode.startPosition.column,
         keyEndCol: keyNode.endPosition.column,
+        inJsx: callNode ? isInsideJsx(callNode) : undefined,
       });
     }
   }
@@ -310,6 +318,7 @@ export async function findPostHogCalls(
       for (const match of matches) {
         const funcNode = getCapture(match.captures, "func_name");
         const keyNode = getCapture(match.captures, "key");
+        const callNode = getCapture(match.captures, "call");
         if (!funcNode || !keyNode) {
           continue;
         }
@@ -322,6 +331,7 @@ export async function findPostHogCalls(
             line: keyNode.startPosition.row,
             keyStartCol: keyNode.startPosition.column,
             keyEndCol: keyNode.endPosition.column,
+            inJsx: callNode ? isInsideJsx(callNode) : undefined,
           });
         }
       }
@@ -340,6 +350,7 @@ export async function findPostHogCalls(
       for (const match of matches) {
         const funcNode = getCapture(match.captures, "func_name");
         const keyNode = getCapture(match.captures, "key");
+        const callNode = getCapture(match.captures, "call");
         if (!funcNode || !keyNode) {
           continue;
         }
@@ -351,6 +362,7 @@ export async function findPostHogCalls(
             line: keyNode.startPosition.row,
             keyStartCol: keyNode.startPosition.column,
             keyEndCol: keyNode.endPosition.column,
+            inJsx: callNode ? isInsideJsx(callNode) : undefined,
           });
         }
       }
@@ -367,6 +379,7 @@ export async function findPostHogCalls(
         const clientNode = getCapture(match.captures, "client");
         const methodNode = getCapture(match.captures, "method");
         const argNode = getCapture(match.captures, "arg_id");
+        const callNode = getCapture(match.captures, "call");
         if (!clientNode || !methodNode || !argNode) {
           continue;
         }
@@ -401,6 +414,7 @@ export async function findPostHogCalls(
           line,
           keyStartCol: argNode.startPosition.column,
           keyEndCol: argNode.endPosition.column,
+          inJsx: callNode ? isInsideJsx(callNode) : undefined,
         });
       }
     }
@@ -415,6 +429,7 @@ export async function findPostHogCalls(
       const clientNode = getCapture(match.captures, "client");
       const methodNode = getCapture(match.captures, "method");
       const firstArgNode = getCapture(match.captures, "first_arg");
+      const callNode = getCapture(match.captures, "call");
       if (!clientNode || !methodNode || !firstArgNode) {
         continue;
       }
@@ -443,12 +458,206 @@ export async function findPostHogCalls(
         keyStartCol: firstArgNode.startPosition.column,
         keyEndCol: firstArgNode.endPosition.column,
         dynamic: true,
+        inJsx: callNode ? isInsideJsx(callNode) : undefined,
       });
       matchedLines.add(line);
     }
   }
 
+  if (context?.wrappersByLocalName?.size) {
+    synthesizeBareWrapperCalls(
+      pm,
+      lang,
+      tree,
+      languageId,
+      context.wrappersByLocalName,
+      constantMap,
+      calls,
+      matchedLines,
+    );
+  }
+
+  if (context?.namespaceWrappers?.size) {
+    synthesizeNamespaceWrapperCalls(
+      pm,
+      lang,
+      tree,
+      languageId,
+      context.namespaceWrappers,
+      constantMap,
+      calls,
+      matchedLines,
+    );
+  }
+
   return calls;
+}
+
+const WRAPPER_BARE_CALL_QUERIES: Record<string, string | undefined> = {
+  javascript: `(call_expression function: (identifier) @func_name arguments: (arguments) @args) @call`,
+  javascriptreact: `(call_expression function: (identifier) @func_name arguments: (arguments) @args) @call`,
+  typescript: `(call_expression function: (identifier) @func_name arguments: (arguments) @args) @call`,
+  typescriptreact: `(call_expression function: (identifier) @func_name arguments: (arguments) @args) @call`,
+  python: `(call function: (identifier) @func_name arguments: (argument_list) @args) @call`,
+};
+
+const WRAPPER_NAMESPACE_CALL_QUERIES: Record<string, string | undefined> = {
+  javascript: `(call_expression function: (member_expression object: (identifier) @ns property: (property_identifier) @method) arguments: (arguments) @args) @call`,
+  javascriptreact: `(call_expression function: (member_expression object: (identifier) @ns property: (property_identifier) @method) arguments: (arguments) @args) @call`,
+  typescript: `(call_expression function: (member_expression object: (identifier) @ns property: (property_identifier) @method) arguments: (arguments) @args) @call`,
+  typescriptreact: `(call_expression function: (member_expression object: (identifier) @ns property: (property_identifier) @method) arguments: (arguments) @args) @call`,
+  python: `(call function: (attribute object: (identifier) @ns attribute: (identifier) @method) arguments: (argument_list) @args) @call`,
+};
+
+function synthesizeBareWrapperCalls(
+  pm: ParserManager,
+  lang: Parser.Language,
+  tree: Parser.Tree,
+  languageId: string,
+  wrappers: Map<string, LocalWrapper>,
+  constantMap: Map<string, string>,
+  calls: PostHogCall[],
+  matchedLines: Set<number>,
+): void {
+  const queryStr = WRAPPER_BARE_CALL_QUERIES[languageId];
+  if (!queryStr) return;
+  const query = pm.getQuery(lang, queryStr);
+  if (!query) return;
+
+  for (const match of query.matches(tree.rootNode)) {
+    const funcNode = getCapture(match.captures, "func_name");
+    const argsNode = getCapture(match.captures, "args");
+    const callNode = getCapture(match.captures, "call");
+    if (!funcNode || !argsNode) continue;
+    const wrapper = wrappers.get(funcNode.text);
+    if (!wrapper) continue;
+    pushWrapperCall(
+      wrapper,
+      funcNode,
+      argsNode,
+      callNode,
+      constantMap,
+      calls,
+      matchedLines,
+    );
+  }
+}
+
+function synthesizeNamespaceWrapperCalls(
+  pm: ParserManager,
+  lang: Parser.Language,
+  tree: Parser.Tree,
+  languageId: string,
+  namespaceWrappers: Map<string, Map<string, LocalWrapper>>,
+  constantMap: Map<string, string>,
+  calls: PostHogCall[],
+  matchedLines: Set<number>,
+): void {
+  const queryStr = WRAPPER_NAMESPACE_CALL_QUERIES[languageId];
+  if (!queryStr) return;
+  const query = pm.getQuery(lang, queryStr);
+  if (!query) return;
+
+  for (const match of query.matches(tree.rootNode)) {
+    const nsNode = getCapture(match.captures, "ns");
+    const methodNode = getCapture(match.captures, "method");
+    const argsNode = getCapture(match.captures, "args");
+    const callNode = getCapture(match.captures, "call");
+    if (!nsNode || !methodNode || !argsNode) continue;
+    const nsWrappers = namespaceWrappers.get(nsNode.text);
+    if (!nsWrappers) continue;
+    const wrapper = nsWrappers.get(methodNode.text);
+    if (!wrapper) continue;
+    pushWrapperCall(
+      wrapper,
+      methodNode,
+      argsNode,
+      callNode,
+      constantMap,
+      calls,
+      matchedLines,
+    );
+  }
+}
+
+function pushWrapperCall(
+  wrapper: LocalWrapper,
+  callerNode: Parser.SyntaxNode,
+  argsNode: Parser.SyntaxNode,
+  callNode: Parser.SyntaxNode | null,
+  constantMap: Map<string, string>,
+  calls: PostHogCall[],
+  matchedLines: Set<number>,
+): void {
+  let line = callerNode.startPosition.row;
+  let keyStartCol = callerNode.startPosition.column;
+  let keyEndCol = callerNode.endPosition.column;
+  let key = "";
+  let dynamic = false;
+
+  if (wrapper.classification.kind === "fixed-key") {
+    key = wrapper.classification.key;
+  } else {
+    const positional = argsNode.namedChildren.filter(
+      (c) => c.type !== "comment" && c.type !== "keyword_argument",
+    );
+    const arg = positional[wrapper.classification.paramIndex];
+    if (!arg) return;
+    line = arg.startPosition.row;
+    keyStartCol = arg.startPosition.column;
+    keyEndCol = arg.endPosition.column;
+
+    if (arg.type === "string") {
+      const fragment = arg.namedChildren.find(
+        (c) => c.type === "string_fragment" || c.type === "string_content",
+      );
+      if (fragment) {
+        key = fragment.text;
+      } else {
+        dynamic = true;
+      }
+    } else if (arg.type === "template_string") {
+      const fragments = arg.namedChildren.filter(
+        (c) => c.type === "string_fragment",
+      );
+      const hasInterp = arg.namedChildren.some(
+        (c) => c.type === "template_substitution",
+      );
+      if (!hasInterp && fragments.length === 1) {
+        key = fragments[0].text;
+      } else {
+        dynamic = true;
+      }
+    } else if (arg.type === "interpreted_string_literal") {
+      key = arg.text.slice(1, -1);
+    } else if (arg.type === "identifier") {
+      const resolved = constantMap.get(arg.text);
+      if (resolved) {
+        key = resolved;
+      } else {
+        dynamic = true;
+      }
+    } else {
+      dynamic = true;
+    }
+  }
+
+  if (matchedLines.has(line) && dynamic) {
+    // Direct PostHog call already annotated this line — don't overwrite with opaque wrapper data.
+    return;
+  }
+
+  calls.push({
+    method: wrapper.posthogMethod,
+    key,
+    line,
+    keyStartCol,
+    keyEndCol,
+    dynamic: dynamic ? true : undefined,
+    viaWrapper: wrapper.name,
+    inJsx: callNode ? isInsideJsx(callNode) : undefined,
+  });
+  matchedLines.add(line);
 }
 
 export async function findInitCalls(
@@ -961,6 +1170,7 @@ export async function findFunctions(
         : [];
 
     const bodyLine = bodyNode.startPosition.row;
+    const bodyEndLine = bodyNode.endPosition.row;
     const nextLineIdx = bodyLine + 1;
     const lines = text.split("\n");
     const nextLine = nextLineIdx < lines.length ? lines[nextLineIdx] : "";
@@ -971,6 +1181,7 @@ export async function findFunctions(
       params,
       isComponent: /^[A-Z]/.test(name),
       bodyLine,
+      bodyEndLine,
       bodyIndent,
     });
   }

@@ -3,6 +3,7 @@ import type { SessionConfigOption } from "@agentclientprotocol/sdk";
 import { ArrowUp, Stop } from "@phosphor-icons/react";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@posthog/quill";
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
+import { cycleModeOption } from "@renderer/features/sessions/stores/sessionStore";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
@@ -54,6 +55,7 @@ export interface PromptInputProps {
   // manual submit override (for flows like new-task that submit outside the editor hook)
   onSubmitClick?: () => void;
   submitTooltipOverride?: string;
+  tourTarget?: string;
 }
 
 export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
@@ -88,6 +90,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       onBlur,
       onSubmitClick,
       submitTooltipOverride,
+      tourTarget,
     },
     ref,
   ) => {
@@ -186,6 +189,27 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       [isActiveSession, isLoading, onCancel],
     );
 
+    useHotkeys(
+      "shift+tab",
+      (e) => {
+        if (!editor?.isFocused) return;
+        if (hasOpenOverlay()) return;
+        if (!modeOption || !onModeChange) return;
+        const nextMode = cycleModeOption(modeOption, {
+          allowBypassPermissions,
+        });
+        if (!nextMode) return;
+        e.preventDefault();
+        onModeChange(nextMode);
+      },
+      {
+        enableOnFormTags: true,
+        enableOnContentEditable: true,
+        enabled: !disabled && !!modeOption && !!onModeChange,
+      },
+      [editor, modeOption, onModeChange, allowBypassPermissions, disabled],
+    );
+
     const handleContainerClick = useCallback(
       (e: React.MouseEvent) => {
         const target = e.target as HTMLElement;
@@ -199,6 +223,10 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       },
       [focus],
     );
+
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+    }, []);
 
     const handleSubmitClick = (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -236,6 +264,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             onClick={handleSubmitClick}
             disabled={submitBlocked}
             aria-label="Send message"
+            {...(tourTarget && { "data-tour": `${tourTarget}-submit` })}
           >
             <ArrowUp size={14} weight="bold" />
           </InputGroupButton>
@@ -246,8 +275,12 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
       <Flex direction="column" gap="1">
         <InputGroup
           onClick={handleContainerClick}
-          className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
-          style={{ cursor: "text" }}
+          onContextMenu={handleContextMenu}
+          className={`h-auto cursor-text bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
+          {...(tourTarget && {
+            "data-tour": `${tourTarget}-editor`,
+            "data-tour-ready": !isEmpty ? "true" : undefined,
+          })}
         >
           {attachments.length > 0 && (
             <InputGroupAddon align="block-start">
@@ -257,10 +290,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
               />
             </InputGroupAddon>
           )}
-          <div
-            className="cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
-            style={{ position: "relative" }}
-          >
+          <div className="cli-editor-scroll relative max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]">
             <EditorContent editor={editor} />
           </div>
           <InputGroupAddon align="block-end">
@@ -282,11 +312,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             {modelSelector && <span>{modelSelector}</span>}
             {reasoningSelector && <span>{reasoningSelector}</span>}
             {isBashMode && (
-              <Text
-                size="1"
-                className="font-mono"
-                style={{ color: "var(--blue-9)" }}
-              >
+              <Text className="font-mono text-(--blue-9) text-[13px]">
                 ! bash
               </Text>
             )}

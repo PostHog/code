@@ -2,6 +2,7 @@ import { sendPromptToAgent } from "@features/sessions/utils/sendPromptToAgent";
 import { PaperPlaneTilt, X } from "@phosphor-icons/react";
 import type { AnnotationSide } from "@pierre/diffs";
 import { Button, IconButton } from "@radix-ui/themes";
+import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import { useCallback, useRef } from "react";
 import { buildInlineCommentPrompt } from "../utils/reviewPrompts";
 
@@ -46,7 +47,7 @@ export function CommentAnnotation({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (isSendMessageSubmitKey(e)) {
         e.preventDefault();
         handleSubmit();
       }
@@ -68,8 +69,7 @@ export function CommentAnnotation({
           ref={setTextareaRef}
           placeholder="Describe the changes you'd like..."
           onKeyDown={handleKeyDown}
-          className="w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
-          style={{ minHeight: 48 }}
+          className="min-h-[48px] w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
         />
         <div className="mt-1.5 flex items-center gap-3">
           <Button size="1" onClick={handleSubmit}>

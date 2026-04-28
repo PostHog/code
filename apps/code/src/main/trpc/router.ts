@@ -7,6 +7,7 @@ import { connectivityRouter } from "./routers/connectivity";
 import { contextMenuRouter } from "./routers/context-menu";
 import { deepLinkRouter } from "./routers/deep-link";
 import { encryptionRouter } from "./routers/encryption";
+import { enrichmentRouter } from "./routers/enrichment";
 import { environmentRouter } from "./routers/environment";
 import { externalAppsRouter } from "./routers/external-apps";
 import { fileWatcherRouter } from "./routers/file-watcher";
@@ -15,6 +16,7 @@ import { foldersRouter } from "./routers/folders";
 import { fsRouter } from "./routers/fs";
 import { gitRouter } from "./routers/git";
 import { githubIntegrationRouter } from "./routers/github-integration";
+import { handoffRouter } from "./routers/handoff";
 import { linearIntegrationRouter } from "./routers/linear-integration.js";
 import { llmGatewayRouter } from "./routers/llm-gateway";
 import { logsRouter } from "./routers/logs";
@@ -44,6 +46,7 @@ export const trpcRouter = router({
   connectivity: connectivityRouter,
   contextMenu: contextMenuRouter,
 
+  enrichment: enrichmentRouter,
   environment: environmentRouter,
   encryption: encryptionRouter,
   externalApps: externalAppsRouter,
@@ -53,6 +56,7 @@ export const trpcRouter = router({
   fs: fsRouter,
   git: gitRouter,
   githubIntegration: githubIntegrationRouter,
+  handoff: handoffRouter,
   linearIntegration: linearIntegrationRouter,
   llmGateway: llmGatewayRouter,
   mcpApps: mcpAppsRouter,

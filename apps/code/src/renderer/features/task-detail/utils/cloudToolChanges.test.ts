@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractCloudFileContent,
+  extractCloudToolChangedFiles,
   type ParsedToolCall,
 } from "./cloudToolChanges";
 
@@ -33,6 +34,35 @@ function makeToolCalls(
 ): Map<string, ParsedToolCall> {
   return new Map(calls.map((tc, i) => [tc.toolCallId || `tc-${i}`, tc]));
 }
+
+describe("extractCloudToolChangedFiles", () => {
+  it("excludes plan files from changed files", () => {
+    const calls = makeToolCalls(
+      toolCall({
+        toolCallId: "tc-plan",
+        kind: "write",
+        locations: [
+          {
+            path: "/home/user/.claude/plans/breezy-squishing-twilight.md",
+          },
+        ],
+        content: diffContent(
+          "/home/user/.claude/plans/breezy-squishing-twilight.md",
+          "# Plan\n\nDo stuff",
+        ),
+      }),
+      toolCall({
+        toolCallId: "tc-real",
+        kind: "edit",
+        locations: [{ path: "src/app.ts" }],
+        content: diffContent("src/app.ts", "new code", "old code"),
+      }),
+    );
+    const result = extractCloudToolChangedFiles(calls);
+    expect(result).toHaveLength(1);
+    expect(result[0].path).toBe("src/app.ts");
+  });
+});
 
 describe("extractCloudFileContent", () => {
   it("returns untouched for an empty tool calls map", () => {

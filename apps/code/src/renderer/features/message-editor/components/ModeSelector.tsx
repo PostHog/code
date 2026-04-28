@@ -6,6 +6,7 @@ import {
   LockOpen,
   Pause,
   Pencil,
+  Robot,
   ShieldCheck,
 } from "@phosphor-icons/react";
 import {
@@ -42,8 +43,8 @@ const MODE_STYLES: Record<string, ModeStyle> = {
     className: "text-red-11",
   },
   auto: {
-    icon: <Pencil size={12} />,
-    className: "text-gray-11",
+    icon: <Robot size={12} weight="fill" />,
+    className: "text-blue-11",
   },
   "read-only": {
     icon: <Eye size={12} />,
@@ -91,7 +92,7 @@ export function ModeSelector({
   const currentValue = modeOption.currentValue;
   const currentStyle = getStyle(currentValue);
   const currentLabel =
-    options.find((opt) => opt.value === currentValue)?.name ?? currentValue;
+    allOptions.find((opt) => opt.value === currentValue)?.name ?? currentValue;
 
   return (
     <DropdownMenu>
