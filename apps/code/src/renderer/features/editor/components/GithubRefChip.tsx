@@ -17,7 +17,7 @@ export function GithubRefChip({
       size="xs"
       variant="outline"
       onClick={() => window.open(href, "_blank")}
-      className="cli-file-mention relative top-px max-w-full cursor-pointer! whitespace-nowrap pl-1 active:translate-y-0"
+      className="cli-file-mention mx-0.5 max-w-full cursor-pointer! whitespace-nowrap pl-1 align-middle active:translate-y-0"
     >
       <Icon size={10} />
       <span className="min-w-0 truncate">{children}</span>
