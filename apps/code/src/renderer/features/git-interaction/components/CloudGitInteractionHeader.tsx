@@ -29,7 +29,8 @@ export function CloudGitInteractionHeader({
 }: CloudGitInteractionHeaderProps) {
   const session = useSessionForTask(taskId);
   const localHandoff = getLocalHandoffService();
-  const cloudHandoffEnabled = useFeatureFlag(CLOUD_HANDOFF_FLAG);
+  const cloudHandoffEnabled =
+    useFeatureFlag(CLOUD_HANDOFF_FLAG) || import.meta.env.DEV;
 
   const confirmOpen = useHandoffDialogStore((s) => s.confirmOpen);
   const direction = useHandoffDialogStore((s) => s.direction);
