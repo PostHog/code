@@ -1,3 +1,4 @@
+import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CommandCenterCellData } from "../hooks/useCommandCenterData";
 import {
@@ -58,14 +59,26 @@ function GridCell({
   const setActiveTask = useCommandCenterStore((s) => s.setActiveTask);
   const isActive = !!cell.taskId && activeTaskId === cell.taskId;
 
-  const handleCellClick = useCallback(() => {
-    setActiveTask(cell.taskId);
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed) return;
-    const actionSelector =
-      cellRef.current?.querySelector<HTMLElement>("[tabindex='0']");
-    actionSelector?.focus();
-  }, [cell.taskId, setActiveTask]);
+  const handleCellClick = useCallback(
+    (e: React.MouseEvent) => {
+      setActiveTask(cell.taskId);
+      const target = e.target as HTMLElement;
+      // Don't redirect focus when the click already lands on a real control,
+      // or when it bubbled in from a portaled popover whose DOM target is
+      // outside this cell. Either way the click is targeting something that
+      // owns its own focus.
+      if (
+        !e.currentTarget.contains(target) ||
+        target.closest(FOCUSABLE_SELECTOR)
+      ) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) return;
+      cellRef.current?.querySelector<HTMLElement>("[tabindex='0']")?.focus();
+    },
+    [cell.taskId, setActiveTask],
+  );
 
   const handleCellPointerDownCapture = useCallback(() => {
     setActiveTask(cell.taskId);
