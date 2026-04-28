@@ -426,16 +426,18 @@ export function ReportTaskLogs({
       />
 
       {/* Sliding card — animates `top` to avoid a Chromium layout
-          bug with `transform` on absolute elements in flex+scroll. */}
+          bug with `transform` on absolute elements in flex+scroll.
+          The card itself captures clicks (so they reach the bars and the
+          TaskLogsPanel below); the scrim handles click-outside-to-close. */}
       <div
         style={{
           zIndex: 11,
           top: isOpen ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
           transition: "top 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
-        className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
+        className="absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
       >
-        <div className="pointer-events-auto shrink-0">
+        <div className="shrink-0">
           {bars.map((bar, index) => (
             <BarRow
               key={bar.relationship}
@@ -448,10 +450,7 @@ export function ReportTaskLogs({
           ))}
         </div>
 
-        <div
-          style={{ pointerEvents: isOpen ? "auto" : "none" }}
-          className="min-h-0 flex-1 overflow-hidden"
-        >
+        <div className="min-h-0 flex-1 overflow-hidden">
           {expandedBar?.task && (
             <TaskLogsPanel
               key={expandedBar.task.id}
