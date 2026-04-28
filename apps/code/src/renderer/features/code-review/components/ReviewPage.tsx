@@ -453,11 +453,13 @@ function UntrackedFileDiff({
     ),
   );
 
-  const fileName = file.path.split("/").pop() || file.path;
-  const oldFile = useMemo(() => ({ name: fileName, contents: "" }), [fileName]);
+  const oldFile = useMemo(
+    () => ({ name: file.path, contents: "" }),
+    [file.path],
+  );
   const newFile = useMemo(
-    () => ({ name: fileName, contents: content ?? "" }),
-    [fileName, content],
+    () => ({ name: file.path, contents: content ?? "" }),
+    [file.path, content],
   );
 
   return (
