@@ -26,6 +26,10 @@ export interface WindowStateSchema {
   isMaximized: boolean;
 }
 
+interface UpdatesStoreSchema {
+  lastLaunchedVersion: string | null;
+}
+
 const userDataDir = getUserDataDir();
 
 export const rendererStore = new Store<RendererStoreSchema>({
@@ -50,5 +54,13 @@ export const windowStateStore = new Store<WindowStateSchema>({
     width: 1200,
     height: 600,
     isMaximized: true,
+  },
+});
+
+export const updatesStore = new Store<UpdatesStoreSchema>({
+  name: "updates",
+  cwd: userDataDir,
+  defaults: {
+    lastLaunchedVersion: null,
   },
 });

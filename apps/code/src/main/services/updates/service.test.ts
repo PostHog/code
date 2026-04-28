@@ -8,6 +8,7 @@ const {
   mockAppMeta,
   mockMainWindow,
   mockLifecycleService,
+  mockUpdatesStore,
   updaterHandlers,
 } = vi.hoisted(() => {
   const updaterHandlers: {
@@ -80,6 +81,13 @@ const {
       shutdownWithoutContainer: vi.fn(() => Promise.resolve()),
       setQuittingForUpdate: vi.fn(),
     },
+    mockUpdatesStore: {
+      _value: null as string | null,
+      get: vi.fn((_key: string) => mockUpdatesStore._value),
+      set: vi.fn((_key: string, value: string) => {
+        mockUpdatesStore._value = value;
+      }),
+    },
   };
 });
 
@@ -96,6 +104,10 @@ vi.mock("../../utils/logger.js", () => ({
 
 vi.mock("../../utils/env.js", () => ({
   isDevBuild: () => !mockAppMeta.isProduction,
+}));
+
+vi.mock("../../utils/store.js", () => ({
+  updatesStore: mockUpdatesStore,
 }));
 
 // Import the service after mocks are set up
@@ -144,6 +156,9 @@ describe("UpdatesService", () => {
 
     // Clear env flag
     delete process.env.ELECTRON_DISABLE_AUTO_UPDATE;
+
+    // Reset persisted updates store
+    mockUpdatesStore._value = null;
 
     service = new UpdatesService();
     injectPorts(service);
@@ -267,6 +282,67 @@ describe("UpdatesService", () => {
 
       // setFeedURL should not be called again
       expect(mockUpdater.setFeedUrl.mock.calls.length).toBe(firstCallCount);
+    });
+  });
+
+  describe("initial check on startup", () => {
+    it.each([
+      {
+        desc: "runs initial check on first ever launch (no stored version)",
+        storedVersion: null,
+        appVersion: "1.0.0",
+        expectCheck: true,
+        expectSet: "1.0.0" as string | null,
+      },
+      {
+        desc: "runs initial check when relaunching the same version",
+        storedVersion: "1.0.0",
+        appVersion: "1.0.0",
+        expectCheck: true,
+        expectSet: null,
+      },
+      {
+        desc: "skips initial check after a version change (post-update restart)",
+        storedVersion: "1.0.0",
+        appVersion: "1.0.1",
+        expectCheck: false,
+        expectSet: "1.0.1" as string | null,
+      },
+    ])(
+      "$desc",
+      async ({ storedVersion, appVersion, expectCheck, expectSet }) => {
+        mockUpdatesStore._value = storedVersion;
+        mockAppMeta.version = appVersion;
+
+        await initializeService(service);
+
+        if (expectCheck) {
+          expect(mockUpdater.check).toHaveBeenCalled();
+        } else {
+          expect(mockUpdater.check).not.toHaveBeenCalled();
+        }
+
+        if (expectSet !== null) {
+          expect(mockUpdatesStore.set).toHaveBeenCalledWith(
+            "lastLaunchedVersion",
+            expectSet,
+          );
+        } else {
+          expect(mockUpdatesStore.set).not.toHaveBeenCalled();
+        }
+      },
+    );
+
+    it("still schedules the periodic check after skipping the initial one", async () => {
+      mockUpdatesStore._value = "1.0.0";
+      mockAppMeta.version = "1.0.1";
+
+      await initializeService(service);
+      expect(mockUpdater.check).not.toHaveBeenCalled();
+
+      // Advance past the 24h interval
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1000);
+      expect(mockUpdater.check).toHaveBeenCalled();
     });
   });
 

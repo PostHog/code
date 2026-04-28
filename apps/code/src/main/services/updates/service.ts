@@ -6,6 +6,7 @@ import { inject, injectable, postConstruct, preDestroy } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { isDevBuild } from "../../utils/env";
 import { logger } from "../../utils/logger";
+import { updatesStore } from "../../utils/store";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { AppLifecycleService } from "../app-lifecycle/service";
 import {
@@ -191,8 +192,27 @@ export class UpdatesService extends TypedEventEmitter<UpdatesEvents> {
       ),
     );
 
-    // Perform initial check (periodic source — not user-initiated)
-    this.checkForUpdates("periodic");
+    // Skip the initial check if the app version changed since last launch —
+    // that means we just restarted to apply an update, and re-checking
+    // immediately tends to find another release that shipped in the meantime.
+    const lastLaunchedVersion = updatesStore.get("lastLaunchedVersion");
+    const currentVersion = this.appMeta.version;
+    const isPostUpdateRestart =
+      lastLaunchedVersion !== null && lastLaunchedVersion !== currentVersion;
+
+    if (isPostUpdateRestart) {
+      log.info("Skipping initial update check after version change", {
+        previousVersion: lastLaunchedVersion,
+        currentVersion,
+      });
+    } else {
+      // Perform initial check (periodic source — not user-initiated)
+      this.checkForUpdates("periodic");
+    }
+
+    if (lastLaunchedVersion !== currentVersion) {
+      updatesStore.set("lastLaunchedVersion", currentVersion);
+    }
 
     // Set up periodic checks
     this.checkIntervalId = setInterval(
