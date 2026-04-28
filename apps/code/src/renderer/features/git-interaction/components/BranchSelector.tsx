@@ -158,6 +158,7 @@ export function BranchSelector({
     <Combobox
       items={branches}
       limit={COMBOBOX_LIMIT}
+      autoHighlight
       value={displayedBranch}
       inputValue={inputValue}
       onInputValueChange={
