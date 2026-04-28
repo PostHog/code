@@ -423,7 +423,7 @@ function GitDropdownItem({
     );
   }
   return (
-    <QDropdownMenuItem onSelect={() => onSelect(action.id)}>
+    <QDropdownMenuItem onClick={() => onSelect(action.id)}>
       {itemContent}
     </QDropdownMenuItem>
   );
