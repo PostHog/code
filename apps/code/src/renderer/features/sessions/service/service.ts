@@ -175,6 +175,19 @@ interface AuthCredentials {
   client: NonNullable<Awaited<ReturnType<typeof getAuthenticatedClient>>>;
 }
 
+interface CloudLogGapReconcileRequest {
+  taskId: string;
+  taskRunId: string;
+  expectedCount: number;
+  currentCount: number;
+  newEntries: StoredLogEntry[];
+  logUrl?: string;
+}
+
+interface CloudLogGapReconcileState {
+  pendingRequest?: CloudLogGapReconcileRequest;
+}
+
 export interface ConnectParams {
   task: Task;
   repoPath: string;
@@ -233,7 +246,7 @@ export class SessionService {
       onStatusChange?: () => void;
     }
   >();
-  private cloudLogGapReconciles = new Set<string>();
+  private cloudLogGapReconciles = new Map<string, CloudLogGapReconcileState>();
   /** Maps toolCallId → cloud requestId for routing permission responses */
   private cloudPermissionRequestIds = new Map<string, string>();
   private idleKilledSubscription: { unsubscribe: () => void } | null = null;
@@ -3178,12 +3191,20 @@ export class SessionService {
   private async fetchSessionLogs(
     logUrl: string | undefined,
     taskRunId?: string,
+    options: { minEntryCount?: number } = {},
   ): Promise<{
     rawEntries: StoredLogEntry[];
     sessionId?: string;
     adapter?: Adapter;
   }> {
     if (!logUrl && !taskRunId) return { rawEntries: [] };
+    let localResult:
+      | {
+          rawEntries: StoredLogEntry[];
+          sessionId?: string;
+          adapter?: Adapter;
+        }
+      | undefined;
 
     if (taskRunId) {
       try {
@@ -3191,7 +3212,13 @@ export class SessionService {
           taskRunId,
         });
         if (localContent?.trim()) {
-          return this.parseLogContent(localContent);
+          localResult = this.parseLogContent(localContent);
+          if (
+            !options.minEntryCount ||
+            localResult.rawEntries.length >= options.minEntryCount
+          ) {
+            return localResult;
+          }
         }
       } catch {
         log.warn("Failed to read local logs, falling back to S3", {
@@ -3200,11 +3227,11 @@ export class SessionService {
       }
     }
 
-    if (!logUrl) return { rawEntries: [] };
+    if (!logUrl) return localResult ?? { rawEntries: [] };
 
     try {
       const content = await trpcClient.logs.fetchS3Logs.query({ logUrl });
-      if (!content?.trim()) return { rawEntries: [] };
+      if (!content?.trim()) return localResult ?? { rawEntries: [] };
 
       const result = this.parseLogContent(content);
 
@@ -3216,72 +3243,33 @@ export class SessionService {
           });
       }
 
+      if (
+        localResult &&
+        localResult.rawEntries.length > result.rawEntries.length
+      ) {
+        return localResult;
+      }
+
       return result;
     } catch {
-      return { rawEntries: [] };
+      return localResult ?? { rawEntries: [] };
     }
   }
 
-  private reconcileCloudLogGap({
-    taskId,
-    taskRunId,
-    expectedCount,
-    currentCount,
-    newEntries,
-    logUrl,
-  }: {
-    taskId: string;
-    taskRunId: string;
-    expectedCount: number;
-    currentCount: number;
-    newEntries: StoredLogEntry[];
-    logUrl?: string;
-  }): void {
+  private reconcileCloudLogGap(request: CloudLogGapReconcileRequest): void {
+    const { taskId, taskRunId } = request;
     const reconcileKey = `${taskId}:${taskRunId}`;
-    if (this.cloudLogGapReconciles.has(reconcileKey)) {
+    const existing = this.cloudLogGapReconciles.get(reconcileKey);
+    if (existing) {
+      existing.pendingRequest = this.mergeCloudLogGapRequests(
+        existing.pendingRequest,
+        request,
+      );
       return;
     }
 
-    this.cloudLogGapReconciles.add(reconcileKey);
-    void (async () => {
-      const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
-      const session = sessionStoreSetters.getSessions()[taskRunId];
-      if (!session || session.taskId !== taskId) {
-        return;
-      }
-
-      const latestCount = session.processedLineCount ?? 0;
-      if (latestCount >= expectedCount) {
-        return;
-      }
-
-      if (rawEntries.length >= expectedCount) {
-        const events = convertStoredEntriesToEvents(rawEntries);
-        sessionStoreSetters.updateSession(taskRunId, {
-          events,
-          isCloud: true,
-          logUrl: logUrl ?? session.logUrl,
-          processedLineCount: rawEntries.length,
-        });
-        this.updatePromptStateFromEvents(taskRunId, events);
-        return;
-      }
-
-      log.warn("Cloud task log count inconsistency", {
-        taskRunId,
-        currentCount,
-        expectedCount,
-        entriesReceived: newEntries.length,
-      });
-      let newEvents = convertStoredEntriesToEvents(newEntries);
-      newEvents = this.filterSkippedPromptEvents(taskRunId, session, newEvents);
-      sessionStoreSetters.appendEvents(
-        taskRunId,
-        newEvents,
-        latestCount + newEntries.length,
-      );
-      this.updatePromptStateFromEvents(taskRunId, newEvents);
-    })()
+    this.cloudLogGapReconciles.set(reconcileKey, {});
+    void this.runCloudLogGapReconciles(reconcileKey, request)
       .catch((err: unknown) => {
         log.warn("Failed to reconcile cloud task log gap", {
           taskId,
@@ -3292,6 +3280,87 @@ export class SessionService {
       .finally(() => {
         this.cloudLogGapReconciles.delete(reconcileKey);
       });
+  }
+
+  private mergeCloudLogGapRequests(
+    current: CloudLogGapReconcileRequest | undefined,
+    next: CloudLogGapReconcileRequest,
+  ): CloudLogGapReconcileRequest {
+    if (!current) return next;
+
+    return {
+      taskId: next.taskId,
+      taskRunId: next.taskRunId,
+      currentCount: Math.min(current.currentCount, next.currentCount),
+      expectedCount: Math.max(current.expectedCount, next.expectedCount),
+      newEntries: [...current.newEntries, ...next.newEntries],
+      logUrl: next.logUrl ?? current.logUrl,
+    };
+  }
+
+  private async runCloudLogGapReconciles(
+    reconcileKey: string,
+    initialRequest: CloudLogGapReconcileRequest,
+  ): Promise<void> {
+    let request: CloudLogGapReconcileRequest | undefined = initialRequest;
+
+    while (request) {
+      await this.reconcileCloudLogGapOnce(request);
+      const state = this.cloudLogGapReconciles.get(reconcileKey);
+      request = state?.pendingRequest;
+      if (state) {
+        state.pendingRequest = undefined;
+      }
+    }
+  }
+
+  private async reconcileCloudLogGapOnce({
+    taskId,
+    taskRunId,
+    expectedCount,
+    currentCount,
+    newEntries,
+    logUrl,
+  }: CloudLogGapReconcileRequest): Promise<void> {
+    const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId, {
+      minEntryCount: expectedCount,
+    });
+    const session = sessionStoreSetters.getSessions()[taskRunId];
+    if (!session || session.taskId !== taskId) {
+      return;
+    }
+
+    const latestCount = session.processedLineCount ?? 0;
+    if (latestCount >= expectedCount) {
+      return;
+    }
+
+    if (rawEntries.length >= expectedCount) {
+      const events = convertStoredEntriesToEvents(rawEntries);
+      sessionStoreSetters.updateSession(taskRunId, {
+        events,
+        isCloud: true,
+        logUrl: logUrl ?? session.logUrl,
+        processedLineCount: rawEntries.length,
+      });
+      this.updatePromptStateFromEvents(taskRunId, events);
+      return;
+    }
+
+    log.warn("Cloud task log count inconsistency", {
+      taskRunId,
+      currentCount,
+      expectedCount,
+      entriesReceived: newEntries.length,
+    });
+    let newEvents = convertStoredEntriesToEvents(newEntries);
+    newEvents = this.filterSkippedPromptEvents(taskRunId, session, newEvents);
+    sessionStoreSetters.appendEvents(
+      taskRunId,
+      newEvents,
+      latestCount + newEntries.length,
+    );
+    this.updatePromptStateFromEvents(taskRunId, newEvents);
   }
 
   private createBaseSession(
