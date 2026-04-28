@@ -125,9 +125,14 @@ export function OptionRow({
         ? "text-primary"
         : "text-gray-12";
 
+    // Match the index/arrow `leading-4` so the option number and the label
+    // text share a baseline. Without an explicit leading, the radix-themes
+    // <Text> default line-height is taller than the sibling number, which
+    // pushed the label down by a couple of pixels and made the column read
+    // as misaligned (issue #1922).
     return (
       <Text
-        className={`whitespace-pre-wrap font-medium text-[13px] ${textClass}`}
+        className={`whitespace-pre-wrap font-medium text-[13px] leading-4 ${textClass}`}
       >
         {displayText}
       </Text>
