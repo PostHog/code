@@ -37,12 +37,12 @@ describe("agentsh runtime detection", () => {
     {
       name: "returns the agentsh session id and version",
       getVersion: async () => ({
-        stdout: "agentsh version 0.16.7\n",
+        stdout: "agentsh version 0.18.3\n",
         stderr: "",
       }),
       expected: {
         sessionId: "session-123",
-        version: "agentsh version 0.16.7",
+        version: "agentsh version 0.18.3",
       },
     },
     {
@@ -71,7 +71,7 @@ describe("agentsh runtime detection", () => {
     await logAgentshRuntimeInfo(logger, {
       readSessionId: async () => "session-123\n",
       getVersion: async () => ({
-        stdout: "agentsh version 0.16.7\n",
+        stdout: "agentsh version 0.18.3\n",
         stderr: "",
       }),
     });
@@ -80,7 +80,7 @@ describe("agentsh runtime detection", () => {
       "Agentsh session ID: session-123",
     );
     expect(logger.debug).toHaveBeenCalledWith(
-      "Agentsh hardening version: agentsh version 0.16.7",
+      "Agentsh hardening version: agentsh version 0.18.3",
     );
   });
 
