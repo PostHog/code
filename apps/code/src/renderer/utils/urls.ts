@@ -5,8 +5,9 @@ import { getCloudUrlFromRegion } from "@shared/utils/urls";
 export function getPostHogUrl(
   path: string,
   regionOverride?: CloudRegion | null,
-): string {
+): string | null {
   const region = regionOverride ?? useAuthStore.getState().cloudRegion;
-  const base = region ? getCloudUrlFromRegion(region) : "http://localhost:8010";
+  if (!region) return null;
+  const base = getCloudUrlFromRegion(region);
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
