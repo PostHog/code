@@ -127,7 +127,7 @@ export function OptionRow({
 
     return (
       <Text
-        className={`whitespace-pre-wrap font-medium text-[13px] ${textClass}`}
+        className={`whitespace-pre-wrap font-medium text-[13px] leading-4 ${textClass}`}
       >
         {displayText}
       </Text>
