@@ -2260,6 +2260,7 @@ export class PostHogAPIClient {
     try {
       const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      url.searchParams.set("best", "true");
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,

@@ -1,3 +1,4 @@
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useSeat } from "@hooks/useSeat";
@@ -19,8 +20,25 @@ import {
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
+import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
 import { useEffect, useState } from "react";
+
+const log = logger.scope("plan-usage");
+
+async function openBillingPage(orgId: string | null): Promise<void> {
+  if (orgId) {
+    try {
+      const client = await getAuthenticatedClient();
+      if (client) {
+        await client.switchOrganization(orgId);
+      }
+    } catch (err) {
+      log.warn("Failed to switch org before opening billing", err);
+    }
+  }
+  window.open(getPostHogUrl("/organization/billing"), "_blank");
+}
 
 function formatResetTime(seconds: number): string {
   if (seconds < 3600) return "less than 1 hour";
@@ -42,6 +60,7 @@ export function PlanUsageSettings() {
     isLoading,
     error,
     redirectUrl,
+    billingOrgId,
   } = useSeat();
   const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
@@ -102,7 +121,7 @@ export function PlanUsageSettings() {
                 variant="outline"
                 color="amber"
                 onClick={() => {
-                  window.open(redirectUrl, "_blank");
+                  window.open(getPostHogUrl(redirectUrl), "_blank");
                   clearError();
                 }}
                 className="self-start"
@@ -275,8 +294,7 @@ export function PlanUsageSettings() {
               size="1"
               variant="outline"
               onClick={() => {
-                const url = getPostHogUrl("/organization/billing");
-                window.open(url, "_blank");
+                void openBillingPage(billingOrgId);
               }}
             >
               Open
