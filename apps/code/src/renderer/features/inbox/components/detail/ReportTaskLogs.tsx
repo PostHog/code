@@ -452,7 +452,10 @@ export function ReportTaskLogs({
         }}
         className="absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
       >
-        <div className="shrink-0">
+        {/* z-index: 1 + position: relative so the bars sit above anything
+            inside TaskLogsPanel that might try to render above the body
+            (e.g. an absolute overlay escaping its container). */}
+        <div className="relative z-[1] shrink-0 bg-(--color-background)">
           {bars.map((bar, index) => (
             <BarRow
               key={bar.relationship}
