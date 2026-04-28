@@ -79,13 +79,13 @@ export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
   const showAllUsers = useSidebarStore((state) => state.showAllUsers);
-  const { data: rawTasks = [], isLoading: isLoadingTasks } = useTasks({
+  const { data: rawTasks = [], isFetched: isTasksFetched } = useTasks({
     showAllUsers,
   });
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
-  const isLoading = isLoadingTasks || !isWorkspacesFetched;
+  const isLoading = !isTasksFetched || !isWorkspacesFetched;
   const allTasks = useMemo(
     () =>
       rawTasks.filter(
