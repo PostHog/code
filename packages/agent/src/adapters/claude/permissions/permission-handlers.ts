@@ -142,7 +142,7 @@ async function requestPlanApproval(
   context: ToolHandlerContext,
   updatedInput: Record<string, unknown>,
 ): Promise<RequestPermissionResponse> {
-  const { client, sessionId, toolUseID } = context;
+  const { client, sessionId, toolUseID, session } = context;
 
   const toolInfo = toolInfoFromToolUse({
     name: context.toolName,
@@ -150,7 +150,7 @@ async function requestPlanApproval(
   });
 
   return await client.requestPermission({
-    options: buildExitPlanModePermissionOptions(),
+    options: buildExitPlanModePermissionOptions(session.modeBeforePlan),
     sessionId,
     toolCall: {
       toolCallId: toolUseID,
