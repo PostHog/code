@@ -50,6 +50,7 @@ export function ConversationView({
   compact = false,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
+  const isAtBottomRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const showDebugLogs = debugLogsCloudRuns;
@@ -129,6 +130,7 @@ export function ConversationView({
   }, [items]);
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
+    isAtBottomRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
   }, []);
 
@@ -139,7 +141,7 @@ export function ConversationView({
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
+      if (!document.hidden && isAtBottomRef.current) {
         listRef.current?.scrollToBottom();
         setShowScrollButton(false);
       }
