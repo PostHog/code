@@ -180,6 +180,7 @@ export function BranchSelector({
             disabled={isDisabled}
             aria-label="Branch"
             title={displayedBranch ?? undefined}
+            className="min-w-0 max-w-[250px] shrink"
           >
             {showSpinner ? (
               <Spinner size={14} className="shrink-0 animate-spin" />
