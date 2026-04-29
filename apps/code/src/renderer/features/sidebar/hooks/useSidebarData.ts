@@ -117,9 +117,10 @@ export function useSidebarData({
   // showAllUsers stays on the heavy /tasks/ list endpoint until that path gets
   // its own optimization (e.g. server-side recency pagination). The mapping
   // below narrows full Task → TaskSummary so downstream sidebar code stays uniform.
-  const { data: fullTasks = [], isPending: isTasksPending } = useTasks({
-    showAllUsers,
-  });
+  const { data: fullTasks = [], isPending: isTasksPending } = useTasks(
+    { showAllUsers },
+    { enabled: showAllUsers },
+  );
 
   const rawTasks: Schemas.TaskSummary[] = useMemo(() => {
     if (!showAllUsers) return summaryTasks;

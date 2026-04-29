@@ -32,10 +32,13 @@ const taskKeys = {
   detail: (id: string) => [...taskKeys.details(), id] as const,
 };
 
-export function useTasks(filters?: {
-  repository?: string;
-  showAllUsers?: boolean;
-}) {
+export function useTasks(
+  filters?: {
+    repository?: string;
+    showAllUsers?: boolean;
+  },
+  options?: { enabled?: boolean },
+) {
   const { data: currentUser } = useMeQuery();
   const createdBy = filters?.showAllUsers ? undefined : currentUser?.id;
 
@@ -46,7 +49,10 @@ export function useTasks(filters?: {
         repository: filters?.repository,
         createdBy,
       }) as unknown as Promise<Task[]>,
-    { enabled: !!currentUser?.id, refetchInterval: TASK_LIST_POLL_INTERVAL_MS },
+    {
+      enabled: (options?.enabled ?? true) && !!currentUser?.id,
+      refetchInterval: TASK_LIST_POLL_INTERVAL_MS,
+    },
   );
 }
 
