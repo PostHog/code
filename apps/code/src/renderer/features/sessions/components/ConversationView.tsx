@@ -102,13 +102,46 @@ export function ConversationView({
     [queuedMessages],
   );
 
+  const isCloud = session?.isCloud ?? false;
+
   const items = useMemo<ConversationItem[]>(() => {
+    // Cloud's initial optimistic is pinned to the top so the user's
+    // prompt stays visible above setup progress / agent activity. When
+    // the agent echoes it back via `session/prompt`, the duplicate
+    // `user_message` is filtered here by content match so the bubble
+    // doesn't disappear-then-reappear when the echo lands.
+    //
+    // Local sessions keep optimistic at chronological end — they rely on
+    // `replaceOptimisticWithEvent` to swap optimistic↔real in place.
+    if (!isCloud) {
+      const result: ConversationItem[] = [
+        ...conversationItems,
+        ...optimisticItems,
+      ];
+      return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
+    }
+
+    const optimisticUserContents = new Set(
+      optimisticItems
+        .filter(
+          (item): item is Extract<typeof item, { type: "user_message" }> =>
+            item.type === "user_message",
+        )
+        .map((item) => item.content),
+    );
+    const dedupedConversation =
+      optimisticUserContents.size === 0
+        ? conversationItems
+        : conversationItems.filter((item) => {
+            if (item.type !== "user_message") return true;
+            return !optimisticUserContents.has(item.content);
+          });
     const result: ConversationItem[] = [
-      ...conversationItems,
       ...optimisticItems,
+      ...dedupedConversation,
     ];
     return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
-  }, [conversationItems, optimisticItems, queuedItems]);
+  }, [conversationItems, optimisticItems, queuedItems, isCloud]);
 
   // Keep MCP App tool call items mounted so their iframes and bridges
   // survive scrolling out of the virtualized viewport.
