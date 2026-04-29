@@ -1,4 +1,4 @@
-import { useAuthStore } from "@features/auth/stores/authStore";
+import { getCachedAuthState } from "@features/auth/hooks/authQueries";
 import type { CloudRegion } from "@shared/types/regions";
 import { getPostHogUrl } from "@utils/urls";
 
@@ -9,7 +9,7 @@ export interface LinkOverrides {
 
 function resolveProjectId(override?: number | null): number | null {
   if (override != null) return override;
-  return useAuthStore.getState().projectId ?? null;
+  return getCachedAuthState().projectId ?? null;
 }
 
 function withProjectId(
