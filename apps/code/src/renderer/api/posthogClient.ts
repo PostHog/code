@@ -1330,6 +1330,33 @@ export class PostHogAPIClient {
     return data.results ?? data ?? [];
   }
 
+  async linkExistingGithubIntegration(
+    projectId: number,
+    sourceIntegrationId: number,
+  ) {
+    const path = `/api/environments/${projectId}/integrations/github/link_existing/`;
+    const url = new URL(`${this.api.baseUrl}${path}`);
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path,
+      overrides: {
+        body: JSON.stringify({ source_integration_id: sourceIntegrationId }),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as {
+        detail?: string;
+      };
+      throw new Error(
+        errorData.detail ??
+          `Failed to link GitHub integration: ${response.statusText}`,
+      );
+    }
+    return response.json();
+  }
+
   async getGithubBranches(
     integrationId: string | number,
     repo: string,

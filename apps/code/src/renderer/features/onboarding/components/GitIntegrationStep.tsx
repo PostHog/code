@@ -16,11 +16,18 @@ import {
   GearSix,
   GitBranch,
 } from "@phosphor-icons/react";
-import { Box, Button, Callout, Flex, Skeleton, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  DropdownMenu,
+  Flex,
+  Skeleton,
+  Text,
+} from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient } from "@renderer/trpc/client";
 import { IS_DEV } from "@shared/constants/environment";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -63,22 +70,11 @@ export function GitIntegrationStep({
   const setConnectingGithub = useOnboardingStore(
     (state) => state.setConnectingGithub,
   );
-  const manuallySelectedProjectId = useOnboardingStore(
-    (state) => state.selectedProjectId,
-  );
-  const setSelectedProjectId = useOnboardingStore(
-    (state) => state.selectProjectId,
-  );
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [timedOut, setTimedOut] = useState(false);
 
-  const selectedProjectId = useMemo(() => {
-    if (manuallySelectedProjectId !== null) {
-      return manuallySelectedProjectId;
-    }
-    return currentProjectId ?? projects[0]?.id ?? null;
-  }, [manuallySelectedProjectId, currentProjectId, projects]);
+  const selectedProjectId = currentProjectId ?? projects[0]?.id ?? null;
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -90,11 +86,74 @@ export function GitIntegrationStep({
   const { githubIntegrations } = useIntegrationSelectors();
   const githubIntegration = githubIntegrations[0] ?? null;
 
-  const alternativeConnectedProject = useMemo(() => {
-    if (hasGitIntegration) return null;
-    if (!projectsWithGithub.length) return null;
-    return projectsWithGithub.find((p) => p.id !== selectedProjectId) ?? null;
+  const availableInstallations = useMemo(() => {
+    if (hasGitIntegration) return [];
+    const seen = new Map<
+      string,
+      {
+        installationKey: string;
+        accountName: string | null;
+        sourceIntegrationId: number;
+        sourceProjectId: number;
+        sourceProjectName: string;
+      }
+    >();
+    for (const project of projectsWithGithub) {
+      if (project.id === selectedProjectId) continue;
+      for (const integration of project.integrations) {
+        if (integration.kind !== "github") continue;
+        const installationId = integration.config?.installation_id;
+        const key = String(installationId ?? `int-${integration.id}`);
+        if (seen.has(key)) continue;
+        seen.set(key, {
+          installationKey: key,
+          accountName: integration.config?.account?.name ?? null,
+          sourceIntegrationId: integration.id,
+          sourceProjectId: project.id,
+          sourceProjectName: project.name,
+        });
+      }
+    }
+    return Array.from(seen.values());
   }, [hasGitIntegration, projectsWithGithub, selectedProjectId]);
+
+  const [selectedInstallationKey, setSelectedInstallationKey] = useState<
+    string | null
+  >(null);
+
+  const selectedInstallation = useMemo(() => {
+    if (!availableInstallations.length) return null;
+    return (
+      availableInstallations.find(
+        (i) => i.installationKey === selectedInstallationKey,
+      ) ?? availableInstallations[0]
+    );
+  }, [availableInstallations, selectedInstallationKey]);
+
+  const linkExistingMutation = useMutation({
+    mutationFn: async () => {
+      if (!client || !selectedProjectId || !selectedInstallation) {
+        throw new Error("Missing data to link existing integration");
+      }
+      return client.linkExistingGithubIntegration(
+        selectedProjectId,
+        selectedInstallation.sourceIntegrationId,
+      );
+    },
+    onSuccess: () => {
+      stopPolling();
+      setTimedOut(false);
+      setConnectingGithub(false);
+      void queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to link existing GitHub installation";
+      toast.error(message);
+    },
+  });
 
   const repoSummary = useMemo(() => {
     if (repositories.length === 0) return null;
@@ -122,12 +181,12 @@ export function GitIntegrationStep({
   }, []);
 
   useEffect(() => {
-    if (hasGitIntegration && isConnecting) {
+    if (hasGitIntegration) {
       stopPolling();
       setConnectingGithub(false);
       setTimedOut(false);
     }
-  }, [hasGitIntegration, isConnecting, setConnectingGithub, stopPolling]);
+  }, [hasGitIntegration, setConnectingGithub, stopPolling]);
 
   useEffect(() => stopPolling, [stopPolling]);
 
@@ -160,6 +219,7 @@ export function GitIntegrationStep({
     onTimedOut: () => {
       stopPolling();
       setConnectingGithub(false);
+      void queryClient.invalidateQueries({ queryKey: ["integrations"] });
       setTimedOut(true);
     },
   });
@@ -197,9 +257,6 @@ export function GitIntegrationStep({
   };
 
   const handleContinue = () => {
-    if (selectedProjectId && selectedProjectId !== currentProjectId) {
-      selectProjectMutation.mutate(selectedProjectId);
-    }
     onNext();
   };
 
@@ -210,7 +267,10 @@ export function GitIntegrationStep({
         align="center"
         className="h-full w-full pt-[24px] pb-[40px]"
       >
-        <Flex direction="column" className="min-h-0 flex-1 overflow-y-auto">
+        <Flex
+          direction="column"
+          className="min-h-0 w-full flex-1 overflow-y-auto"
+        >
           <Flex
             direction="column"
             gap="5"
@@ -342,33 +402,6 @@ export function GitIntegrationStep({
                 </Box>
               </motion.div>
 
-              {alternativeConnectedProject && selectedProject && (
-                <Callout.Root color="blue" variant="soft">
-                  <Callout.Text>
-                    GitHub is already connected on{" "}
-                    <Text className="font-bold">
-                      {alternativeConnectedProject.name}
-                    </Text>{" "}
-                    ({alternativeConnectedProject.organization.name}). Switch to
-                    that project, or click{" "}
-                    <Text className="font-bold">Connect GitHub</Text> below to
-                    install a new integration on{" "}
-                    <Text className="font-bold">{selectedProject.name}</Text>.
-                  </Callout.Text>
-                  <Flex mt="2">
-                    <Button
-                      size="1"
-                      variant="soft"
-                      onClick={() =>
-                        setSelectedProjectId(alternativeConnectedProject.id)
-                      }
-                    >
-                      Switch to {alternativeConnectedProject.name}
-                    </Button>
-                  </Flex>
-                </Callout.Root>
-              )}
-
               {/* GitHub integration */}
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -460,25 +493,123 @@ export function GitIntegrationStep({
                         </Flex>
                       </Flex>
                     ) : !isLoading ? (
-                      <Flex direction="column" gap="3">
-                        <Text className="text-(--gray-11) text-sm">
-                          {timedOut
-                            ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
-                            : isConnecting
-                              ? "Waiting for GitHub... You'll return here automatically once the install completes."
-                              : "Optional. Unlocks cloud agents and pull request workflows."}
-                        </Text>
-                        <Button
-                          size="1"
-                          variant="soft"
-                          onClick={() => void handleConnectGitHub()}
-                          loading={isConnecting}
-                          className="self-start"
-                        >
-                          {isConnecting ? "Retry connection" : "Connect GitHub"}
-                          <ArrowSquareOut size={12} />
-                        </Button>
-                      </Flex>
+                      selectedInstallation && selectedProject ? (
+                        <Flex direction="column" gap="3">
+                          <Text className="text-(--gray-11) text-sm">
+                            {availableInstallations.length > 1 ? (
+                              <>
+                                <DropdownMenu.Root>
+                                  <DropdownMenu.Trigger>
+                                    <button
+                                      type="button"
+                                      className="cursor-pointer border-0 bg-transparent p-0 font-bold text-(--gray-12) underline"
+                                    >
+                                      {selectedInstallation.accountName ??
+                                        "GitHub"}{" "}
+                                      + {availableInstallations.length - 1} more
+                                    </button>
+                                  </DropdownMenu.Trigger>
+                                  <DropdownMenu.Content size="1" align="start">
+                                    {availableInstallations.map((opt) => (
+                                      <DropdownMenu.Item
+                                        key={opt.installationKey}
+                                        onSelect={() =>
+                                          setSelectedInstallationKey(
+                                            opt.installationKey,
+                                          )
+                                        }
+                                      >
+                                        <Text className="text-[13px]">
+                                          {opt.accountName ?? "GitHub"}
+                                        </Text>
+                                        <Text className="ml-2 text-(--gray-10) text-[13px]">
+                                          {opt.sourceProjectName}
+                                        </Text>
+                                      </DropdownMenu.Item>
+                                    ))}
+                                  </DropdownMenu.Content>
+                                </DropdownMenu.Root>{" "}
+                                GitHub orgs are already connected to your
+                                organization.
+                              </>
+                            ) : selectedInstallation.accountName ? (
+                              <>
+                                <Text className="font-bold">
+                                  {selectedInstallation.accountName}
+                                </Text>{" "}
+                                already installed on{" "}
+                                <Text className="font-bold">
+                                  {selectedInstallation.sourceProjectName}
+                                </Text>
+                                .
+                              </>
+                            ) : (
+                              <>
+                                Already installed on{" "}
+                                <Text className="font-bold">
+                                  {selectedInstallation.sourceProjectName}
+                                </Text>
+                                .
+                              </>
+                            )}
+                          </Text>
+                          <Flex direction="column" gap="2" align="start">
+                            <Button
+                              size="1"
+                              variant="solid"
+                              loading={linkExistingMutation.isPending}
+                              onClick={() => linkExistingMutation.mutate()}
+                            >
+                              Reuse on {selectedProject.name}
+                            </Button>
+                            <Button
+                              size="1"
+                              variant="soft"
+                              color="gray"
+                              loading={selectProjectMutation.isPending}
+                              onClick={() =>
+                                selectProjectMutation.mutate(
+                                  selectedInstallation.sourceProjectId,
+                                )
+                              }
+                            >
+                              Switch project
+                            </Button>
+                            <Button
+                              size="1"
+                              variant="ghost"
+                              color="gray"
+                              loading={isConnecting}
+                              onClick={() => void handleConnectGitHub()}
+                            >
+                              Connect a different GitHub org
+                              <ArrowSquareOut size={12} />
+                            </Button>
+                          </Flex>
+                        </Flex>
+                      ) : (
+                        <Flex direction="column" gap="3">
+                          <Text className="text-(--gray-11) text-sm">
+                            {timedOut
+                              ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
+                              : isConnecting
+                                ? "Waiting for GitHub..."
+                                : "Optional. Unlocks cloud agents and pull request workflows."}
+                          </Text>
+                          <Button
+                            size="1"
+                            variant="soft"
+                            onClick={() => void handleConnectGitHub()}
+                            loading={isConnecting}
+                            className="self-start"
+                          >
+                            {isConnecting
+                              ? "Retry connection"
+                              : "Connect GitHub"}
+                            <ArrowSquareOut size={12} />
+                          </Button>
+                        </Flex>
+                      )
                     ) : null}
                   </Flex>
                 </Box>
