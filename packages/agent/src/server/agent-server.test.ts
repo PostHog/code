@@ -382,6 +382,35 @@ describe("AgentServer HTTP Mode", () => {
     }, 20000);
   });
 
+  describe("session lifecycle", () => {
+    it("emits _posthog/run_started after session initialization", async () => {
+      await createServer().start();
+
+      // The notification is persisted via `logWriter.appendRawLine` which the
+      // mock backend's append_log handler captures into `appendLogCalls`.
+      await vi.waitFor(
+        () => {
+          const allEntries = appendLogCalls.flat() as Array<{
+            type?: string;
+            notification?: {
+              method?: string;
+              params?: Record<string, unknown>;
+            };
+          }>;
+          const runStarted = allEntries.find(
+            (e) => e?.notification?.method === "_posthog/run_started",
+          );
+          expect(runStarted).toBeDefined();
+          expect(runStarted?.notification?.params).toMatchObject({
+            runId: "test-run-id",
+            taskId: "test-task-id",
+          });
+        },
+        { timeout: 15000, interval: 100 },
+      );
+    }, 30000);
+  });
+
   describe("getInitialPromptOverride", () => {
     it("returns override string from run state", () => {
       const s = createServer();
