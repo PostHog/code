@@ -89,12 +89,6 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
     alternateKeys: "ctrl+tab",
   },
   {
-    id: "space-minimap",
-    keys: "mod",
-    description: "Show space minimap (hold)",
-    category: "navigation",
-  },
-  {
     id: "space-up",
     keys: SHORTCUTS.SPACE_UP,
     description: "Previous space",
