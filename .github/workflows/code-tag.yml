@@ -19,7 +19,7 @@ jobs:
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event.pull_request.merged == true &&
-       contains(github.event.pull_request.labels.*.name, 'create release'))
+       contains(github.event.pull_request.labels.*.name, 'Create release'))
     permissions:
       contents: write
     runs-on: ubuntu-latest

@@ -131,7 +131,7 @@ PostHog Code uses Electron's built-in `autoUpdater` pointed at the public `updat
 There are three ways a release can fire:
 
 1. **Scheduled (default)** — automatic at 17:00 and 01:00 UTC.
-2. **Hotfix** — add the `create release` label to a PR before it merges. On merge, the tag workflow runs immediately and ships whatever is on `main`.
+2. **Hotfix** — add the `Create release` label to a PR before it merges. On merge, the tag workflow runs immediately and ships whatever is on `main`.
 3. **Manual** — run `Tag PostHog Code Release` via `workflow_dispatch` from the Actions tab.
 
 Local prep (only needed for one-off manual builds):
