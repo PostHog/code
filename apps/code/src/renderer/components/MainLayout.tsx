@@ -35,8 +35,14 @@ import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
-  const { view, hydrateTask, navigateToTaskInput, navigateToTask } =
-    useNavigationStore();
+  const {
+    view,
+    hydrateTask,
+    navigateToTaskInput,
+    navigateToTask,
+    taskInputReportAssociation,
+    taskInputCloudRepository,
+  } = useNavigationStore();
   const {
     isOpen: commandMenuOpen,
     setOpen: setCommandMenuOpen,
@@ -97,7 +103,18 @@ export function MainLayout() {
         <MainSidebar />
 
         <Box flexGrow="1" overflow="hidden">
-          {view.type === "task-input" && <TaskInput />}
+          {view.type === "task-input" && (
+            <TaskInput
+              initialPrompt={view.initialPrompt}
+              initialPromptKey={view.taskInputRequestId}
+              initialCloudRepository={
+                view.initialCloudRepository ?? taskInputCloudRepository
+              }
+              reportAssociation={
+                view.reportAssociation ?? taskInputReportAssociation
+              }
+            />
+          )}
 
           {view.type === "task-detail" && view.data && (
             <TaskDetail key={view.data.id} task={view.data} />

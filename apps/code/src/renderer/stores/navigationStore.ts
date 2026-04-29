@@ -21,19 +21,40 @@ type ViewType =
   | "command-center"
   | "skills";
 
+export interface TaskInputReportAssociation {
+  reportId: string;
+  title: string;
+}
+
+interface TaskInputNavigationOptions {
+  folderId?: string;
+  initialPrompt?: string;
+  initialCloudRepository?: string;
+  reportAssociation?: TaskInputReportAssociation;
+}
+
 interface ViewState {
   type: ViewType;
   data?: Task;
   taskId?: string;
   folderId?: string;
+  taskInputRequestId?: string;
+  initialPrompt?: string;
+  initialCloudRepository?: string;
+  reportAssociation?: TaskInputReportAssociation;
 }
 
 interface NavigationStore {
   view: ViewState;
   history: ViewState[];
   historyIndex: number;
+  taskInputReportAssociation?: TaskInputReportAssociation;
+  taskInputCloudRepository?: string;
   navigateToTask: (task: Task) => void;
-  navigateToTaskInput: (folderId?: string) => void;
+  navigateToTaskInput: (
+    folderIdOrOptions?: string | TaskInputNavigationOptions,
+  ) => void;
+  clearTaskInputReportAssociation: () => void;
   navigateToFolderSettings: (folderId: string) => void;
   navigateToInbox: () => void;
   navigateToArchived: () => void;
@@ -52,7 +73,10 @@ const isSameView = (view1: ViewState, view2: ViewState): boolean => {
     return view1.data?.id === view2.data?.id;
   }
   if (view1.type === "task-input" && view2.type === "task-input") {
-    return view1.folderId === view2.folderId;
+    return (
+      view1.folderId === view2.folderId &&
+      view1.taskInputRequestId === view2.taskInputRequestId
+    );
   }
   if (view1.type === "folder-settings" && view2.type === "folder-settings") {
     return view1.folderId === view2.folderId;
@@ -92,6 +116,8 @@ export const useNavigationStore = create<NavigationStore>()(
         view: { type: "task-input" },
         history: [{ type: "task-input" }],
         historyIndex: 0,
+        taskInputReportAssociation: undefined,
+        taskInputCloudRepository: undefined,
 
         navigateToTask: async (task: Task) => {
           navigate({ type: "task-detail", data: task, taskId: task.id });
@@ -155,8 +181,70 @@ export const useNavigationStore = create<NavigationStore>()(
           }
         },
 
-        navigateToTaskInput: (folderId?: string) => {
-          navigate({ type: "task-input", folderId });
+        navigateToTaskInput: (folderIdOrOptions) => {
+          const options =
+            typeof folderIdOrOptions === "string"
+              ? { folderId: folderIdOrOptions }
+              : (folderIdOrOptions ?? {});
+          const hasTransientState =
+            !!options.initialPrompt ||
+            !!options.initialCloudRepository ||
+            !!options.reportAssociation;
+          if (options.reportAssociation || options.initialCloudRepository) {
+            set({
+              taskInputReportAssociation: options.reportAssociation,
+              taskInputCloudRepository: options.initialCloudRepository,
+            });
+          }
+          navigate({
+            type: "task-input",
+            folderId: options.folderId,
+            initialPrompt: options.initialPrompt,
+            initialCloudRepository: options.initialCloudRepository,
+            reportAssociation: options.reportAssociation,
+            taskInputRequestId: hasTransientState
+              ? (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`)
+              : undefined,
+          });
+        },
+
+        clearTaskInputReportAssociation: () => {
+          const {
+            view,
+            history,
+            historyIndex,
+            taskInputReportAssociation,
+            taskInputCloudRepository,
+          } = get();
+          if (
+            !taskInputReportAssociation &&
+            !view.reportAssociation &&
+            !taskInputCloudRepository &&
+            !view.initialCloudRepository
+          ) {
+            return;
+          }
+
+          const updatedView = {
+            ...view,
+            reportAssociation: undefined,
+            initialCloudRepository: undefined,
+          };
+          const updatedHistory = [...history];
+          if (updatedHistory[historyIndex]?.type === "task-input") {
+            updatedHistory[historyIndex] = {
+              ...updatedHistory[historyIndex],
+              reportAssociation: undefined,
+              initialCloudRepository: undefined,
+            };
+          }
+
+          set({
+            view: updatedView,
+            history: updatedHistory,
+            taskInputReportAssociation: undefined,
+            taskInputCloudRepository: undefined,
+          });
         },
 
         navigateToFolderSettings: (folderId: string) => {

@@ -168,7 +168,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $tagVersion = "${{ github.ref }}" -replace "refs/tags/v", ""
+          $tagVersion = "$env:GITHUB_REF" -replace "refs/tags/v", ""
           echo "Version: $tagVersion"
           echo "version=$tagVersion" >> $env:GITHUB_OUTPUT
 

@@ -5,8 +5,8 @@ import {
   CaretUpIcon,
   CheckCircleIcon,
   CircleNotchIcon,
-  Cloud,
   DotOutlineIcon,
+  Plus,
   XCircleIcon,
 } from "@phosphor-icons/react";
 import { Button, Spinner, Text, Tooltip } from "@radix-ui/themes";
@@ -27,6 +27,7 @@ const DISPLAYED_RELATIONSHIPS: Relationship[] = ["implementation", "research"];
 interface ReportTaskData {
   task: Task;
   relationship: Relationship;
+  startedAt: string;
 }
 
 function useReportTasks(reportId: string, reportStatus: SignalReportStatus) {
@@ -45,7 +46,11 @@ function useReportTasks(reportId: string, reportStatus: SignalReportStatus) {
       const tasks = await Promise.all(
         relevant.map(async (rt) => {
           const task = (await client.getTask(rt.task_id)) as unknown as Task;
-          return { task, relationship: rt.relationship };
+          return {
+            task,
+            relationship: rt.relationship,
+            startedAt: rt.created_at,
+          };
         }),
       );
       return tasks.sort(
@@ -177,28 +182,36 @@ interface Bar {
   runActionLabel?: string;
   /** PR URL produced by the implementation task, if available. */
   prUrl?: string | null;
+  /** ISO timestamp from SignalReportTask.created_at — when this task was started for the report. */
+  taskStartedAt?: string;
 }
 
 interface ReportTaskLogsProps {
   reportId: string;
   reportStatus: SignalReportStatus;
-  /** Open the cloud task confirmation flow. */
-  onRunInCloud?: () => void;
+  /** True when the report is waiting on user input (either `pending_input` status,
+   * or `ready` status with `requires_human_input` actionability). */
+  isAwaitingInput?: boolean;
+  /** Open a prefilled implementation task flow. */
+  onCreateImplementationTask?: () => void;
 }
 
 export function ReportTaskLogs({
   reportId,
   reportStatus,
-  onRunInCloud,
+  isAwaitingInput = false,
+  onCreateImplementationTask,
 }: ReportTaskLogsProps) {
   const { data, isLoading } = useReportTasks(reportId, reportStatus);
   const [expanded, setExpanded] = useState<Relationship | null>(null);
 
   const tasks = data ?? [];
-  const researchTask =
-    tasks.find((t) => t.relationship === "research")?.task ?? null;
-  const implementationTask =
-    tasks.find((t) => t.relationship === "implementation")?.task ?? null;
+  const researchTaskData = tasks.find((t) => t.relationship === "research");
+  const implementationTaskData = tasks.find(
+    (t) => t.relationship === "implementation",
+  );
+  const researchTask = researchTaskData?.task ?? null;
+  const implementationTask = implementationTaskData?.task ?? null;
 
   const prUrl = implementationTask ? getTaskPrUrl(implementationTask) : null;
 
@@ -206,7 +219,7 @@ export function ReportTaskLogs({
   // (using a pending/unavailable placeholder if no research task exists yet).
   // For `ready` reports without an implementation task yet, we still show the
   // implementation row ("Not started"); the run-action control only appears
-  // when the parent passes `onRunInCloud`. For `pending_input` reports, we
+  // when the parent passes `onCreateImplementationTask`. For `pending_input` reports, we
   // surface the control as "Provide input for PR" so the user can supply the
   // additional context the agent is waiting on.
   const bars: Bar[] = [];
@@ -216,6 +229,7 @@ export function ReportTaskLogs({
       relationship: "research",
       task: researchTask,
       summary: getTaskStatusSummary(researchTask),
+      taskStartedAt: researchTaskData?.startedAt,
     });
   } else {
     const { summary, tooltip } = getResearchPendingSummary(
@@ -231,9 +245,10 @@ export function ReportTaskLogs({
   }
 
   const isPendingInput = reportStatus === "pending_input";
-  const runActionLabel = onRunInCloud
-    ? isPendingInput
-      ? "Provide input for PR"
+  const awaitingInput = isPendingInput || isAwaitingInput;
+  const runActionLabel = onCreateImplementationTask
+    ? awaitingInput
+      ? "Implement as new task"
       : "Create PR"
     : undefined;
 
@@ -243,7 +258,8 @@ export function ReportTaskLogs({
       task: implementationTask,
       summary: getTaskStatusSummary(implementationTask),
       prUrl,
-      runActionLabel: isPendingInput ? runActionLabel : undefined,
+      runActionLabel: awaitingInput ? runActionLabel : undefined,
+      taskStartedAt: implementationTaskData?.startedAt,
     });
   } else if (reportStatus === "ready" || isPendingInput) {
     bars.push({
@@ -312,8 +328,14 @@ export function ReportTaskLogs({
         {/* Stacked header bars — one per task relationship. */}
         <div className="pointer-events-auto shrink-0">
           {bars.map((bar, index) => {
-            const { relationship, task, summary, tooltip, runActionLabel } =
-              bar;
+            const {
+              relationship,
+              task,
+              summary,
+              tooltip,
+              runActionLabel,
+              taskStartedAt,
+            } = bar;
             const showRunAction = !!runActionLabel;
             const isExpanded = expanded === relationship;
             const isInteractive = !!task;
@@ -354,13 +376,29 @@ export function ReportTaskLogs({
                     className="flex-1 text-[11px]"
                     style={{ color: summary.color }}
                   >
-                    {bar.prUrl
-                      ? summary.label
-                      : relationship === "implementation" &&
-                          (task?.latest_run?.status === "queued" ||
-                            task?.latest_run?.status === "in_progress")
-                        ? "Working on a PR…"
-                        : summary.label}
+                    {taskStartedAt ? (
+                      <Tooltip
+                        content={`Started ${new Date(taskStartedAt).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}`}
+                      >
+                        <span className="cursor-help">
+                          {bar.prUrl
+                            ? summary.label
+                            : relationship === "implementation" &&
+                                (task?.latest_run?.status === "queued" ||
+                                  task?.latest_run?.status === "in_progress")
+                              ? "Working on a PR…"
+                              : summary.label}
+                        </span>
+                      </Tooltip>
+                    ) : bar.prUrl ? (
+                      summary.label
+                    ) : relationship === "implementation" &&
+                      (task?.latest_run?.status === "queued" ||
+                        task?.latest_run?.status === "in_progress") ? (
+                      "Working on a PR…"
+                    ) : (
+                      summary.label
+                    )}
                   </Text>
                 )}
                 {bar.prUrl && (
@@ -373,10 +411,10 @@ export function ReportTaskLogs({
                     className="gap-1 font-medium text-[11px]"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRunInCloud?.();
+                      onCreateImplementationTask?.();
                     }}
                   >
-                    <Cloud size={12} />
+                    <Plus size={12} />
                     {runActionLabel}
                   </Button>
                 )}
