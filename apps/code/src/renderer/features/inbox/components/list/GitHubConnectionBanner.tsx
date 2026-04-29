@@ -68,9 +68,11 @@ export function GitHubConnectionBanner() {
     return null;
   }
 
-  const label = hasGithubForProject
-    ? "Connect your GitHub profile to highlight what's relevant to you"
-    : "Connect your GitHub repo(s) to highlight what's relevant to you";
+  const label = connecting
+    ? "Waiting for GitHub connection to complete in browser…"
+    : hasGithubForProject
+      ? "Connect your GitHub profile to highlight what's relevant to you"
+      : "Connect your GitHub repo(s) to highlight what's relevant to you";
 
   return (
     <div className="pointer-events-auto absolute inset-x-2 bottom-2 z-60">
@@ -139,12 +141,17 @@ export function GitHubConnectionBanner() {
         }}
       >
         {connecting ? (
-          <Spinner size="1" className="shrink-0 text-current" />
+          <>
+            <Spinner size="1" className="shrink-0 text-current" />
+            <span className="min-w-0 flex-1 basis-0 text-balance">{label}</span>
+          </>
         ) : (
-          <GithubLogoIcon className="flex-none" size={12} />
+          <>
+            <GithubLogoIcon className="flex-none" size={12} />
+            <span className="min-w-0 flex-1 basis-0 text-balance">{label}</span>
+            <ArrowSquareOutIcon className="flex-none" size={11} />
+          </>
         )}
-        <span className="min-w-0 flex-1 basis-0 text-balance">{label}</span>
-        <ArrowSquareOutIcon className="flex-none" size={11} />
       </Button>
     </div>
   );
