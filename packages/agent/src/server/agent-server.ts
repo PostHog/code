@@ -958,6 +958,29 @@ export class AgentServer {
     await logAgentshRuntimeInfo(this.logger);
     this.logger.debug(`Initial permission mode: ${initialPermissionMode}`);
 
+    // Lifecycle handshake: clients gate "agent is ready to accept user
+    // messages" on this notification. Persisted to the session log so
+    // warm reconnects (sandbox restart with snapshot resume) replay it
+    // and see the agent come online again.
+    const runStartedNotification = {
+      jsonrpc: "2.0" as const,
+      method: POSTHOG_NOTIFICATIONS.RUN_STARTED,
+      params: {
+        sessionId: acpSessionId,
+        runId: payload.run_id,
+        taskId: payload.task_id,
+      },
+    };
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification: runStartedNotification,
+    });
+    this.session.logWriter.appendRawLine(
+      payload.run_id,
+      JSON.stringify(runStartedNotification),
+    );
+
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
       .updateTaskRun(payload.task_id, payload.run_id, {

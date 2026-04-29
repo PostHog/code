@@ -20,6 +20,7 @@ import {
 } from "./buildConversationItems";
 import { GitActionMessage } from "./GitActionMessage";
 import { GitActionResult } from "./GitActionResult";
+import { mergeConversationItems } from "./mergeConversationItems";
 import { SessionFooter } from "./SessionFooter";
 import { QueuedMessageView } from "./session-update/QueuedMessageView";
 import {
@@ -102,13 +103,18 @@ export function ConversationView({
     [queuedMessages],
   );
 
-  const items = useMemo<ConversationItem[]>(() => {
-    const result: ConversationItem[] = [
-      ...conversationItems,
-      ...optimisticItems,
-    ];
-    return queuedItems.length > 0 ? [...result, ...queuedItems] : result;
-  }, [conversationItems, optimisticItems, queuedItems]);
+  const isCloud = session?.isCloud ?? false;
+
+  const items = useMemo<ConversationItem[]>(
+    () =>
+      mergeConversationItems({
+        conversationItems,
+        optimisticItems,
+        queuedItems,
+        isCloud,
+      }),
+    [conversationItems, optimisticItems, queuedItems, isCloud],
+  );
 
   // Keep MCP App tool call items mounted so their iframes and bridges
   // survive scrolling out of the virtualized viewport.
