@@ -62,7 +62,16 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   removeQueuedMessage: vi.fn(),
   clearMessageQueue: vi.fn(),
   dequeueMessagesAsText: vi.fn(() => null),
-  dequeueMessages: vi.fn(() => []),
+  dequeueMessages: vi.fn(
+    () =>
+      [] as Array<{
+        id: string;
+        content: string;
+        rawPrompt?: unknown;
+        queuedAt: number;
+      }>,
+  ),
+  prependQueuedMessages: vi.fn(),
   setPendingPermissions: vi.fn(),
   getSessionByTaskId: vi.fn(),
   getSessions: vi.fn(() => ({})),
@@ -878,6 +887,127 @@ describe("SessionService", () => {
             currentPromptId: null,
           }),
         );
+      });
+    });
+
+    it("flushes queued cloud messages on _posthog/turn_complete", async () => {
+      const service = getSessionService();
+      // Reset auth client (a prior test may have set it to null).
+      mockBuildAuthenticatedClient.mockReturnValue(mockAuthenticatedClient);
+      const queuedMessage = {
+        id: "q-1",
+        content: "follow up",
+        queuedAt: 1700000000,
+      };
+      const sessionWithQueue = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "connected",
+        isCloud: true,
+        cloudStatus: "in_progress",
+        events: [],
+        messageQueue: [queuedMessage],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        sessionWithQueue,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": sessionWithQueue,
+      });
+      mockSessionStoreSetters.dequeueMessages.mockReturnValue([queuedMessage]);
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+      mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
+        success: true,
+        result: { stopReason: "end_turn" },
+      });
+
+      const turnCompleteEvent = {
+        type: "acp_message" as const,
+        ts: 1700000001,
+        message: {
+          jsonrpc: "2.0" as const,
+          method: "_posthog/turn_complete",
+          params: { sessionId: "acp-session", stopReason: "end_turn" },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([turnCompleteEvent]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            taskId: "task-123",
+            method: "user_message",
+            params: expect.objectContaining({ content: "follow up" }),
+          }),
+        );
+      });
+    });
+
+    it("re-enqueues queued cloud messages when the dispatch fails", async () => {
+      const service = getSessionService();
+      const queuedMessage = {
+        id: "q-1",
+        content: "follow up",
+        queuedAt: 1700000000,
+      };
+      const sessionWithQueue = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "connected",
+        isCloud: true,
+        cloudStatus: "in_progress",
+        events: [],
+        messageQueue: [queuedMessage],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        sessionWithQueue,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": sessionWithQueue,
+      });
+      mockSessionStoreSetters.dequeueMessages.mockReturnValue([queuedMessage]);
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+      mockTrpcCloudTask.sendCommand.mutate.mockRejectedValue(
+        new Error("transient backend failure"),
+      );
+
+      const turnCompleteEvent = {
+        type: "acp_message" as const,
+        ts: 1700000001,
+        message: {
+          jsonrpc: "2.0" as const,
+          method: "_posthog/turn_complete",
+          params: { sessionId: "acp-session", stopReason: "end_turn" },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([turnCompleteEvent]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(
+          mockSessionStoreSetters.prependQueuedMessages,
+        ).toHaveBeenCalledWith("task-123", [queuedMessage]);
       });
     });
 
