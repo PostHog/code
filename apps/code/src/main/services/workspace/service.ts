@@ -14,6 +14,7 @@ import {
 import { CreateOrSwitchBranchSaga } from "@posthog/git/sagas/branch";
 import { DetachHeadSaga } from "@posthog/git/sagas/head";
 import { WorktreeManager } from "@posthog/git/worktree";
+import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { inject, injectable } from "inversify";
 import type { RepositoryRepository } from "../../db/repositories/repository-repository";
 import type { WorkspaceRepository } from "../../db/repositories/workspace-repository";
@@ -340,9 +341,9 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
         branchName,
         error,
       });
-      trackAppEvent("branch_link_default_branch_unknown", {
-        taskId,
-        branchName,
+      trackAppEvent(ANALYTICS_EVENTS.BRANCH_LINK_DEFAULT_BRANCH_UNKNOWN, {
+        task_id: taskId,
+        branch_name: branchName,
       });
       return;
     }
@@ -368,7 +369,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       branchName,
     });
-    trackAppEvent("branch_linked", {
+    trackAppEvent(ANALYTICS_EVENTS.BRANCH_LINKED, {
       task_id: taskId,
       branch_name: branchName,
       source: source ?? "unknown",
@@ -382,7 +383,7 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
       taskId,
       branchName: null,
     });
-    trackAppEvent("branch_unlinked", {
+    trackAppEvent(ANALYTICS_EVENTS.BRANCH_UNLINKED, {
       task_id: taskId,
       source: source ?? "unknown",
     });
