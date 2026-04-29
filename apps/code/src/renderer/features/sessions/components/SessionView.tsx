@@ -8,8 +8,10 @@ import { useDraftStore } from "@features/message-editor/stores/draftStore";
 import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import {
+  useAdapterForTask,
   useModeConfigOptionForTask,
   usePendingPermissionsForTask,
+  useThoughtLevelConfigOptionForTask,
 } from "@features/sessions/stores/sessionStore";
 import type { Plan } from "@features/sessions/types";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
@@ -36,6 +38,7 @@ import { ConversationView } from "./ConversationView";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ModelSelector } from "./ModelSelector";
 import { PlanStatusBar } from "./PlanStatusBar";
+import { ReasoningLevelSelector } from "./ReasoningLevelSelector";
 import { RawLogsView } from "./raw-logs/RawLogsView";
 
 interface SessionViewProps {
@@ -122,6 +125,8 @@ export function SessionView({
   const { setShowRawLogs } = useSessionViewActions();
   const pendingPermissions = usePendingPermissionsForTask(taskId);
   const modeOption = useModeConfigOptionForTask(taskId);
+  const thoughtOption = useThoughtLevelConfigOptionForTask(taskId);
+  const adapter = useAdapterForTask(taskId);
   const { allowBypassPermissions } = useSettingsStore();
   const currentModeId = modeOption?.currentValue;
   const handoffInProgress =
@@ -155,6 +160,18 @@ export function SessionView({
       );
     },
     [taskId],
+  );
+
+  const handleThoughtChange = useCallback(
+    (value: string) => {
+      if (!taskId || !thoughtOption) return;
+      getSessionService().setSessionConfigOption(
+        taskId,
+        thoughtOption.id,
+        value,
+      );
+    },
+    [taskId, thoughtOption],
   );
 
   const sessionId = taskId ?? "default";
@@ -615,6 +632,16 @@ export function SessionView({
                               taskId={taskId}
                               disabled={!isRunning}
                             />
+                          }
+                          reasoningSelector={
+                            thoughtOption ? (
+                              <ReasoningLevelSelector
+                                thoughtOption={thoughtOption}
+                                adapter={adapter}
+                                onChange={handleThoughtChange}
+                                disabled={!isRunning}
+                              />
+                            ) : null
                           }
                           onBeforeSubmit={onBeforeSubmit}
                           onSubmit={handleSubmit}

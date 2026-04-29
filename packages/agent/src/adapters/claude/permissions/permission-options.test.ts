@@ -10,30 +10,30 @@ describe("buildExitPlanModePermissionOptions", () => {
     expect(options[options.length - 1].optionId).toBe("reject_with_feedback");
   });
 
-  it("promotes the previous mode to the first position with a continue label", () => {
-    const options = buildExitPlanModePermissionOptions("default");
-    expect(options[0]).toMatchObject({
-      optionId: "default",
-      name: "Yes, continue manually approving edits",
-    });
-    expect(options[options.length - 1].optionId).toBe("reject_with_feedback");
-  });
-
-  it("relabels the auto option when it is the previous mode", () => {
-    const options = buildExitPlanModePermissionOptions("auto");
-    expect(options[0]).toMatchObject({
-      optionId: "auto",
-      name: 'Yes, continue in "auto" mode',
-    });
-  });
-
-  it("relabels the acceptEdits option when it is the previous mode", () => {
-    const options = buildExitPlanModePermissionOptions("acceptEdits");
-    expect(options[0]).toMatchObject({
-      optionId: "acceptEdits",
-      name: "Yes, continue auto-accepting edits",
-    });
-  });
+  it.each([
+    {
+      previousMode: "default",
+      expectedName: "Yes, continue manually approving edits",
+    },
+    {
+      previousMode: "auto",
+      expectedName: 'Yes, continue in "auto" mode',
+    },
+    {
+      previousMode: "acceptEdits",
+      expectedName: "Yes, continue auto-accepting edits",
+    },
+  ])(
+    "promotes the $previousMode mode to the first position with a continue label",
+    ({ previousMode, expectedName }) => {
+      const options = buildExitPlanModePermissionOptions(previousMode);
+      expect(options[0]).toMatchObject({
+        optionId: previousMode,
+        name: expectedName,
+      });
+      expect(options[options.length - 1].optionId).toBe("reject_with_feedback");
+    },
+  );
 
   it("ignores an unknown previous mode", () => {
     const options = buildExitPlanModePermissionOptions("plan");
