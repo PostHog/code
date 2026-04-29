@@ -224,6 +224,32 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
     openCloudConfirm(repositories[0] ?? null);
   }, [repositories, openCloudConfirm]);
 
+  // Cmd/Ctrl+Enter while a single report is selected mirrors the "Create PR" button.
+  useEffect(() => {
+    if (!canCreateImplementationPr) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (
+        document.querySelector(
+          "[data-radix-popper-content-wrapper], [role='dialog'][data-state='open']",
+        )
+      ) {
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest("input, select, textarea, [contenteditable='true']")
+      ) {
+        return;
+      }
+      e.preventDefault();
+      handleOpenCloudConfirm();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [canCreateImplementationPr, handleOpenCloudConfirm]);
+
   const handleRunCloudTask = useCallback(async () => {
     if (!canCreateImplementationPr) return;
     const prompt = cloudPromptDraft.trim();
