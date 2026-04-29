@@ -2673,17 +2673,25 @@ export class SessionService {
         return;
       }
 
-      // No persisted history yet → brand-new task. Seed the optimistic
-      // user-message bubble with the task description so it anchors the
-      // top of the conversation while the agent boots.
+      const events = convertStoredEntriesToEvents(rawEntries);
+      const hasUserPrompt = events.some(
+        (e) =>
+          isJsonRpcRequest(e.message) && e.message.method === "session/prompt",
+      );
+
+      // Seed the optimistic user-message bubble whenever the agent has
+      // not yet recorded an initial `session/prompt` request — covers the
+      // brand-new task case as well as "agent has emitted lifecycle
+      // notifications but hasn't received its first prompt yet".
+      if (!hasUserPrompt && taskDescription?.trim()) {
+        sessionStoreSetters.appendOptimisticItem(taskRunId, {
+          type: "user_message",
+          content: taskDescription,
+          timestamp: Date.now(),
+        });
+      }
+
       if (rawEntries.length === 0) {
-        if (taskDescription?.trim()) {
-          sessionStoreSetters.appendOptimisticItem(taskRunId, {
-            type: "user_message",
-            content: taskDescription,
-            timestamp: Date.now(),
-          });
-        }
         return;
       }
 
@@ -2696,7 +2704,6 @@ export class SessionService {
         return;
       }
 
-      const events = convertStoredEntriesToEvents(rawEntries);
       sessionStoreSetters.updateSession(taskRunId, {
         events,
         isCloud: true,
@@ -2707,9 +2714,6 @@ export class SessionService {
       // baseline already contains an in-flight session/prompt — the live delta
       // path otherwise sees delta <= 0 and never re-evaluates the tail.
       this.updatePromptStateFromEvents(taskRunId, events);
-
-      // History present → seed nothing. The real first user prompt is
-      // already in `events` and renders chronologically.
     })().catch((err: unknown) => {
       log.warn("Failed to hydrate cloud task session from logs", {
         taskId,
