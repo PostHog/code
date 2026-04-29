@@ -1518,6 +1518,77 @@ describe("SessionService", () => {
       });
     });
 
+    it("seeds an optimistic user-message when persisted entries exist but no session/prompt yet (agent emitted lifecycle notifications first)", async () => {
+      const service = getSessionService();
+      const freshSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(freshSession);
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": freshSession,
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          method: "_posthog/run_started",
+          params: {
+            sessionId: "acp-session-1",
+            runId: "run-123",
+            taskId: "task-123",
+          },
+        }),
+      );
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      // Lifecycle notification only — no session/prompt request yet.
+      const lifecycleNotification = {
+        type: "acp_message" as const,
+        ts: 1700000000,
+        message: {
+          jsonrpc: "2.0" as const,
+          method: "_posthog/run_started",
+          params: {
+            sessionId: "acp-session-1",
+            runId: "run-123",
+            taskId: "task-123",
+          },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([
+        lifecycleNotification,
+      ]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+        undefined,
+        "claude",
+        undefined,
+        "build me a thing",
+      );
+
+      await vi.waitFor(() => {
+        expect(
+          mockSessionStoreSetters.appendOptimisticItem,
+        ).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            type: "user_message",
+            content: "build me a thing",
+          }),
+        );
+      });
+    });
+
     it("does NOT seed an optimistic user-message when hydration finds prior history", async () => {
       const service = getSessionService();
       const reopenedSession = createMockSession({
