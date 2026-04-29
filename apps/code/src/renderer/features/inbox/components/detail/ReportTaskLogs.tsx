@@ -14,15 +14,17 @@ import type { SignalReportStatus, SignalReportTask, Task } from "@shared/types";
 import { useState } from "react";
 
 type Relationship = SignalReportTask["relationship"];
+type BarRelationship = Extract<Relationship, "research" | "implementation">;
 
-const RELATIONSHIP_LABELS: Record<Relationship, string> = {
-  repo_selection: "Repository selection",
+const RELATIONSHIP_LABELS: Record<BarRelationship, string> = {
   research: "Research task",
   implementation: "Implementation task",
 };
 
-// We display relationships in this order, top to bottom.
-const DISPLAYED_RELATIONSHIPS: Relationship[] = ["implementation", "research"];
+// Bars are rendered top-to-bottom in this order.
+const BAR_ORDER: BarRelationship[] = ["research", "implementation"];
+
+const BAR_HEIGHT = 38;
 
 interface ReportTaskData {
   task: Task;
@@ -39,19 +41,14 @@ function useReportTasks(reportId: string, reportStatus: SignalReportStatus) {
     ["inbox", "report-tasks", reportId],
     async (client) => {
       const reportTasks = await client.getSignalReportTasks(reportId);
-      const relevant = reportTasks.filter((rt) =>
-        DISPLAYED_RELATIONSHIPS.includes(rt.relationship),
+      const relevant = reportTasks.filter((rt): rt is SignalReportTask =>
+        (BAR_ORDER as Relationship[]).includes(rt.relationship),
       );
-      const tasks = await Promise.all(
+      return Promise.all(
         relevant.map(async (rt) => {
           const task = (await client.getTask(rt.task_id)) as unknown as Task;
           return { task, relationship: rt.relationship };
         }),
-      );
-      return tasks.sort(
-        (a, b) =>
-          DISPLAYED_RELATIONSHIPS.indexOf(a.relationship) -
-          DISPLAYED_RELATIONSHIPS.indexOf(b.relationship),
       );
     },
     {
@@ -165,18 +162,207 @@ export function getTaskPrUrl(task: Task): string | null {
   return null;
 }
 
-const BAR_HEIGHT = 38;
-
 interface Bar {
-  relationship: Relationship;
+  relationship: BarRelationship;
   task: Task | null;
   summary: BarSummary;
   /** Tooltip shown on hover (e.g. pipeline status explanation). */
   tooltip?: string;
-  /** When set, render a run-action button with this label instead of (or alongside) the status label. */
+  /** When set, render a run-action button with this label alongside (or instead of) the status label. */
   runActionLabel?: string;
   /** PR URL produced by the implementation task, if available. */
   prUrl?: string | null;
+}
+
+function buildBars({
+  researchTask,
+  implementationTask,
+  reportStatus,
+  isLoading,
+  onRunInCloud,
+}: {
+  researchTask: Task | null;
+  implementationTask: Task | null;
+  reportStatus: SignalReportStatus;
+  isLoading: boolean;
+  onRunInCloud?: () => void;
+}): Bar[] {
+  const isPendingInput = reportStatus === "pending_input";
+  const runActionLabel = onRunInCloud
+    ? isPendingInput
+      ? "Provide input for PR"
+      : "Create PR"
+    : undefined;
+
+  const bars: Bar[] = [];
+  for (const relationship of BAR_ORDER) {
+    if (relationship === "research") {
+      if (researchTask) {
+        bars.push({
+          relationship: "research",
+          task: researchTask,
+          summary: getTaskStatusSummary(researchTask),
+        });
+      } else {
+        const { summary, tooltip } = getResearchPendingSummary(
+          reportStatus,
+          isLoading,
+        );
+        bars.push({ relationship: "research", task: null, summary, tooltip });
+      }
+    } else if (implementationTask) {
+      bars.push({
+        relationship: "implementation",
+        task: implementationTask,
+        summary: getTaskStatusSummary(implementationTask),
+        prUrl: getTaskPrUrl(implementationTask),
+        // Once the impl task exists, only surface the run button when the
+        // agent is awaiting user input (the user has to provide context to
+        // unstick the PR). Otherwise the bar is purely informational.
+        runActionLabel: isPendingInput ? runActionLabel : undefined,
+      });
+    } else if (reportStatus === "ready" || isPendingInput) {
+      bars.push({
+        relationship: "implementation",
+        task: null,
+        summary: {
+          label: "Not started",
+          color: "var(--gray-9)",
+          icon: <DotOutlineIcon size={14} />,
+        },
+        runActionLabel,
+      });
+    }
+  }
+  return bars;
+}
+
+interface BarRowProps {
+  bar: Bar;
+  index: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onRunAction?: () => void;
+}
+
+function BarRow({
+  bar,
+  index,
+  isExpanded,
+  onToggle,
+  onRunAction,
+}: BarRowProps) {
+  const { relationship, task, summary, tooltip, runActionLabel, prUrl } = bar;
+  const isInteractive = !!task;
+  const showRunAction = !!runActionLabel;
+  const hideStatusLabel = showRunAction && !task;
+
+  const className = [
+    "flex w-full items-center gap-2 bg-transparent px-2 @md:px-3 @lg:px-4 @xl:px-5 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 py-2 text-left transition-colors",
+    index > 0 ? "border-gray-5 border-t" : "",
+    isInteractive
+      ? "cursor-pointer hover:bg-gray-2"
+      : showRunAction
+        ? "cursor-default"
+        : "cursor-default opacity-70",
+    isExpanded && isInteractive ? "bg-gray-2" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const inner = (
+    <>
+      <span style={{ color: summary.color }}>{summary.icon}</span>
+      <Text className="font-medium text-[12px]">
+        {RELATIONSHIP_LABELS[relationship]}
+      </Text>
+      {hideStatusLabel ? (
+        <span className="flex-1" />
+      ) : (
+        <Text className="flex-1 text-[11px]" style={{ color: summary.color }}>
+          {prUrl
+            ? summary.label
+            : relationship === "implementation" &&
+                (task?.latest_run?.status === "queued" ||
+                  task?.latest_run?.status === "in_progress")
+              ? "Working on a PR…"
+              : summary.label}
+        </Text>
+      )}
+      {prUrl && <ReportImplementationPrLink prUrl={prUrl} size="md" />}
+      {showRunAction && (
+        <Button
+          size="1"
+          variant="solid"
+          className="gap-1 font-medium text-[11px]"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRunAction?.();
+          }}
+        >
+          <Cloud size={12} />
+          {runActionLabel}
+        </Button>
+      )}
+      {isInteractive && (
+        <span
+          className="inline-flex text-gray-9"
+          style={{
+            transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.2s ease",
+          }}
+        >
+          <CaretUpIcon size={12} />
+        </span>
+      )}
+    </>
+  );
+
+  // Use a real <button> when interactive and there is no nested run-action
+  // <button> (HTML disallows nested <button>s). When a run button is nested
+  // we have to fall back to <div role="button">. Non-interactive rows render
+  // as a plain <div>.
+  let row: React.ReactNode;
+  if (isInteractive && !showRunAction) {
+    row = (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={className}
+        style={{ height: BAR_HEIGHT }}
+      >
+        {inner}
+      </button>
+    );
+  } else if (isInteractive) {
+    row = (
+      // biome-ignore lint/a11y/useSemanticElements: needs to nest the run-action <button>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        className={className}
+        style={{ height: BAR_HEIGHT }}
+      >
+        {inner}
+      </div>
+    );
+  } else {
+    row = (
+      <div className={className} style={{ height: BAR_HEIGHT }}>
+        {inner}
+      </div>
+    );
+  }
+
+  return tooltip ? <Tooltip content={tooltip}>{row}</Tooltip> : row;
 }
 
 interface ReportTaskLogsProps {
@@ -192,7 +378,7 @@ export function ReportTaskLogs({
   onRunInCloud,
 }: ReportTaskLogsProps) {
   const { data, isLoading } = useReportTasks(reportId, reportStatus);
-  const [expanded, setExpanded] = useState<Relationship | null>(null);
+  const [expanded, setExpanded] = useState<BarRelationship | null>(null);
 
   const tasks = data ?? [];
   const researchTask =
@@ -200,73 +386,23 @@ export function ReportTaskLogs({
   const implementationTask =
     tasks.find((t) => t.relationship === "implementation")?.task ?? null;
 
-  const prUrl = implementationTask ? getTaskPrUrl(implementationTask) : null;
-
-  // Build the stacked bars we'll render. We always surface the research bar
-  // (using a pending/unavailable placeholder if no research task exists yet).
-  // For `ready` reports without an implementation task yet, we still show the
-  // implementation row ("Not started"); the run-action control only appears
-  // when the parent passes `onRunInCloud`. For `pending_input` reports, we
-  // surface the control as "Provide input for PR" so the user can supply the
-  // additional context the agent is waiting on.
-  const bars: Bar[] = [];
-
-  if (researchTask) {
-    bars.push({
-      relationship: "research",
-      task: researchTask,
-      summary: getTaskStatusSummary(researchTask),
-    });
-  } else {
-    const { summary, tooltip } = getResearchPendingSummary(
-      reportStatus,
-      isLoading,
-    );
-    bars.push({
-      relationship: "research",
-      task: null,
-      summary,
-      tooltip,
-    });
-  }
-
-  const isPendingInput = reportStatus === "pending_input";
-  const runActionLabel = onRunInCloud
-    ? isPendingInput
-      ? "Provide input for PR"
-      : "Create PR"
-    : undefined;
-
-  if (implementationTask) {
-    bars.push({
-      relationship: "implementation",
-      task: implementationTask,
-      summary: getTaskStatusSummary(implementationTask),
-      prUrl,
-      runActionLabel: isPendingInput ? runActionLabel : undefined,
-    });
-  } else if (reportStatus === "ready" || isPendingInput) {
-    bars.push({
-      relationship: "implementation",
-      task: null,
-      summary: {
-        label: "Not started",
-        color: "var(--gray-9)",
-        icon: <DotOutlineIcon size={14} />,
-      },
-      runActionLabel,
-    });
-  }
+  const bars = buildBars({
+    researchTask,
+    implementationTask,
+    reportStatus,
+    isLoading,
+    onRunInCloud,
+  });
 
   // Hide entirely when the report isn't actionable (e.g. POTENTIAL) and we
-  // have no tasks to show — matches the previous behavior.
+  // have no tasks to show.
   const showBar =
     isLoading ||
     tasks.length > 0 ||
     reportStatus === "candidate" ||
     reportStatus === "in_progress" ||
     reportStatus === "ready" ||
-    isPendingInput;
+    reportStatus === "pending_input";
 
   if (!showBar) {
     return null;
@@ -275,7 +411,12 @@ export function ReportTaskLogs({
   const expandedBar = expanded
     ? (bars.find((b) => b.relationship === expanded && b.task) ?? null)
     : null;
+  const isOpen = !!expandedBar;
   const totalBarsHeight = BAR_HEIGHT * bars.length;
+
+  const collapse = () => setExpanded(null);
+  const toggle = (relationship: BarRelationship) =>
+    setExpanded((curr) => (curr === relationship ? null : relationship));
 
   return (
     <>
@@ -289,169 +430,45 @@ export function ReportTaskLogs({
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: scrim dismiss */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: scrim dismiss */}
       <div
-        onClick={expandedBar ? () => setExpanded(null) : undefined}
+        onClick={isOpen ? collapse : undefined}
         style={{
           background: "rgba(0, 0, 0, 0.32)",
-          opacity: expandedBar ? 1 : 0,
+          opacity: isOpen ? 1 : 0,
           transition: "opacity 0.2s ease",
-          pointerEvents: expandedBar ? "auto" : "none",
+          pointerEvents: isOpen ? "auto" : "none",
         }}
         className="absolute inset-0 z-10"
       />
 
       {/* Sliding card — animates `top` to avoid a Chromium layout
-          bug with `transform` on absolute elements in flex+scroll. */}
+          bug with `transform` on absolute elements in flex+scroll.
+          The card itself captures clicks (so they reach the bars and the
+          TaskLogsPanel below); the scrim handles click-outside-to-close. */}
       <div
         style={{
           zIndex: 11,
-          top: expandedBar ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
+          top: isOpen ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
           transition: "top 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
-        className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
+        className="absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
       >
-        {/* Stacked header bars — one per task relationship. */}
-        <div className="pointer-events-auto shrink-0">
-          {bars.map((bar, index) => {
-            const { relationship, task, summary, tooltip, runActionLabel } =
-              bar;
-            const showRunAction = !!runActionLabel;
-            const isExpanded = expanded === relationship;
-            const isInteractive = !!task;
-            // When we have both an expandable task and a run button, the outer
-            // element becomes a <div role="button"> so we can legally nest the
-            // run button inside. Without a task, there's nothing to expand; the
-            // run button becomes the sole interactive control.
-            const hideStatusLabel = showRunAction && !task;
-
-            const rowClassName = [
-              "flex w-full items-center gap-2 bg-transparent px-2 @md:px-3 @lg:px-4 @xl:px-5 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 py-2 text-left transition-colors",
-              index > 0 ? "border-gray-5 border-t" : "",
-              isInteractive
-                ? "cursor-pointer hover:bg-gray-2"
-                : showRunAction
-                  ? "cursor-default"
-                  : "cursor-default opacity-70",
-              isExpanded && isInteractive ? "bg-gray-2" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-
-            const toggleExpand = () =>
-              setExpanded((curr) =>
-                curr === relationship ? null : relationship,
-              );
-
-            const rowInner = (
-              <>
-                <span style={{ color: summary.color }}>{summary.icon}</span>
-                <Text className="font-medium text-[12px]">
-                  {RELATIONSHIP_LABELS[relationship]}
-                </Text>
-                {hideStatusLabel ? (
-                  <span className="flex-1" />
-                ) : (
-                  <Text
-                    className="flex-1 text-[11px]"
-                    style={{ color: summary.color }}
-                  >
-                    {bar.prUrl
-                      ? summary.label
-                      : relationship === "implementation" &&
-                          (task?.latest_run?.status === "queued" ||
-                            task?.latest_run?.status === "in_progress")
-                        ? "Working on a PR…"
-                        : summary.label}
-                  </Text>
-                )}
-                {bar.prUrl && (
-                  <ReportImplementationPrLink prUrl={bar.prUrl} size="md" />
-                )}
-                {showRunAction && (
-                  <Button
-                    size="1"
-                    variant="solid"
-                    className="gap-1 font-medium text-[11px]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRunInCloud?.();
-                    }}
-                  >
-                    <Cloud size={12} />
-                    {runActionLabel}
-                  </Button>
-                )}
-                {isInteractive && (
-                  <span
-                    className="inline-flex text-gray-9"
-                    style={{
-                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s ease",
-                    }}
-                  >
-                    <CaretUpIcon size={12} />
-                  </span>
-                )}
-              </>
-            );
-
-            const row = isInteractive ? (
-              showRunAction ? (
-                // biome-ignore lint/a11y/useSemanticElements: a <button> can't contain the nested run-action <button>
-                <div
-                  key={relationship}
-                  role="button"
-                  tabIndex={0}
-                  onClick={toggleExpand}
-                  onKeyDown={(e) => {
-                    if (e.target !== e.currentTarget) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleExpand();
-                    }
-                  }}
-                  className={rowClassName}
-                  style={{ height: BAR_HEIGHT }}
-                >
-                  {rowInner}
-                </div>
-              ) : (
-                <button
-                  key={relationship}
-                  type="button"
-                  onClick={toggleExpand}
-                  className={rowClassName}
-                  style={{ height: BAR_HEIGHT }}
-                >
-                  {rowInner}
-                </button>
-              )
-            ) : (
-              <div
-                key={relationship}
-                className={rowClassName}
-                style={{ height: BAR_HEIGHT }}
-              >
-                {rowInner}
-              </div>
-            );
-
-            return tooltip ? (
-              <Tooltip key={relationship} content={tooltip}>
-                {row}
-              </Tooltip>
-            ) : (
-              row
-            );
-          })}
+        {/* z-index: 1 + position: relative so the bars sit above anything
+            inside TaskLogsPanel that might try to render above the body
+            (e.g. an absolute overlay escaping its container). */}
+        <div className="relative z-[1] shrink-0 bg-(--color-background)">
+          {bars.map((bar, index) => (
+            <BarRow
+              key={bar.relationship}
+              bar={bar}
+              index={index}
+              isExpanded={expanded === bar.relationship}
+              onToggle={() => toggle(bar.relationship)}
+              onRunAction={onRunInCloud}
+            />
+          ))}
         </div>
 
-        {/* Expanded logs body — only rendered for the selected task. */}
-        <div
-          style={{
-            pointerEvents: expandedBar ? "auto" : "none",
-          }}
-          className="min-h-0 flex-1 overflow-hidden"
-        >
+        <div className="min-h-0 flex-1 overflow-hidden">
           {expandedBar?.task && (
             <TaskLogsPanel
               key={expandedBar.task.id}
