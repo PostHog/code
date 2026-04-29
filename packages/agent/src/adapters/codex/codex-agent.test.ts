@@ -4,7 +4,7 @@ import type {
   LoadSessionResponse,
   NewSessionResponse,
 } from "@agentclientprotocol/sdk";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCodexConnection = {
   initialize: vi.fn(),
@@ -60,7 +60,12 @@ describe("CodexAcpAgent", () => {
     vi.clearAllMocks();
   });
 
-  function createAgent(overrides: Partial<AgentSideConnection> = {}): {
+  function createAgent(
+    overrides: Partial<AgentSideConnection> = {},
+    agentOptions?: {
+      onStructuredOutput?: (output: Record<string, unknown>) => Promise<void>;
+    },
+  ): {
     agent: CodexAcpAgent;
     client: AgentSideConnection & {
       extNotification: ReturnType<typeof vi.fn>;
@@ -80,6 +85,7 @@ describe("CodexAcpAgent", () => {
       codexProcessOptions: {
         cwd: process.cwd(),
       },
+      onStructuredOutput: agentOptions?.onStructuredOutput,
     });
     return { agent, client };
   }
@@ -293,6 +299,130 @@ describe("CodexAcpAgent", () => {
         prompt: [{ type: "text", text: "B" }],
       } as never),
     ).resolves.toEqual({ stopReason: "end_turn" });
+  });
+
+  describe("structured output injection", () => {
+    const schema = {
+      type: "object",
+      properties: { answer: { type: "string" } },
+      required: ["answer"],
+    } as const;
+
+    beforeEach(() => {
+      // The resolver insists the script path exists. Point at the node
+      // binary itself — always present, and the agent only forwards the
+      // path to codex-acp; nothing in this test actually spawns it.
+      vi.stubEnv("POSTHOG_STRUCTURED_OUTPUT_MCP_SCRIPT", process.execPath);
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("injects the create_output MCP server and system-prompt note when jsonSchema and callback are present", async () => {
+      const { agent } = createAgent({}, { onStructuredOutput: vi.fn() });
+      mockCodexConnection.newSession.mockResolvedValue({
+        sessionId: "session-1",
+        modes: { currentModeId: "auto", availableModes: [] },
+        configOptions: [],
+      } satisfies Partial<NewSessionResponse>);
+
+      await agent.newSession({
+        cwd: process.cwd(),
+        mcpServers: [{ name: "existing", command: "echo", args: [], env: [] }],
+        _meta: { jsonSchema: schema, systemPrompt: "be terse." },
+      } as never);
+
+      const forwarded = mockCodexConnection.newSession.mock.calls[0][0] as {
+        mcpServers: Array<{ name: string; command: string; env: unknown }>;
+        _meta: { systemPrompt: string };
+      };
+
+      // Existing MCP server is preserved; ours is appended.
+      expect(forwarded.mcpServers).toHaveLength(2);
+      expect(forwarded.mcpServers[0].name).toBe("existing");
+      expect(forwarded.mcpServers[1].name).toBe("posthog_output");
+      expect(forwarded.mcpServers[1].command).toBe(process.execPath);
+
+      // The schema is forwarded base64-encoded so codex-acp doesn't have
+      // to escape it through a shell.
+      const envEntry = (
+        forwarded.mcpServers[1].env as Array<{ name: string; value: string }>
+      ).find((e) => e.name === "POSTHOG_OUTPUT_SCHEMA");
+      expect(envEntry).toBeDefined();
+      const decoded = JSON.parse(
+        Buffer.from(envEntry?.value ?? "", "base64").toString("utf-8"),
+      );
+      expect(decoded).toEqual(schema);
+
+      // Existing systemPrompt is preserved with the structured-output
+      // instruction appended (not overwritten).
+      expect(forwarded._meta.systemPrompt.startsWith("be terse.")).toBe(true);
+      expect(forwarded._meta.systemPrompt).toContain("create_output");
+    });
+
+    it("is a no-op when jsonSchema is absent", async () => {
+      const { agent } = createAgent({}, { onStructuredOutput: vi.fn() });
+      mockCodexConnection.newSession.mockResolvedValue({
+        sessionId: "session-1",
+        modes: { currentModeId: "auto", availableModes: [] },
+        configOptions: [],
+      } satisfies Partial<NewSessionResponse>);
+
+      await agent.newSession({
+        cwd: process.cwd(),
+        mcpServers: [],
+      } as never);
+
+      const forwarded = mockCodexConnection.newSession.mock.calls[0][0] as {
+        mcpServers: unknown[];
+        _meta?: { systemPrompt?: string };
+      };
+      expect(forwarded.mcpServers).toEqual([]);
+      expect(forwarded._meta?.systemPrompt).toBeUndefined();
+    });
+
+    it("is a no-op when onStructuredOutput callback is not wired", async () => {
+      const { agent } = createAgent();
+      mockCodexConnection.newSession.mockResolvedValue({
+        sessionId: "session-1",
+        modes: { currentModeId: "auto", availableModes: [] },
+        configOptions: [],
+      } satisfies Partial<NewSessionResponse>);
+
+      await agent.newSession({
+        cwd: process.cwd(),
+        mcpServers: [],
+        _meta: { jsonSchema: schema },
+      } as never);
+
+      const forwarded = mockCodexConnection.newSession.mock.calls[0][0] as {
+        mcpServers: unknown[];
+      };
+      expect(forwarded.mcpServers).toEqual([]);
+    });
+
+    it("also injects on loadSession", async () => {
+      const { agent } = createAgent({}, { onStructuredOutput: vi.fn() });
+      mockCodexConnection.loadSession.mockResolvedValue({
+        modes: { currentModeId: "auto", availableModes: [] },
+        configOptions: [],
+      } satisfies Partial<LoadSessionResponse>);
+
+      await agent.loadSession({
+        sessionId: "session-1",
+        cwd: process.cwd(),
+        mcpServers: [],
+        _meta: { jsonSchema: schema },
+      } as never);
+
+      const forwarded = mockCodexConnection.loadSession.mock.calls[0][0] as {
+        mcpServers: Array<{ name: string }>;
+      };
+      expect(forwarded.mcpServers.map((s) => s.name)).toContain(
+        "posthog_output",
+      );
+    });
   });
 
   it("broadcasts user prompt as user_message_chunk before delegating to codex-acp", async () => {
