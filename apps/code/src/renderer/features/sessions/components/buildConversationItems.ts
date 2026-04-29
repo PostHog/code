@@ -292,15 +292,31 @@ function handlePromptResponse(
 ) {
   const turn = b.pendingPrompts.get(msg.id);
   if (!turn) return;
-  turn.isComplete = true;
-  turn.durationMs += ts;
-
   const result = msg.result as {
     stopReason?: string;
     _meta?: { interruptReason?: string };
   };
+  completePromptTurn(b, turn, ts, {
+    stopReason: result?.stopReason,
+    interruptReason: result?._meta?.interruptReason,
+  });
+}
+
+function completePromptTurn(
+  b: ItemBuilder,
+  turn: TurnState,
+  ts: number,
+  result: { stopReason?: string; interruptReason?: string } = {},
+) {
+  if (turn.isComplete) return;
+
+  turn.isComplete = true;
+  if (turn.promptId !== -1) {
+    turn.durationMs += ts;
+  }
+
   turn.stopReason = result?.stopReason;
-  turn.interruptReason = result?._meta?.interruptReason;
+  turn.interruptReason = result?.interruptReason;
   turn.context.turnComplete = true;
 
   const wasCancelled = turn.stopReason === "cancelled";
@@ -323,7 +339,9 @@ function handlePromptResponse(
     });
   }
 
-  b.pendingPrompts.delete(msg.id);
+  if (turn.promptId !== -1) {
+    b.pendingPrompts.delete(turn.promptId);
+  }
 }
 
 function handleNotification(
@@ -358,6 +376,15 @@ function handleNotification(
       ensureImplicitTurn(b, ts);
     }
     processSessionUpdate(b, update);
+    return;
+  }
+
+  if (isNotification(msg.method, POSTHOG_NOTIFICATIONS.TURN_COMPLETE)) {
+    const params = msg.params as { stopReason?: string } | undefined;
+    if (!b.currentTurn) return;
+    completePromptTurn(b, b.currentTurn, ts, {
+      stopReason: params?.stopReason,
+    });
     return;
   }
 

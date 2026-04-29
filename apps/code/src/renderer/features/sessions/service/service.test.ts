@@ -668,6 +668,53 @@ describe("SessionService", () => {
       );
     });
 
+    it("keeps the cloud watcher alive when the caller cleanup runs", () => {
+      const service = getSessionService();
+      const unsubscribe = vi.fn();
+      mockTrpcCloudTask.onUpdate.subscribe.mockReturnValueOnce({
+        unsubscribe,
+      });
+
+      const cleanup = service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      cleanup();
+
+      expect(unsubscribe).not.toHaveBeenCalled();
+      expect(mockTrpcCloudTask.unwatch.mutate).not.toHaveBeenCalled();
+    });
+
+    it("reuses the existing watcher across effect churn", () => {
+      const service = getSessionService();
+      const unsubscribe = vi.fn();
+      mockTrpcCloudTask.onUpdate.subscribe.mockReturnValueOnce({
+        unsubscribe,
+      });
+
+      const firstCleanup = service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      firstCleanup();
+      const secondCleanup = service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+
+      expect(unsubscribe).not.toHaveBeenCalled();
+      expect(mockTrpcCloudTask.watch.mutate).toHaveBeenCalledTimes(1);
+
+      secondCleanup();
+      expect(unsubscribe).not.toHaveBeenCalled();
+    });
+
     it("hydrates a fresh cloud session from persisted logs before replay arrives", async () => {
       const service = getSessionService();
       const hydratedSession = createMockSession({
@@ -834,6 +881,367 @@ describe("SessionService", () => {
       });
     });
 
+    it("clears isPromptPending from structured turn completion logs on hydration", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        hydratedSession,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": { ...hydratedSession, currentPromptId: 42 },
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      const promptRequest = {
+        type: "acp_message" as const,
+        ts: 1700000000,
+        message: {
+          jsonrpc: "2.0" as const,
+          id: 42,
+          method: "session/prompt",
+          params: { prompt: [{ type: "text", text: "hi" }] },
+        },
+      };
+      const completion = {
+        type: "acp_message" as const,
+        ts: 1700000005,
+        message: {
+          jsonrpc: "2.0" as const,
+          method: "_posthog/turn_complete",
+          params: {
+            sessionId: "session-1",
+            stopReason: "end_turn",
+          },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([
+        promptRequest,
+        completion,
+      ]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            isPromptPending: false,
+            promptStartedAt: null,
+            currentPromptId: null,
+          }),
+        );
+      });
+    });
+
+    it("reconciles cloud log gaps from persisted logs", async () => {
+      const service = getSessionService();
+      const existingSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "connected",
+        isCloud: true,
+        logUrl: "https://logs.example.com/run-123",
+        processedLineCount: 5,
+        events: [
+          {
+            type: "acp_message",
+            ts: 1,
+            message: { method: "existing" },
+          },
+        ],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        existingSession,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": existingSession,
+      });
+
+      const storedLine = JSON.stringify({
+        type: "notification",
+        timestamp: "2024-01-01T00:00:00Z",
+        notification: {
+          method: "session/update",
+          params: { update: { sessionUpdate: "assistant_message" } },
+        },
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue(
+        Array.from({ length: 14 }, () => storedLine).join("\n"),
+      );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      const subscribeOptions = mockTrpcCloudTask.onUpdate.subscribe.mock
+        .calls[0][1] as {
+        onData: (update: unknown) => void;
+      };
+
+      subscribeOptions.onData({
+        kind: "logs",
+        taskId: "task-123",
+        runId: "run-123",
+        totalEntryCount: 14,
+        newEntries: [
+          {
+            type: "notification",
+            timestamp: "2024-01-01T00:00:01Z",
+            notification: {
+              method: "session/update",
+              params: { update: { sessionUpdate: "assistant_message" } },
+            },
+          },
+        ],
+      });
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            events: [],
+            isCloud: true,
+            logUrl: "https://logs.example.com/run-123",
+            processedLineCount: 14,
+          }),
+        );
+      });
+      expect(mockSessionStoreSetters.appendEvents).not.toHaveBeenCalled();
+    });
+
+    it("falls back to remote logs when local gap repair cache is stale", async () => {
+      const service = getSessionService();
+      const existingSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "connected",
+        isCloud: true,
+        logUrl: "https://logs.example.com/run-123",
+        processedLineCount: 5,
+        events: [
+          {
+            type: "acp_message",
+            ts: 1,
+            message: { method: "existing" },
+          },
+        ],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        existingSession,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": existingSession,
+      });
+
+      const storedLine = JSON.stringify({
+        type: "notification",
+        timestamp: "2024-01-01T00:00:00Z",
+        notification: {
+          method: "session/update",
+          params: { update: { sessionUpdate: "assistant_message" } },
+        },
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue(
+        Array.from({ length: 5 }, () => storedLine).join("\n"),
+      );
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue(
+        Array.from({ length: 14 }, () => storedLine).join("\n"),
+      );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      const subscribeOptions = mockTrpcCloudTask.onUpdate.subscribe.mock
+        .calls[0][1] as {
+        onData: (update: unknown) => void;
+      };
+
+      subscribeOptions.onData({
+        kind: "logs",
+        taskId: "task-123",
+        runId: "run-123",
+        totalEntryCount: 14,
+        newEntries: [
+          {
+            type: "notification",
+            timestamp: "2024-01-01T00:00:01Z",
+            notification: {
+              method: "session/update",
+              params: { update: { sessionUpdate: "assistant_message" } },
+            },
+          },
+        ],
+      });
+
+      await vi.waitFor(() => {
+        expect(mockTrpcLogs.fetchS3Logs.query).toHaveBeenCalledWith({
+          logUrl: "https://logs.example.com/run-123",
+        });
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            processedLineCount: 14,
+          }),
+        );
+      });
+      expect(mockSessionStoreSetters.appendEvents).not.toHaveBeenCalled();
+    });
+
+    it("processes a pending cloud log gap after active reconciliation finishes", async () => {
+      const service = getSessionService();
+      let sessionState = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "connected",
+        isCloud: true,
+        logUrl: "https://logs.example.com/run-123",
+        processedLineCount: 5,
+        events: [
+          {
+            type: "acp_message",
+            ts: 1,
+            message: { method: "existing" },
+          },
+        ],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockImplementation(
+        () => sessionState,
+      );
+      mockSessionStoreSetters.getSessions.mockImplementation(() => ({
+        "run-123": sessionState,
+      }));
+      mockSessionStoreSetters.appendEvents.mockImplementation(
+        (_taskRunId, events, processedLineCount) => {
+          sessionState = {
+            ...sessionState,
+            events: [...sessionState.events, ...events],
+            processedLineCount,
+          };
+        },
+      );
+
+      let resolveFirstLocalLogs!: (content: string) => void;
+      mockTrpcLogs.readLocalLogs.query
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((resolve) => {
+              resolveFirstLocalLogs = resolve;
+            }),
+        )
+        .mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("");
+      mockConvertStoredEntriesToEvents.mockImplementation((entries) =>
+        entries.map((entry, index) => ({
+          type: "acp_message",
+          ts: index,
+          message: {
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: { entry },
+          },
+        })),
+      );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      const subscribeOptions = mockTrpcCloudTask.onUpdate.subscribe.mock
+        .calls[0][1] as {
+        onData: (update: unknown) => void;
+      };
+      const firstEntry = {
+        type: "notification",
+        timestamp: "2024-01-01T00:00:01Z",
+        notification: { method: "session/update" },
+      };
+      const secondEntry = {
+        type: "notification",
+        timestamp: "2024-01-01T00:00:02Z",
+        notification: { method: "session/update" },
+      };
+      const thirdEntry = {
+        type: "notification",
+        timestamp: "2024-01-01T00:00:03Z",
+        notification: { method: "session/update" },
+      };
+
+      subscribeOptions.onData({
+        kind: "logs",
+        taskId: "task-123",
+        runId: "run-123",
+        totalEntryCount: 14,
+        newEntries: [firstEntry],
+      });
+      await vi.waitFor(() => {
+        expect(mockTrpcLogs.readLocalLogs.query).toHaveBeenCalledTimes(1);
+      });
+
+      subscribeOptions.onData({
+        kind: "logs",
+        taskId: "task-123",
+        runId: "run-123",
+        totalEntryCount: 16,
+        newEntries: [secondEntry, thirdEntry],
+      });
+      resolveFirstLocalLogs("");
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.appendEvents).toHaveBeenCalledTimes(2);
+      });
+      expect(mockSessionStoreSetters.appendEvents).toHaveBeenNthCalledWith(
+        1,
+        "run-123",
+        [
+          expect.objectContaining({
+            message: expect.objectContaining({
+              params: { entry: firstEntry },
+            }),
+          }),
+        ],
+        6,
+      );
+      expect(mockSessionStoreSetters.appendEvents).toHaveBeenNthCalledWith(
+        2,
+        "run-123",
+        [
+          expect.objectContaining({
+            message: expect.objectContaining({
+              params: { entry: secondEntry },
+            }),
+          }),
+          expect.objectContaining({
+            message: expect.objectContaining({
+              params: { entry: thirdEntry },
+            }),
+          }),
+        ],
+        8,
+      );
+    });
+
     it("ignores stale async starts when the same watcher is replaced", async () => {
       const service = getSessionService();
       let resolveFirstWatchStart!: () => void;
@@ -898,13 +1306,13 @@ describe("SessionService", () => {
       );
 
       service.stopCloudTaskWatch("task-123");
-      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenCalledTimes(1);
+      expect(mockTrpcCloudTask.unwatch.mutate).not.toHaveBeenCalled();
 
       resolveWatchStart();
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenCalledTimes(2);
+      expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenCalledTimes(1);
       expect(mockTrpcCloudTask.unwatch.mutate).toHaveBeenLastCalledWith({
         taskId: "task-123",
         runId: "run-123",

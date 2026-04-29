@@ -202,6 +202,44 @@ describe("AgentServer HTTP Mode", () => {
     }, 30000);
   });
 
+  describe("turn completion", () => {
+    it("persists structured turn completion notifications", () => {
+      const appendRawLine = vi.fn();
+      const testServer = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+      }) as unknown as {
+        session: unknown;
+        broadcastTurnComplete(stopReason: string): void;
+      };
+      testServer.session = {
+        acpSessionId: "session-1",
+        payload: { run_id: "run-1" },
+        logWriter: { appendRawLine },
+      };
+
+      testServer.broadcastTurnComplete("end_turn");
+
+      expect(appendRawLine).toHaveBeenCalledTimes(1);
+      expect(appendRawLine.mock.calls[0][0]).toBe("run-1");
+      expect(JSON.parse(appendRawLine.mock.calls[0][1])).toEqual({
+        jsonrpc: "2.0",
+        method: "_posthog/turn_complete",
+        params: {
+          sessionId: "session-1",
+          stopReason: "end_turn",
+        },
+      });
+    });
+  });
+
   describe("GET /events", () => {
     it("returns 401 without authorization header", async () => {
       await createServer().start();
