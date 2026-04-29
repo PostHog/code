@@ -1,6 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { MultiFileDiff, WorkerPoolContextProvider } from "@pierre/diffs/react";
-import WorkerUrl from "@pierre/diffs/worker/worker.js?worker&url";
+import { MultiFileDiff } from "@pierre/diffs/react";
 import { Code } from "@radix-ui/themes";
 import { useThemeStore } from "@stores/themeStore";
 import { compactHomePath } from "@utils/path";
@@ -12,10 +11,6 @@ import {
   useCodePreviewExtensions,
 } from "./useCodePreviewExtensions";
 
-function workerFactory(): Worker {
-  return new Worker(WorkerUrl, { type: "module" });
-}
-
 interface CodePreviewProps {
   content: string;
   filePath?: string;
@@ -23,6 +18,7 @@ interface CodePreviewProps {
   oldContent?: string | null;
   firstLineNumber?: number;
   maxHeight?: string;
+  cacheKey?: string;
 }
 
 export function CodePreview({
@@ -32,6 +28,7 @@ export function CodePreview({
   oldContent,
   firstLineNumber = 1,
   maxHeight,
+  cacheKey,
 }: CodePreviewProps) {
   const isDiff = oldContent !== undefined && oldContent !== null;
 
@@ -43,6 +40,7 @@ export function CodePreview({
         showPath={showPath}
         oldContent={oldContent}
         maxHeight={maxHeight}
+        cacheKey={cacheKey}
       />
     );
   }
@@ -64,23 +62,33 @@ function DiffPreview({
   showPath,
   oldContent,
   maxHeight,
+  cacheKey,
 }: {
   content: string;
   filePath?: string;
   showPath?: boolean;
   oldContent: string;
   maxHeight?: string;
+  cacheKey?: string;
 }) {
   const isDarkMode = useThemeStore((s) => s.isDarkMode);
   const fileName = filePath?.split("/").pop() ?? "file";
 
   const oldFile = useMemo(
-    () => ({ name: fileName, contents: oldContent }),
-    [fileName, oldContent],
+    () => ({
+      name: fileName,
+      contents: oldContent,
+      ...(cacheKey ? { cacheKey: `${cacheKey}:old` } : {}),
+    }),
+    [fileName, oldContent, cacheKey],
   );
   const newFile = useMemo(
-    () => ({ name: fileName, contents: content }),
-    [fileName, content],
+    () => ({
+      name: fileName,
+      contents: content,
+      ...(cacheKey ? { cacheKey: `${cacheKey}:new` } : {}),
+    }),
+    [fileName, content, cacheKey],
   );
   const options = useMemo(
     () => ({
@@ -103,18 +111,7 @@ function DiffPreview({
         </div>
       )}
       <div style={maxHeight ? { maxHeight, overflow: "auto" } : undefined}>
-        <WorkerPoolContextProvider
-          poolOptions={{ workerFactory }}
-          highlighterOptions={{
-            theme: { dark: "github-dark", light: "github-light" },
-          }}
-        >
-          <MultiFileDiff
-            oldFile={oldFile}
-            newFile={newFile}
-            options={options}
-          />
-        </WorkerPoolContextProvider>
+        <MultiFileDiff oldFile={oldFile} newFile={newFile} options={options} />
       </div>
     </div>
   );
