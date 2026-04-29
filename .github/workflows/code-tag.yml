@@ -1,18 +1,13 @@
 name: Tag PostHog Code Release
 
 on:
-  push:
+  schedule:
+    - cron: "0 1,17 * * *"
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
     branches:
       - main
-    paths:
-      - "apps/code/**"
-      - "packages/agent/**"
-      - "packages/electron-trpc/**"
-      - "pnpm-lock.yaml"
-      - "package.json"
-      - "turbo.json"
-      - ".github/workflows/code-tag.yml"
-      - ".github/workflows/code-release.yml"
 
 concurrency:
   group: code-tag
@@ -20,6 +15,11 @@ concurrency:
 
 jobs:
   tag:
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'Create release'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
