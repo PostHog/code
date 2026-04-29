@@ -37,7 +37,7 @@ export function useTasks(filters?: {
   const createdBy = filters?.showAllUsers ? undefined : currentUser?.id;
 
   return useAuthenticatedQuery(
-    taskKeys.list({ ...filters, createdBy }),
+    taskKeys.list({ repository: filters?.repository, createdBy }),
     (client) =>
       client.getTasks({
         repository: filters?.repository,
