@@ -376,18 +376,43 @@ export const sessionStoreSetters = {
   },
 
   dequeueMessages: (taskId: string): QueuedMessage[] => {
-    let queuedMessages: QueuedMessage[] = [];
+    // Read the queue from the frozen committed state BEFORE entering the
+    // immer draft, otherwise the items returned are proxies that get
+    // revoked when setState exits and any later access throws
+    // "Cannot perform 'get' on a proxy that has been revoked".
+    const state = useSessionStore.getState();
+    const taskRunId = state.taskIdIndex[taskId];
+    if (!taskRunId) return [];
+    const session = state.sessions[taskRunId];
+    if (!session || session.messageQueue.length === 0) return [];
+
+    const queuedMessages = [...session.messageQueue];
+
+    useSessionStore.setState((draft) => {
+      const trid = draft.taskIdIndex[taskId];
+      if (!trid) return;
+      const draftSession = draft.sessions[trid];
+      if (draftSession) {
+        draftSession.messageQueue = [];
+      }
+    });
+
+    return queuedMessages;
+  },
+
+  /**
+   * Splice messages back at the head of the queue. Used to roll back a
+   * dispatch attempt that drained the queue but failed before delivery.
+   */
+  prependQueuedMessages: (taskId: string, messages: QueuedMessage[]) => {
+    if (messages.length === 0) return;
     useSessionStore.setState((state) => {
       const taskRunId = state.taskIdIndex[taskId];
       if (!taskRunId) return;
-
       const session = state.sessions[taskRunId];
-      if (!session || session.messageQueue.length === 0) return;
-
-      queuedMessages = [...session.messageQueue];
-      session.messageQueue = [];
+      if (!session) return;
+      session.messageQueue = [...messages, ...session.messageQueue];
     });
-    return queuedMessages;
   },
 
   appendOptimisticItem: (
