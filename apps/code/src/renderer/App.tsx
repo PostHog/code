@@ -117,6 +117,16 @@ function App() {
   );
 
   useSubscription(
+    trpcReact.workspace.onLinkedBranchChanged.subscriptionOptions(undefined, {
+      onData: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
+
+  useSubscription(
     trpcReact.focus.onBranchRenamed.subscriptionOptions(undefined, {
       onData: ({ worktreePath, newBranch }) => {
         useFocusStore.getState().updateSessionBranch(worktreePath, newBranch);
