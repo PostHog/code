@@ -1,4 +1,3 @@
-import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
 import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
@@ -24,7 +23,6 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { TourOverlay } from "@features/tour/components/TourOverlay";
 import { useTourStore } from "@features/tour/stores/tourStore";
 import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
-import { useConnectivity } from "@hooks/useConnectivity";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
@@ -50,7 +48,6 @@ export function MainLayout() {
     close: closeShortcutsSheet,
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
-  const { showPrompt, isChecking, check, dismiss } = useConnectivity();
   const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   // Space switcher data
@@ -130,12 +127,6 @@ export function MainLayout() {
       <KeyboardShortcutsSheet
         open={shortcutsSheetOpen}
         onOpenChange={(open) => (open ? null : closeShortcutsSheet())}
-      />
-      <ConnectivityPrompt
-        open={showPrompt}
-        isChecking={isChecking}
-        onRetry={check}
-        onDismiss={dismiss}
       />
       <GlobalEventHandlers
         onToggleCommandMenu={handleToggleCommandMenu}
