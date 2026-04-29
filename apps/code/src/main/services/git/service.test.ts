@@ -23,6 +23,7 @@ vi.mock("../../utils/logger.js", () => ({
   },
 }));
 
+import type { AgentService } from "../agent/service";
 import type { LlmGatewayService } from "../llm-gateway/service";
 import { GitService } from "./service";
 
@@ -31,7 +32,10 @@ describe("GitService.getPrChangedFiles", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new GitService({} as LlmGatewayService);
+    service = new GitService(
+      {} as LlmGatewayService,
+      { getSessionEnvForTask: async () => ({}) } as unknown as AgentService,
+    );
   });
 
   it("flattens paginated GH API results and maps file statuses", async () => {
@@ -139,7 +143,10 @@ describe("GitService.getGhAuthToken", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new GitService({} as LlmGatewayService);
+    service = new GitService(
+      {} as LlmGatewayService,
+      { getSessionEnvForTask: async () => ({}) } as unknown as AgentService,
+    );
   });
 
   it("returns the authenticated GitHub CLI token", async () => {
@@ -197,7 +204,10 @@ describe("GitService.getPrUrlForBranch", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new GitService({} as LlmGatewayService);
+    service = new GitService(
+      {} as LlmGatewayService,
+      { getSessionEnvForTask: async () => ({}) } as unknown as AgentService,
+    );
   });
 
   it("returns the PR URL for a branch via gh pr list", async () => {
