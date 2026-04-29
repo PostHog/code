@@ -1,4 +1,5 @@
 import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
+import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
 import { useTasks } from "@features/tasks/hooks/useTasks";
@@ -85,15 +86,18 @@ export function useSidebarData({
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
+  const provisioningTaskIds = useProvisioningStore((s) => s.activeTasks);
   const isLoading = !isTasksFetched || !isWorkspacesFetched;
   const allTasks = useMemo(
     () =>
       rawTasks.filter(
         (task) =>
           !archivedTaskIds.has(task.id) &&
-          (showAllUsers || !!workspaces?.[task.id]),
+          (showAllUsers ||
+            !!workspaces?.[task.id] ||
+            provisioningTaskIds.has(task.id)),
       ),
-    [rawTasks, archivedTaskIds, workspaces, showAllUsers],
+    [rawTasks, archivedTaskIds, workspaces, showAllUsers, provisioningTaskIds],
   );
   const sessions = useSessions();
   const { timestamps } = useTaskViewed();
