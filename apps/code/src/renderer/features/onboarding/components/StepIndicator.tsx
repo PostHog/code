@@ -19,13 +19,12 @@ export function StepIndicator({
         <div
           key={step}
           style={{
-            width: 8,
-            height: 8,
             borderRadius: "50%",
             backgroundColor:
               index <= currentIndex ? "var(--accent-9)" : "var(--gray-5)",
             transition: "background-color 0.3s ease",
           }}
+          className="h-[8px] w-[8px]"
         />
       ))}
     </Flex>

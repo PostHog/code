@@ -163,6 +163,9 @@ importers:
       '@posthog/electron-trpc':
         specifier: workspace:*
         version: link:../../packages/electron-trpc
+      '@posthog/enricher':
+        specifier: workspace:*
+        version: link:../../packages/enricher
       '@posthog/git':
         specifier: workspace:*
         version: link:../../packages/git

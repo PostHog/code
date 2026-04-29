@@ -20,8 +20,8 @@ export function RegionSelect({
 
   if (!expanded) {
     return (
-      <Text size="2" style={{ marginTop: 10 }}>
-        <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+      <Text className="mt-[10px] text-sm">
+        <span className="text-(--gray-12) opacity-50">
           {regionLabel}
           {" \u00B7 "}
         </span>
@@ -30,15 +30,11 @@ export function RegionSelect({
           onClick={() => setExpanded(true)}
           disabled={disabled}
           style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "var(--accent-9)",
             cursor: disabled ? "not-allowed" : "pointer",
-            fontWeight: 500,
             fontSize: "inherit",
             opacity: disabled ? 0.5 : 1,
           }}
+          className="border-0 bg-transparent p-0 font-medium text-(--accent-9)"
         >
           change
         </button>
@@ -47,28 +43,19 @@ export function RegionSelect({
   }
 
   return (
-    <Flex direction="column" gap="2" style={{ width: "100%", marginTop: 10 }}>
+    <Flex direction="column" gap="2" className="mt-[10px] w-full">
       <Flex justify="between" align="center">
-        <Text
-          size="2"
-          weight="medium"
-          style={{ color: "var(--gray-12)", opacity: 0.6 }}
-        >
+        <Text className="font-medium text-(--gray-12) text-sm opacity-60">
           PostHog region
         </Text>
-        <Text size="2" style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+        <Text className="text-(--gray-12) text-sm opacity-50">
           <button
             type="button"
             onClick={() => setExpanded(false)}
             style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--accent-9)",
-              cursor: "pointer",
-              fontWeight: 500,
               fontSize: "inherit",
             }}
+            className="cursor-pointer border-0 bg-transparent p-0 font-medium text-(--accent-9)"
           >
             cancel
           </button>

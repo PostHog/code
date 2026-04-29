@@ -414,6 +414,11 @@ export class ExternalAppsService {
         exeName: "wt",
       },
     },
+    // Git clients
+    gitkraken: {
+      type: "git-client",
+      darwin: { path: "/Applications/GitKraken.app" },
+    },
     // File managers
     finder: {
       type: "file-manager",
@@ -476,6 +481,7 @@ export class ExternalAppsService {
     finder: "Finder",
     windowsterminal: "Windows Terminal",
     explorer: "Explorer",
+    gitkraken: "GitKraken",
   };
 
   private cachedApps: DetectedApplication[] | null = null;
@@ -619,10 +625,14 @@ export class ExternalAppsService {
       let command: string;
 
       if (process.platform === "darwin") {
-        command =
-          appToOpen.id === "finder" && isFile
-            ? `open -R "${targetPath}"`
-            : `open -a "${appToOpen.path}" "${targetPath}"`;
+        if (appToOpen.id === "finder" && isFile) {
+          command = `open -R "${targetPath}"`;
+        } else if (appToOpen.id === "gitkraken") {
+          // GitKraken ignores positional args; it needs `--args -p <path>`.
+          command = `open -na "${appToOpen.path}" --args -p "${targetPath}"`;
+        } else {
+          command = `open -a "${appToOpen.path}" "${targetPath}"`;
+        }
       } else if (process.platform === "win32") {
         command =
           appToOpen.id === "explorer" && isFile

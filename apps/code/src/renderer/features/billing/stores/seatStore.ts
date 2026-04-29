@@ -7,6 +7,7 @@ import { trpcClient } from "@renderer/trpc";
 import type { SeatData } from "@shared/types/seat";
 import { PLAN_FREE, PLAN_PRO } from "@shared/types/seat";
 import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { getPostHogUrl } from "@utils/urls";
 import { create } from "zustand";
 
@@ -71,6 +72,7 @@ function invalidatePlanCache(): void {
   trpcClient.llmGateway.invalidatePlanCache.mutate().catch((err) => {
     log.warn("Failed to invalidate plan cache", err);
   });
+  void queryClient.invalidateQueries({ queryKey: [["llmGateway"]] });
 }
 
 const initialState: SeatStoreState = {
@@ -80,7 +82,7 @@ const initialState: SeatStoreState = {
   redirectUrl: null,
 };
 
-export const useSeatStore = create<SeatStore>()((set) => ({
+export const useSeatStore = create<SeatStore>()((set, get) => ({
   ...initialState,
 
   fetchSeat: async (options?: { autoProvision?: boolean }) => {
@@ -90,10 +92,21 @@ export const useSeatStore = create<SeatStore>()((set) => ({
       let seat = await client.getMySeat();
       if (!seat && options?.autoProvision) {
         log.info("No seat found, auto-provisioning free plan");
-        seat = await client.createSeat(PLAN_FREE);
+        try {
+          seat = await client.createSeat(PLAN_FREE);
+        } catch {
+          log.info("Auto-provision failed, re-fetching seat");
+          seat = await client.getMySeat();
+        }
       }
       set({ seat, isLoading: false });
     } catch (error) {
+      const { seat: existingSeat } = get();
+      if (existingSeat) {
+        log.warn("fetchSeat failed but seat already loaded, keeping it", error);
+        set({ isLoading: false });
+        return;
+      }
       handleSeatError(error, set);
     }
   },

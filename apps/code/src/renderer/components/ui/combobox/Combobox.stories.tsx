@@ -142,7 +142,7 @@ export const WithFooter: Story = {
             </Combobox.Item>
           ))}
           <Combobox.Footer>
-            <Button variant="ghost" size="1" style={{ width: "100%" }}>
+            <Button variant="ghost" size="1" className="w-full">
               <Plus weight="bold" />
               Add fruit
             </Button>
@@ -193,7 +193,7 @@ export const FullFeatured: Story = {
           </Combobox.Group>
 
           <Combobox.Footer>
-            <Button variant="ghost" size="1" style={{ width: "100%" }}>
+            <Button variant="ghost" size="1" className="w-full">
               <Plus weight="bold" />
               Add fruit
             </Button>
@@ -425,9 +425,9 @@ export const AllSizes: Story = {
     const [value3, setValue3] = useState("");
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div className="flex flex-col gap-[24px]">
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px]">
             Size 1
           </Text>
           <Combobox.Root value={value1} onValueChange={setValue1} size="1">
@@ -465,7 +465,7 @@ export const AllSizes: Story = {
               </Combobox.Group>
 
               <Combobox.Footer>
-                <Button variant="ghost" size="1" style={{ width: "100%" }}>
+                <Button variant="ghost" size="1" className="w-full">
                   <Plus weight="bold" />
                   Add fruit
                 </Button>
@@ -475,7 +475,7 @@ export const AllSizes: Story = {
         </div>
 
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px]">
             Size 2
           </Text>
           <Combobox.Root value={value2} onValueChange={setValue2} size="2">
@@ -513,7 +513,7 @@ export const AllSizes: Story = {
               </Combobox.Group>
 
               <Combobox.Footer>
-                <Button variant="ghost" size="1" style={{ width: "100%" }}>
+                <Button variant="ghost" size="1" className="w-full">
                   <Plus weight="bold" />
                   Add fruit
                 </Button>
@@ -523,7 +523,7 @@ export const AllSizes: Story = {
         </div>
 
         <div>
-          <Text size="1" mb="2" color="gray">
+          <Text mb="2" color="gray" className="text-[13px]">
             Size 3
           </Text>
           <Combobox.Root value={value3} onValueChange={setValue3} size="3">
@@ -561,7 +561,7 @@ export const AllSizes: Story = {
               </Combobox.Group>
 
               <Combobox.Footer>
-                <Button variant="ghost" size="1" style={{ width: "100%" }}>
+                <Button variant="ghost" size="1" className="w-full">
                   <Plus weight="bold" />
                   Add fruit
                 </Button>

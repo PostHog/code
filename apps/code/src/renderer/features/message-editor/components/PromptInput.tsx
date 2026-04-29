@@ -6,6 +6,7 @@ import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import { cycleModeOption } from "@renderer/features/sessions/stores/sessionStore";
 import { EditorContent } from "@tiptap/react";
 import { hasOpenOverlay } from "@utils/overlay";
+import clsx from "clsx";
 import { forwardRef, useCallback, useEffect, useImperativeHandle } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useDraftStore } from "../stores/draftStore";
@@ -278,8 +279,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
         <InputGroup
           onClick={handleContainerClick}
           onContextMenu={handleContextMenu}
-          className={`h-auto bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
-          style={{ cursor: "text" }}
+          className={`h-auto cursor-text bg-card ${isBashMode ? "ring-1 ring-blue-9" : ""}`}
           {...(tourTarget && {
             "data-tour": `${tourTarget}-editor`,
             "data-tour-ready": !isEmpty ? "true" : undefined,
@@ -294,12 +294,10 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             </InputGroupAddon>
           )}
           <div
-            className={
-              editorHeight === "large"
-                ? "cli-editor-scroll max-h-[45vh] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
-                : "cli-editor-scroll max-h-[200px] min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]"
-            }
-            style={{ position: "relative" }}
+            className={clsx(
+              "cli-editor-scroll relative min-h-[50px] w-full flex-1 overflow-y-auto px-2 py-2 text-[14px]",
+              editorHeight === "large" ? "max-h-[45vh]" : "max-h-[200px]",
+            )}
           >
             <EditorContent editor={editor} />
           </div>
@@ -322,11 +320,7 @@ export const PromptInput = forwardRef<EditorHandle, PromptInputProps>(
             {modelSelector && <span>{modelSelector}</span>}
             {reasoningSelector && <span>{reasoningSelector}</span>}
             {isBashMode && (
-              <Text
-                size="1"
-                className="font-mono"
-                style={{ color: "var(--blue-9)" }}
-              >
+              <Text className="font-mono text-(--blue-9) text-[13px]">
                 ! bash
               </Text>
             )}

@@ -317,7 +317,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     stderr: (err) => params.logger.error(err),
     cwd: params.cwd,
     includePartialMessages: true,
-    allowDangerouslySkipPermissions: !IS_ROOT,
+    allowDangerouslySkipPermissions: !IS_ROOT || !!process.env.IS_SANDBOX,
     permissionMode: params.permissionMode,
     canUseTool: params.canUseTool,
     executable: "node",

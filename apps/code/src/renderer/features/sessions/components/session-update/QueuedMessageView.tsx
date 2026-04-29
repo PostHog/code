@@ -19,7 +19,7 @@ export function QueuedMessageView({
       style={{ borderColor: "var(--gray-8)" }}
     >
       <Flex justify="between" align="start" gap="2">
-        <Box className="min-w-0 flex-1 font-medium [&>*:last-child]:mb-0">
+        <Box className="min-w-0 flex-1 font-medium text-[13px] [&>*:last-child]:mb-0">
           {hasFileMentions(message.content) ? (
             parseFileMentions(message.content)
           ) : (
@@ -40,7 +40,7 @@ export function QueuedMessageView({
       </Flex>
       <Flex align="center" gap="1" mt="1">
         <Clock size={12} className="text-gray-9" />
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           Queued
         </Text>
       </Flex>

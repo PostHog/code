@@ -121,8 +121,7 @@ export function ReportListRow({
         <Flex
           align="center"
           justify="center"
-          className="shrink-0 pt-0.5"
-          style={{ width: 16, minWidth: 16 }}
+          className="w-[16px] min-w-[16px] shrink-0 pt-0.5"
         >
           {showCheckbox ? (
             <Checkbox

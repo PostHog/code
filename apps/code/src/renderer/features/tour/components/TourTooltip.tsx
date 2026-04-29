@@ -184,9 +184,9 @@ export function TourTooltip({
       animate="animate"
       exit="exit"
       style={{
-        flexShrink: 0,
         ...(hogOnRight ? { marginLeft: HOG_GAP } : { marginRight: HOG_GAP }),
       }}
+      className="shrink-0"
     >
       <motion.img
         src={step.hogSrc}
@@ -195,8 +195,8 @@ export function TourTooltip({
         style={{
           width: HOG_SIZE,
           height: HOG_SIZE,
-          objectFit: "contain",
         }}
+        className="object-contain"
       />
     </motion.div>
   );
@@ -208,27 +208,13 @@ export function TourTooltip({
       grayColor="slate"
       panelBackground="solid"
       radius="medium"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        zIndex: 201,
-        pointerEvents: "none",
-      }}
+      className="pointer-events-none fixed top-0 left-0 z-[201]"
     >
       <AnimatePresence mode="wait">
         <div
           key={step.id}
-          style={{
-            position: "fixed",
-            top: y,
-            left: x,
-            zIndex: 201,
-            pointerEvents: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 0,
-          }}
+          style={{ top: y, left: x }}
+          className="pointer-events-auto fixed z-[201] flex items-center gap-0"
         >
           {!hogOnRight && hogElement}
 
@@ -238,27 +224,20 @@ export function TourTooltip({
             animate="animate"
             exit="exit"
             style={{
-              position: "relative",
-              backgroundColor: "var(--color-panel-solid)",
-              border: "1px solid var(--gray-a5)",
-              borderRadius: "var(--radius-3)",
-              padding: "14px 18px",
               maxWidth: BUBBLE_MAX_WIDTH,
               boxShadow:
                 "0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.08)",
               transformOrigin: TRANSFORM_ORIGIN_MAP[placement],
             }}
+            className="relative rounded-(--radius-3) border border-(--gray-a5) bg-(--color-panel-solid) px-[18px] py-[14px]"
           >
             <Caret side={caretSide} offset={arrowOffset} />
             <Flex direction="column" gap="2">
-              <Text
-                size="2"
-                style={{ color: "var(--gray-12)", lineHeight: 1.5 }}
-              >
+              <Text className="text-(--gray-12) text-sm leading-normal">
                 {step.message}
               </Text>
               <Flex justify="between" align="center" gap="3">
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                <Text className="text-(--gray-9) text-[13px]">
                   {stepNumber}/{totalSteps}
                 </Text>
                 <Flex align="center" gap="2">
@@ -267,7 +246,7 @@ export function TourTooltip({
                     variant="ghost"
                     color="gray"
                     onClick={onDismiss}
-                    style={{ opacity: 0.5 }}
+                    className="opacity-50"
                   >
                     Skip tour
                   </Button>

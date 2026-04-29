@@ -242,11 +242,15 @@ vi.mock("@utils/queryClient", () => ({
 vi.mock("@shared/utils/urls", () => ({
   getCloudUrlFromRegion: () => "https://api.anthropic.com",
 }));
+const mockConvertStoredEntriesToEvents = vi.hoisted(() =>
+  vi.fn<(entries: unknown[]) => unknown[]>(() => []),
+);
+
 vi.mock("@utils/session", async () => {
   const actual =
     await vi.importActual<typeof import("@utils/session")>("@utils/session");
   return {
-    convertStoredEntriesToEvents: vi.fn(() => []),
+    convertStoredEntriesToEvents: mockConvertStoredEntriesToEvents,
     createUserPromptEvent: vi.fn((prompt, ts) => ({
       type: "acp_message",
       ts,
@@ -270,6 +274,7 @@ vi.mock("@utils/session", async () => {
     extractPromptText: vi.fn((p) => (typeof p === "string" ? p : "text")),
     getUserShellExecutesSinceLastPrompt: vi.fn(() => []),
     isFatalSessionError: actual.isFatalSessionError,
+    isRateLimitError: actual.isRateLimitError,
     normalizePromptToBlocks: vi.fn((p) =>
       typeof p === "string" ? [{ type: "text", text: p }] : p,
     ),
@@ -318,6 +323,7 @@ const createMockSession = (
 describe("SessionService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConvertStoredEntriesToEvents.mockImplementation(() => []);
     resetSessionService();
     mockSettingsState.customInstructions = "";
     mockGetIsOnline.mockReturnValue(true);
@@ -710,6 +716,119 @@ describe("SessionService", () => {
             isCloud: true,
             logUrl: "https://logs.example.com/run-123",
             processedLineCount: 1,
+          }),
+        );
+      });
+    });
+
+    it("flips isPromptPending on hydration when the log tail has an in-flight prompt", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        hydratedSession,
+      );
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      const inFlightPrompt = {
+        type: "acp_message" as const,
+        ts: 1700000000,
+        message: {
+          jsonrpc: "2.0" as const,
+          id: 42,
+          method: "session/prompt",
+          params: { prompt: [{ type: "text", text: "hi" }] },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([inFlightPrompt]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            isPromptPending: true,
+            promptStartedAt: inFlightPrompt.ts,
+            currentPromptId: 42,
+          }),
+        );
+      });
+    });
+
+    it("leaves isPromptPending false on hydration when the log tail has a completed prompt", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        hydratedSession,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": { ...hydratedSession, currentPromptId: 42 },
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      const promptRequest = {
+        type: "acp_message" as const,
+        ts: 1700000000,
+        message: {
+          jsonrpc: "2.0" as const,
+          id: 42,
+          method: "session/prompt",
+          params: { prompt: [{ type: "text", text: "hi" }] },
+        },
+      };
+      const promptResponse = {
+        type: "acp_message" as const,
+        ts: 1700000005,
+        message: {
+          jsonrpc: "2.0" as const,
+          id: 42,
+          result: { stopReason: "end_turn" },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([
+        promptRequest,
+        promptResponse,
+      ]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            isPromptPending: false,
+            promptStartedAt: null,
+            currentPromptId: null,
           }),
         );
       });

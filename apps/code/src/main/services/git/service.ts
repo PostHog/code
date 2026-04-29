@@ -8,6 +8,8 @@ const execFileAsync = promisify(execFile);
 import { execGh } from "@posthog/git/gh";
 import {
   getAllBranches,
+  getBranchDiffPatchesByPath,
+  getChangedFilesBetweenBranches,
   getChangedFilesDetailed,
   getCommitConventions,
   getCommitsBetweenBranches,
@@ -850,6 +852,54 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     }
   }
 
+  /**
+   * Look up the PR URL for any branch name (not just the currently checked-out
+   * one). Uses `gh pr list --head` rather than `gh pr view` so the lookup works
+   * regardless of which branch the working tree is on.
+   */
+  public async getPrUrlForBranch(
+    directoryPath: string,
+    branchName: string,
+  ): Promise<string | null> {
+    try {
+      const remoteUrl = await getRemoteUrl(directoryPath);
+      if (!remoteUrl) return null;
+
+      const parsed = parseGitHubUrl(remoteUrl);
+      if (!parsed) return null;
+
+      const repoSlug = `${parsed.organization}/${parsed.repository}`;
+      const result = await execGh([
+        "pr",
+        "list",
+        "--head",
+        branchName,
+        "--state",
+        "all",
+        "--json",
+        "url",
+        "--limit",
+        "1",
+        "--repo",
+        repoSlug,
+      ]);
+
+      if (result.exitCode !== 0) {
+        log.warn("Failed to list PRs for branch", {
+          branchName,
+          error: result.stderr || result.error,
+        });
+        return null;
+      }
+
+      const data = JSON.parse(result.stdout) as Array<{ url?: string }>;
+      return data[0]?.url ?? null;
+    } catch (error) {
+      log.warn("Failed to resolve PR URL for branch", { branchName, error });
+      return null;
+    }
+  }
+
   private async createPrViaGh(
     directoryPath: string,
     title?: string,
@@ -1187,6 +1237,39 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
           : undefined,
       };
     });
+  }
+
+  public async getLocalBranchChangedFiles(
+    directoryPath: string,
+    branch: string,
+  ): Promise<ChangedFile[]> {
+    await this.fetchIfStale(directoryPath);
+
+    const defaultBranch = await getDefaultBranch(directoryPath);
+    if (!defaultBranch) return [];
+
+    const files = await getChangedFilesBetweenBranches(
+      directoryPath,
+      defaultBranch,
+      branch,
+      { excludePatterns: [".claude", "CLAUDE.local.md"] },
+    );
+    if (files.length === 0) return [];
+
+    const patchByPath = await getBranchDiffPatchesByPath(
+      directoryPath,
+      defaultBranch,
+      branch,
+    );
+
+    return files.map((f) => ({
+      path: f.path,
+      status: f.status,
+      originalPath: f.originalPath,
+      linesAdded: f.linesAdded,
+      linesRemoved: f.linesRemoved,
+      patch: patchByPath.get(f.path),
+    }));
   }
 
   public async generateCommitMessage(

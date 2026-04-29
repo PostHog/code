@@ -44,6 +44,8 @@ import {
   getGitSyncStatusOutput,
   getLatestCommitInput,
   getLatestCommitOutput,
+  getLocalBranchChangedFilesInput,
+  getLocalBranchChangedFilesOutput,
   getPrChangedFilesInput,
   getPrChangedFilesOutput,
   getPrDetailsByUrlInput,
@@ -52,6 +54,8 @@ import {
   getPrReviewCommentsOutput,
   getPrTemplateInput,
   getPrTemplateOutput,
+  getPrUrlForBranchInput,
+  getPrUrlForBranchOutput,
   ghAuthTokenOutput,
   ghStatusOutput,
   gitStateSnapshotSchema,
@@ -297,6 +301,13 @@ export const gitRouter = router({
     .output(prStatusOutput)
     .query(({ input }) => getService().getPrStatus(input.directoryPath)),
 
+  getPrUrlForBranch: publicProcedure
+    .input(getPrUrlForBranchInput)
+    .output(getPrUrlForBranchOutput)
+    .query(({ input }) =>
+      getService().getPrUrlForBranch(input.directoryPath, input.branchName),
+    ),
+
   createPr: publicProcedure
     .input(createPrInput)
     .output(createPrOutput)
@@ -356,6 +367,16 @@ export const gitRouter = router({
     .output(getBranchChangedFilesOutput)
     .query(({ input }) =>
       getService().getBranchChangedFiles(input.repo, input.branch),
+    ),
+
+  getLocalBranchChangedFiles: publicProcedure
+    .input(getLocalBranchChangedFilesInput)
+    .output(getLocalBranchChangedFilesOutput)
+    .query(({ input }) =>
+      getService().getLocalBranchChangedFiles(
+        input.directoryPath,
+        input.branch,
+      ),
     ),
 
   generateCommitMessage: publicProcedure

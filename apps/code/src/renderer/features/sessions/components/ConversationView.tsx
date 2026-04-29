@@ -50,6 +50,7 @@ export function ConversationView({
   compact = false,
 }: ConversationViewProps) {
   const listRef = useRef<VirtualizedListHandle>(null);
+  const isAtBottomRef = useRef(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const debugLogsCloudRuns = useSettingsStore((s) => s.debugLogsCloudRuns);
   const showDebugLogs = debugLogsCloudRuns;
@@ -129,6 +130,7 @@ export function ConversationView({
   }, [items]);
 
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
+    isAtBottomRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
   }, []);
 
@@ -139,7 +141,7 @@ export function ConversationView({
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
+      if (!document.hidden && isAtBottomRef.current) {
         listRef.current?.scrollToBottom();
         setShowScrollButton(false);
       }
@@ -297,7 +299,7 @@ const TurnCancelledView = memo(function TurnCancelledView({
     <Box className="border-gray-4 border-l-2 py-0.5 pl-3">
       <Flex align="center" gap="2" className="text-gray-9">
         <XCircle size={14} />
-        <Text size="1" color="gray">
+        <Text color="gray" className="text-[13px]">
           {message}
         </Text>
       </Flex>

@@ -35,15 +35,11 @@ export function ReportCardContent({
       className={compact ? "gap-0.5" : undefined}
     >
       <Flex align="start" gapX={compact ? "1" : "2"} className="min-w-0">
-        <Text
-          size="1"
-          weight="medium"
-          className="min-w-0 flex-1 break-words text-[13px] leading-tight"
-        >
+        <Text className="min-w-0 flex-1 break-words font-medium text-[13px]">
           {report.title ?? "Untitled signal"}
         </Text>
         {!showMeta && (
-          <Text size="1" color="gray" className="shrink-0 text-[12px]">
+          <Text color="gray" className="shrink-0 text-[12px]">
             {updatedAtLabel}
           </Text>
         )}
@@ -98,14 +94,12 @@ export function ReportCardContent({
         <Flex align="center" gapX="3" className="text-[11px] text-gray-9">
           <Flex align="center" gapX="1">
             <LightningIcon size={11} />
-            <Text size="1" className="text-[11px]">
+            <Text className="text-[11px]">
               {report.signal_count} signal
               {report.signal_count !== 1 ? "s" : ""}
             </Text>
           </Flex>
-          <Text size="1" className="text-[11px]">
-            {updatedAtLabel}
-          </Text>
+          <Text className="text-[11px]">{updatedAtLabel}</Text>
         </Flex>
       )}
     </Flex>

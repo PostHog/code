@@ -39,19 +39,16 @@ interface StepRowProps {
 }
 
 function StepRow({ step, size = "2" }: StepRowProps) {
+  const sizeClass = size === "1" ? "text-[13px]" : "text-sm";
   return (
     <Flex direction="column" gap="0">
       <Flex align="center" gap="2">
         <StepIcon status={step.status} />
-        <Text size={size} className="text-gray-12">
-          {step.label}
-        </Text>
+        <Text className={`${sizeClass} text-gray-12`}>{step.label}</Text>
       </Flex>
       {step.detail && (
         <Box pl="5">
-          <Text size="1" className="text-gray-10">
-            {step.detail}
-          </Text>
+          <Text className="text-[13px] text-gray-10">{step.detail}</Text>
         </Box>
       )}
     </Flex>

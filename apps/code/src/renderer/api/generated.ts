@@ -9598,6 +9598,7 @@ export namespace Schemas {
     id: string;
     template_id: string | null;
     name: string;
+    icon_key: string;
     display_name?: string | undefined;
     url?: string | undefined;
     description?: string | undefined;

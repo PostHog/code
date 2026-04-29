@@ -17,6 +17,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 const ICON_SIZE = 16;
 const MOD_KEY = isMac ? "Meta" : "Control";
+const HOLD_DELAY_MS = 1000;
 const ITEM_HEIGHT = 64;
 const ITEM_GAP = 4;
 const ITEM_STRIDE = ITEM_HEIGHT + ITEM_GAP;
@@ -144,7 +145,7 @@ const SpaceItem = memo(function SpaceItem({
       {/* Text content */}
       <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
         <span
-          className={`w-full truncate text-left text-[13px] leading-tight ${
+          className={`w-full truncate text-left text-[13px] ${
             isActive ? "font-medium text-gray-12" : "text-gray-11"
           }`}
         >
@@ -152,7 +153,7 @@ const SpaceItem = memo(function SpaceItem({
         </span>
         {statusText && (
           <span
-            className={`text-[11px] leading-tight ${
+            className={`text-[11px] ${
               isActive ? "text-accent-11" : "text-gray-9"
             }`}
           >
@@ -197,7 +198,7 @@ const NewTaskItem = memo(function NewTaskItem({
         <PlusIcon size={ICON_SIZE} className="text-gray-10" />
       </span>
       <span
-        className={`text-[13px] leading-tight ${
+        className={`text-[13px] ${
           isActive ? "font-medium text-gray-12" : "text-gray-11"
         }`}
       >
@@ -306,6 +307,10 @@ export function SpaceSwitcher({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === MOD_KEY && !e.repeat) {
+        // Suppress while a tour is active or Shift is held (screenshot shortcut).
+        if (e.shiftKey || document.body.classList.contains("tour-active")) {
+          return;
+        }
         metaHeldRef.current = true;
         otherKeyRef.current = false;
         clearTimeout(hideTimerRef.current);
@@ -314,12 +319,16 @@ export function SpaceSwitcher({
           if (metaHeldRef.current && !otherKeyRef.current) {
             show();
           }
-        }, 500);
+        }, HOLD_DELAY_MS);
       } else if (metaHeldRef.current && !e.repeat) {
         // Any key during hold cancels the show timer.
         // Minimap only appears from a pure Cmd hold with no other keys.
         otherKeyRef.current = true;
         clearTimeout(showTimerRef.current);
+        // Shift during hold = screenshot intent. Hide if already shown.
+        if (e.key === "Shift") {
+          hide();
+        }
       }
     };
 
@@ -393,6 +402,7 @@ export function SpaceSwitcher({
 
   return (
     <div
+      data-overlay="space-switcher"
       className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200 ease-out ${
         animIn ? "opacity-100" : "pointer-events-none opacity-0"
       }`}

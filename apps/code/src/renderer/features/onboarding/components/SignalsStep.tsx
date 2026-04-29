@@ -52,48 +52,32 @@ export function SignalsStep({ onNext, onBack }: SignalsStepProps) {
       <Flex
         direction="column"
         align="center"
-        style={{
-          width: "100%",
-          height: "100%",
-          paddingTop: 24,
-          paddingBottom: 40,
-        }}
+        className="h-full w-full pt-[24px] pb-[40px]"
       >
         <Flex
           direction="column"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            width: "100%",
-          }}
+          className="min-h-0 w-full flex-1 overflow-y-auto"
         >
           <Flex
             direction="column"
             gap="5"
             style={{
-              width: "100%",
-              maxWidth: 720,
               margin: "auto auto",
-              padding: "16px 0",
             }}
+            className="w-full max-w-[720px] px-0 py-[16px]"
           >
             {/* Header + content */}
-            <Flex direction="column" gap="5" style={{ width: "100%" }}>
+            <Flex direction="column" gap="5" className="w-full">
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
                 <Flex direction="column" gap="3">
-                  <Text
-                    size="6"
-                    weight="bold"
-                    style={{ color: "var(--gray-12)", lineHeight: 1.3 }}
-                  >
+                  <Text className="font-bold text-(--gray-12) text-2xl">
                     Set up your Signals Inbox
                   </Text>
-                  <Text size="2" style={{ color: "var(--gray-11)" }}>
+                  <Text className="text-(--gray-11) text-sm">
                     Choose which sources to monitor for this project. Signals
                     will analyze activity and prioritize what needs attention.
                   </Text>

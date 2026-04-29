@@ -667,6 +667,20 @@ export class CodexAcpAgent extends BaseAcpAgent {
     if (response.configOptions) {
       this.sessionState.configOptions = response.configOptions;
     }
+    if (params.configId === "mode" && typeof params.value === "string") {
+      // Signal the mode change to agent-server so its session.permissionMode
+      // cache (used by shouldRelayPermissionToClient) stays in sync with the
+      // real Codex mode. Claude emits the same signal from its equivalent
+      // handler; without it, the agent-server's relay decisions for cloud
+      // runs would use a stale mode and silently auto-approve tool calls.
+      await this.client.sessionUpdate({
+        sessionId: this.sessionId,
+        update: {
+          sessionUpdate: "current_mode_update",
+          currentModeId: params.value,
+        },
+      });
+    }
     return response;
   }
 

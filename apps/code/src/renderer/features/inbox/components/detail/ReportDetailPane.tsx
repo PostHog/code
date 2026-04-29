@@ -93,11 +93,7 @@ function DetailRow({
   return (
     <Box>
       <Flex align="center" gap="2">
-        <Text
-          size="2"
-          className="w-[90px] shrink-0 text-[13px]"
-          style={{ color: "var(--gray-10)" }}
-        >
+        <Text className="w-[90px] shrink-0 text-(--gray-10) text-[13px]">
           {label}
         </Text>
         {value}
@@ -118,10 +114,8 @@ function DetailRow({
       </Flex>
       {expanded && explanation && (
         <Text
-          size="1"
           color="gray"
-          className="mt-1 block text-pretty text-[13px] leading-relaxed"
-          style={{ paddingLeft: 90 }}
+          className="mt-1 block text-pretty pl-[90px] text-[13px] leading-relaxed"
         >
           {explanation}
         </Text>
@@ -247,17 +241,13 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         align="center"
         justify="between"
         gap="2"
-        px="3"
         py="2"
-        className="shrink-0"
-        style={{ borderBottom: "1px solid var(--gray-5)" }}
+        className="shrink-0 border-b border-b-(--gray-5) @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2"
       >
         <Flex align="center" gap="2" className="min-w-0">
           <SignalReportStatusBadge status={report.status} />
           <Text
-            size="3"
-            weight={report.status === "ready" ? "bold" : "medium"}
-            className="block min-w-0 text-balance break-words leading-tight"
+            className={`block min-w-0 text-balance break-words text-base ${report.status === "ready" ? "font-bold" : "font-medium"}`}
           >
             {report.title ?? "Untitled signal"}
           </Text>
@@ -297,10 +287,13 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
       <ScrollArea
         type="auto"
         scrollbars="vertical"
-        className="scroll-area-constrain-width"
-        style={{ flex: 1 }}
+        className="scroll-area-constrain-width flex-1"
       >
-        <Flex direction="column" gap="2" p="2" className="min-w-0">
+        <Flex
+          direction="column"
+          gap="2"
+          className="min-w-0 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2 @2xl:pt-3 @3xl:pt-4 @4xl:pt-5 @5xl:pt-6 @lg:pt-2 @md:pt-1.5 @xl:pt-2.5 pt-1 @2xl:pb-6 @3xl:pb-8 @4xl:pb-10 @5xl:pb-12 @lg:pb-4 @md:pb-3 @xl:pb-5 pb-2"
+        >
           {/* ── Description ─────────────────────────────────────── */}
           {report.status !== "ready" ? (
             <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">
@@ -327,7 +320,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               direction="column"
               gap="1"
               py="2"
-              style={{ borderTop: "1px solid var(--gray-5)" }}
+              className="border-t border-t-(--gray-5)"
             >
               {report.priority && (
                 <DetailRow
@@ -365,14 +358,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               <WarningIcon
                 size={14}
                 weight="fill"
-                style={{ color: "var(--amber-9)" }}
-                className="shrink-0"
+                className="shrink-0 text-(--amber-9)"
               />
-              <Text
-                size="1"
-                className="text-[12px]"
-                style={{ color: "var(--amber-11)" }}
-              >
+              <Text className="text-(--amber-11) text-[12px]">
                 This issue may already be addressed in recent code changes.
               </Text>
             </Flex>
@@ -381,12 +369,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Suggested reviewers ─────────────────────────────── */}
           {suggestedReviewers.length > 0 && (
             <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+              <Text className="block font-medium text-sm" mb="2">
                 Suggested reviewers
               </Text>
               <Flex direction="column" gap="1">
@@ -402,11 +385,10 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                       <img
                         src={`https://github.com/${reviewer.github_login}.png?size=28`}
                         alt=""
-                        className="github-avatar shrink-0 rounded-full"
-                        style={{ width: 18, height: 18 }}
+                        className="github-avatar h-[18px] w-[18px] shrink-0 rounded-full"
                         onLoad={(e) => e.currentTarget.classList.add("loaded")}
                       />
-                      <Text size="1" className="text-[12px]">
+                      <Text className="text-[12px]">
                         {reviewer.user?.first_name ??
                           reviewer.github_name ??
                           reviewer.github_login}
@@ -459,13 +441,8 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
 
           {/* ── Signals ─────────────────────────────────────────── */}
           {signals.length > 0 && (
-            <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+            <Box mt="4">
+              <Text className="block font-medium text-sm" mb="2">
                 Signals ({signals.length})
               </Text>
               <Flex direction="column" gap="2">
@@ -480,7 +457,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             </Box>
           )}
           {signalsQuery.isLoading && (
-            <Text size="1" color="gray" className="block text-[12px]">
+            <Text color="gray" className="block text-[12px]">
               Loading signals...
             </Text>
           )}
@@ -488,12 +465,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           {/* ── Session problem evidence ─────────────────────────── */}
           {sessionProblemSignals.length > 0 && (
             <Box>
-              <Text
-                size="1"
-                weight="medium"
-                className="block text-[13px]"
-                mb="2"
-              >
+              <Text className="block font-medium text-[13px]" mb="2">
                 Evidence ({sessionProblemSignals.length})
               </Text>
               <Flex direction="column" gap="2">

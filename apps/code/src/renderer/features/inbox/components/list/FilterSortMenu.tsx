@@ -162,17 +162,12 @@ export function FilterSortMenu() {
         align="end"
         side="bottom"
         sideOffset={6}
-        style={{ padding: 8, minWidth: 220 }}
         onKeyDown={handleContentKeyDown}
+        className="min-w-[220px] p-[8px]"
       >
         <Flex direction="column" gap="3">
           <Box>
-            <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
-              style={{ paddingLeft: "1px" }}
-            >
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Sort by
             </Text>
             <Box mt="1">
@@ -200,12 +195,7 @@ export function FilterSortMenu() {
           </Box>
 
           <Box>
-            <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
-              style={{ paddingLeft: "1px" }}
-            >
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Status
             </Text>
             <Box mt="1">
@@ -237,12 +227,7 @@ export function FilterSortMenu() {
           </Box>
 
           <Box>
-            <Text
-              size="1"
-              className="text-gray-10"
-              weight="medium"
-              style={{ paddingLeft: "1px" }}
-            >
+            <Text className="pl-[1px] font-medium text-[13px] text-gray-10">
               Source
             </Text>
             <Box mt="1">

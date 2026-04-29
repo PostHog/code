@@ -80,8 +80,7 @@ function ThreadActionBar({
           ref={textareaRefCallback}
           placeholder="Write a reply..."
           onKeyDown={onKeyDown}
-          className="w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
-          style={{ minHeight: 48 }}
+          className="min-h-[48px] w-full resize-none rounded border border-[var(--gray-6)] bg-[var(--color-background)] p-1.5 text-[13px] text-[var(--gray-12)] leading-normal outline-none"
         />
         <Flex align="center" gap="3" className="mt-1.5">
           <Button size="1" onClick={onSubmitReply} disabled={!!pendingReply}>
@@ -200,23 +199,22 @@ function CommentBody({
       </div>
       <div className="min-w-0 flex-1 pt-1.5 pb-1.5">
         <Flex align="center" gap="2" className="mb-0.5">
-          <Text size="1" weight="medium" className="text-[var(--gray-12)]">
+          <Text className="font-medium text-[13px] text-[var(--gray-12)]">
             {comment.user.login}
           </Text>
-          <Text size="1" className="text-[var(--gray-9)]">
+          <Text className="text-[13px] text-[var(--gray-9)]">
             {formatRelativeTimeShort(comment.created_at)}
           </Text>
         </Flex>
         <Box
           ref={contentRef}
-          className="relative overflow-hidden text-[13px] text-[var(--gray-11)] leading-relaxed [&_code]:break-all [&_img]:max-w-full [&_p]:m-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+          className="relative overflow-hidden break-words text-[13px] text-[var(--gray-11)] leading-relaxed [&_code]:break-all [&_img]:max-w-full [&_p]:m-0 [&_pre]:max-w-full [&_pre]:overflow-x-auto"
           style={{
             maxHeight:
               isExpanded || !isOverflowing
                 ? undefined
                 : `${MAX_COMMENT_HEIGHT}px`,
             overflowWrap: "break-word",
-            wordBreak: "break-word",
           }}
         >
           <MarkdownRenderer
@@ -364,11 +362,7 @@ export function PrCommentThread({
             </div>
             <div className="min-w-0 flex-1 pt-1.5 pb-1.5">
               <Flex align="center" gap="2" className="mb-0.5">
-                <Text
-                  size="1"
-                  weight="medium"
-                  className="text-[var(--gray-12)]"
-                >
+                <Text className="font-medium text-[13px] text-[var(--gray-12)]">
                   Sending...
                 </Text>
               </Flex>

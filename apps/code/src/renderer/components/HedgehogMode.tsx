@@ -78,12 +78,10 @@ export function HedgehogMode() {
     <div
       ref={containerRef}
       style={{
-        position: "fixed",
-        inset: 0,
         zIndex: 999998,
-        pointerEvents: "none",
         visibility: hedgehogMode ? "visible" : "hidden",
       }}
+      className="pointer-events-none fixed inset-0"
     />
   );
 }

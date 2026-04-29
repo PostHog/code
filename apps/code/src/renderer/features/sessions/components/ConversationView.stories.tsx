@@ -417,7 +417,7 @@ const meta: Meta<typeof ConversationView> = {
   },
   decorators: [
     (Story) => (
-      <div style={{ height: "90vh", display: "flex", flexDirection: "column" }}>
+      <div className="flex h-[90vh] flex-col">
         <Story />
       </div>
     ),

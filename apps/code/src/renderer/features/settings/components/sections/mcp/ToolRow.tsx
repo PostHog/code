@@ -46,11 +46,8 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
           <div className="flex min-w-0 flex-1 flex-col">
             <Flex align="center" gap="2" minWidth="0">
               <Text
-                size="2"
-                weight="medium"
                 truncate
-                className="select-text"
-                style={{ fontFamily: "var(--code-font-family)" }}
+                className="select-text font-[var(--code-font-family)] font-medium text-sm"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -63,10 +60,10 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
               )}
             </Flex>
             <Text
-              size="1"
               color="gray"
               truncate
               style={{ fontStyle: hasDescription ? undefined : "italic" }}
+              className="text-[13px]"
             >
               {hasDescription ? tool.description : "No description provided"}
             </Text>
@@ -84,15 +81,15 @@ export function ToolRow({ tool, onChange }: ToolRowProps) {
         <div className="border-gray-5 border-t bg-gray-2 px-3 py-3">
           <Flex direction="column" gap="3">
             <Flex direction="column" gap="1">
-              <Text size="1" weight="medium" color="gray">
+              <Text color="gray" className="font-medium text-[13px]">
                 Description
               </Text>
-              <Text size="2">
+              <Text className="text-sm">
                 {hasDescription ? tool.description : "No description provided."}
               </Text>
             </Flex>
             <Flex direction="column" gap="1">
-              <Text size="1" weight="medium" color="gray">
+              <Text color="gray" className="font-medium text-[13px]">
                 Input schema
               </Text>
               <pre className="overflow-x-auto rounded bg-gray-3 p-2 text-xs">

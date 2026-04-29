@@ -9,24 +9,23 @@ export function CommandKeyHints() {
       gap="4"
       px="3"
       py="2"
-      style={{ flexShrink: 0 }}
-      className="border-gray-6 border-t bg-gray-1"
+      className="shrink-0 border-gray-6 border-t bg-gray-1"
     >
       <Flex align="center" gap="2">
         <KeyHint keys={["↑", "↓"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px]">
           Navigate
         </Code>
       </Flex>
       <Flex align="center" gap="2">
         <KeyHint keys={["↵"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px]">
           Select
         </Code>
       </Flex>
       <Flex align="center" gap="2">
         <KeyHint keys={["Esc"]} />
-        <Code size="1" variant="ghost" color="gray">
+        <Code variant="ghost" color="gray" className="text-[13px]">
           Close
         </Code>
       </Flex>

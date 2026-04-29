@@ -1,17 +1,5 @@
 import { MarkdownRenderer } from "@features/editor/components/MarkdownRenderer";
 import { Box } from "@radix-ui/themes";
-import type { CSSProperties } from "react";
-
-/** Matches MarkdownRenderer / Radix so list rows aren’t stuck at default `--font-size-1` / `Text size="1"`. */
-const LIST_SUMMARY_BOX_STYLE: CSSProperties = {
-  "--font-size-1": "12px",
-} as CSSProperties;
-
-const LIST_SUMMARY_INNER_CLASS =
-  "line-clamp-4 overflow-hidden text-[12px] text-pretty leading-tight [&_a]:pointer-events-auto " +
-  "[&_.rt-Text]:!text-[12px] [&_.rt-Text]:!leading-[1.25] " +
-  "[&_strong]:!text-[12px] [&_strong]:!leading-[1.25] [&_em]:!text-[12px] [&_i]:!text-[12px] " +
-  "[&_a]:!text-[12px] [&_a]:!leading-[1.25] [&_code]:!text-[12px] [&_li]:!text-[12px]";
 
 interface SignalReportSummaryMarkdownProps {
   content: string | null;
@@ -25,6 +13,9 @@ interface SignalReportSummaryMarkdownProps {
 
 /**
  * Renders signal report summary as GFM markdown (matches backend / agent output).
+ *
+ * MarkdownRenderer inherits font-size from this wrapper, so setting `text-[Npx]`
+ * on the outer Box cascades to every paragraph / em / strong / code / link.
  */
 export function SignalReportSummaryMarkdown({
   content,
@@ -42,28 +33,20 @@ export function SignalReportSummaryMarkdown({
   if (variant === "list") {
     return (
       <Box
-        className="[&_.rt-Text]:!mb-0 [&_p]:!mb-0 [&_ul]:!mb-0 min-w-0 text-left [&_li]:mb-0"
-        style={{
-          color: "var(--gray-11)",
-          ...italicStyle,
-          ...LIST_SUMMARY_BOX_STYLE,
-        }}
+        className="line-clamp-4 min-w-0 overflow-hidden text-pretty text-left text-(--gray-11) text-[12px] [&_.rt-Text]:mb-0! [&_a]:pointer-events-auto [&_li]:mb-0 [&_p]:mb-0! [&_ul]:mb-0!"
+        style={italicStyle}
       >
-        <div className={LIST_SUMMARY_INNER_CLASS}>
-          <MarkdownRenderer content={listMarkdown} />
-        </div>
+        <MarkdownRenderer content={listMarkdown} />
       </Box>
     );
   }
 
   return (
     <Box
-      className="min-w-0 text-pretty break-words [&_.rt-Text]:mb-2 [&_li]:mb-1 [&_p:last-child]:mb-0"
-      style={{ color: "var(--gray-11)", ...italicStyle }}
+      className="min-w-0 text-pretty break-words text-(--gray-11) text-[13px] [&_*]:leading-relaxed [&_.rt-Text]:mb-2 [&_a]:pointer-events-auto [&_li]:mb-1 [&_p:last-child]:mb-0"
+      style={italicStyle}
     >
-      <div className="text-[12px] leading-relaxed [&_a]:pointer-events-auto">
-        <MarkdownRenderer content={raw} />
-      </div>
+      <MarkdownRenderer content={raw} />
     </Box>
   );
 }

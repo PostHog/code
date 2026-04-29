@@ -24,31 +24,20 @@ function Keycap({ label, size = "md" }: { label: string; size?: "sm" | "md" }) {
       onMouseUp={() => setPressed(false)}
       onMouseLeave={() => setPressed(false)}
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
         minWidth: minW,
         height: h,
-        padding: "0 6px",
         fontSize,
         fontFamily: "system-ui, -apple-system, sans-serif",
-        fontWeight: 500,
         lineHeight: 1,
-        color: "var(--gray-11)",
-        backgroundColor: "var(--gray-3)",
-        border: "1px solid var(--gray-5)",
         borderBottomWidth: pressed ? "1px" : shadowSize,
         borderBottomColor: "var(--gray-7)",
-        borderRadius: "6px",
         transform: pressed
           ? `translateY(${isSmall ? "1px" : "2px"})`
           : "translateY(0)",
         transition:
           "transform 80ms ease-out, border-bottom-width 80ms ease-out",
-        userSelect: "none",
-        boxSizing: "border-box",
-        cursor: "pointer",
       }}
+      className="box-border inline-flex cursor-pointer select-none items-center justify-center rounded-[6px] border border-(--gray-5) bg-(--gray-3) px-[6px] py-0 font-medium text-(--gray-11)"
     >
       {label}
     </span>
@@ -75,31 +64,21 @@ export function KeyboardShortcutsSheet({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content
         maxWidth="600px"
-        style={{ maxHeight: "80vh", overflow: "hidden" }}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        className="max-h-[80vh] overflow-hidden"
       >
-        <Flex align="start" justify="between" style={{ position: "relative" }}>
+        <Flex align="start" justify="between" className="relative">
           <ShortcutsHeader />
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
+            className="shrink-0 cursor-pointer [all:unset]"
           >
             <Keycap label="Esc" size="sm" />
           </button>
         </Flex>
 
-        <Box
-          style={{
-            overflowY: "auto",
-            maxHeight: "calc(80vh - 120px)",
-            paddingRight: "8px",
-          }}
-        >
+        <Box className="max-h-[calc(80vh-120px)] overflow-y-auto pr-[8px]">
           <KeyboardShortcutsList />
         </Box>
       </Dialog.Content>
@@ -113,7 +92,7 @@ function ShortcutsHeader() {
   return (
     <Box mb="4">
       <Flex align="center" gap="3" mb="1">
-        <Dialog.Title size="6" mb="0" style={{ lineHeight: 1.2 }}>
+        <Dialog.Title mb="0" className="text-2xl leading-[1.2]">
           Keyboard Combos
         </Dialog.Title>
         <Flex gap="1" align="center">
@@ -122,7 +101,7 @@ function ShortcutsHeader() {
           ))}
         </Flex>
       </Flex>
-      <Text size="2" color="gray">
+      <Text color="gray" className="text-sm">
         Your cheat codes for shipping faster
       </Text>
     </Box>
@@ -160,34 +139,19 @@ export function KeyboardShortcutsList() {
 
         return (
           <Flex key={category} direction="column" gap="2">
-            <Text size="3" weight="bold" color="gray">
+            <Text color="gray" className="font-bold text-base">
               {CATEGORY_LABELS[category]}
             </Text>
-            <Box
-              style={{
-                borderRadius: "var(--radius-2)",
-                border: "1px solid var(--gray-5)",
-                overflow: "hidden",
-              }}
-            >
-              {uniqueShortcuts.map((shortcut, index) => (
+            <Box className="overflow-hidden rounded-(--radius-2) border border-(--gray-5)">
+              {uniqueShortcuts.map((shortcut) => (
                 <Flex
                   key={shortcut.id}
                   align="center"
                   justify="between"
                   px="3"
-                  style={{
-                    paddingTop: "6px",
-                    paddingBottom: "6px",
-                    borderBottom:
-                      index < uniqueShortcuts.length - 1
-                        ? "1px solid var(--gray-4)"
-                        : undefined,
-                    backgroundColor:
-                      index % 2 === 0 ? "var(--gray-2)" : "var(--gray-1)",
-                  }}
+                  className="border-b border-b-(--gray-4) pt-[6px] pb-[6px] last:border-b-0 odd:bg-(--gray-2) even:bg-(--gray-1)"
                 >
-                  <Text size="2">{shortcut.description}</Text>
+                  <Text className="text-sm">{shortcut.description}</Text>
                   <ShortcutKeys
                     keys={shortcut.keys}
                     alternateKeys={shortcut.alternateKeys}
@@ -228,7 +192,7 @@ function ShortcutKeys({
   return (
     <Flex gap="1" align="center">
       <SingleShortcutKeys keys={keys} />
-      <Text size="1" color="gray">
+      <Text color="gray" className="text-[13px]">
         or
       </Text>
       <SingleShortcutKeys keys={alternateKeys} />

@@ -2,25 +2,21 @@ import {
   GitBranchDialog,
   GitCommitDialog,
 } from "@features/git-interaction/components/GitInteractionDialogs";
-import { useCloudPrUrl } from "@features/git-interaction/hooks/useCloudPrUrl";
 import { useGitInteraction } from "@features/git-interaction/hooks/useGitInteraction";
-import { usePrActions } from "@features/git-interaction/hooks/usePrActions";
-import { usePrDetails } from "@features/git-interaction/hooks/usePrDetails";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
-import {
-  getPrVisualConfig,
-  parsePrNumber,
-} from "@features/git-interaction/utils/prStatus";
 import { DirtyTreeDialog } from "@features/sessions/components/DirtyTreeDialog";
 import { HandoffConfirmDialog } from "@features/sessions/components/HandoffConfirmDialog";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import { getLocalHandoffService } from "@features/sessions/service/localHandoffService";
 import { useHandoffDialogStore } from "@features/sessions/stores/handoffDialogStore";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
-import { Button, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
+import { Laptop, Spinner } from "@phosphor-icons/react";
+import { Button as QuillButton } from "@posthog/quill";
 import type { Task } from "@shared/types";
 import { useState } from "react";
+
+const CLOUD_HANDOFF_FLAG = "phc-cloud-handoff";
 
 interface CloudGitInteractionHeaderProps {
   taskId: string;
@@ -31,13 +27,10 @@ export function CloudGitInteractionHeader({
   taskId,
   task,
 }: CloudGitInteractionHeaderProps) {
-  const prUrl = useCloudPrUrl(taskId);
   const session = useSessionForTask(taskId);
-  const {
-    meta: { state, merged, draft },
-  } = usePrDetails(prUrl);
-  const { execute, isPending } = usePrActions(prUrl);
   const localHandoff = getLocalHandoffService();
+  const cloudHandoffEnabled =
+    useFeatureFlag(CLOUD_HANDOFF_FLAG) || import.meta.env.DEV;
 
   const confirmOpen = useHandoffDialogStore((s) => s.confirmOpen);
   const direction = useHandoffDialogStore((s) => s.direction);
@@ -91,81 +84,29 @@ export function CloudGitInteractionHeader({
     await localHandoff.resumePending();
   };
 
-  const config =
-    prUrl && state !== null ? getPrVisualConfig(state, merged, draft) : null;
-  const prNumber = prUrl ? parsePrNumber(prUrl) : null;
-  const hasDropdown = config ? config.actions.length > 0 : false;
+  if (!cloudHandoffEnabled) return null;
+
+  const inProgress = session?.handoffInProgress ?? false;
 
   return (
-    <Flex align="center" gap="2" className="no-drag">
-      <Button
-        size="1"
-        variant="soft"
-        disabled={session?.handoffInProgress}
-        onClick={() =>
-          localHandoff.openConfirm(taskId, session?.cloudBranch ?? null)
-        }
-      >
-        <Text size="1">
-          {session?.handoffInProgress ? "Transferring..." : "Continue locally"}
-        </Text>
-      </Button>
-      {config && (
-        <Flex align="center" gap="0">
-          <Button
-            size="1"
-            variant="soft"
-            color={config.color}
-            asChild
-            style={
-              hasDropdown
-                ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 }
-                : undefined
-            }
-          >
-            <a href={prUrl ?? ""} target="_blank" rel="noopener noreferrer">
-              <Flex align="center" gap="2">
-                {isPending ? <Spinner size="1" /> : config.icon}
-                <Text size="1">
-                  {config.label}
-                  {prNumber && ` #${prNumber}`}
-                </Text>
-              </Flex>
-            </a>
-          </Button>
-          {hasDropdown && (
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Button
-                  size="1"
-                  variant="soft"
-                  color={config.color}
-                  disabled={isPending}
-                  style={{
-                    borderTopLeftRadius: 0,
-                    borderBottomLeftRadius: 0,
-                    borderLeft: `1px solid var(--${config.color}-6)`,
-                    paddingLeft: "6px",
-                    paddingRight: "6px",
-                  }}
-                >
-                  <ChevronDownIcon />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content size="1" align="end">
-                {config.actions.map((action) => (
-                  <DropdownMenu.Item
-                    key={action.id}
-                    onSelect={() => execute(action.id)}
-                  >
-                    <Text size="1">{action.label}</Text>
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
+    <>
+      <div className="no-drag flex items-center">
+        <QuillButton
+          variant="outline"
+          size="sm"
+          disabled={inProgress}
+          onClick={() =>
+            localHandoff.openConfirm(taskId, session?.cloudBranch ?? null)
+          }
+        >
+          {inProgress ? (
+            <Spinner size={14} className="shrink-0 animate-spin" />
+          ) : (
+            <Laptop size={14} weight="regular" className="shrink-0" />
           )}
-        </Flex>
-      )}
+          {inProgress ? "Transferring..." : "Continue locally"}
+        </QuillButton>
+      </div>
       {confirmOpen && direction === "to-local" && (
         <HandoffConfirmDialog
           open={confirmOpen}
@@ -238,6 +179,6 @@ export function CloudGitInteractionHeader({
           error={git.modals.branchError}
         />
       )}
-    </Flex>
+    </>
   );
 }

@@ -42,7 +42,7 @@ export function FolderSettingsView() {
   if (!folder) {
     return (
       <Box height="100%" overflowY="auto">
-        <Box p="6" style={{ maxWidth: "600px", margin: "0 auto" }}>
+        <Box p="6" style={{ margin: "0 auto" }} className="max-w-[600px]">
           <Flex direction="column" gap="4">
             <Callout.Root color="red">
               <Callout.Icon>
@@ -54,7 +54,7 @@ export function FolderSettingsView() {
               variant="soft"
               size="2"
               onClick={() => navigateToTaskInput()}
-              style={{ alignSelf: "flex-start" }}
+              className="self-start"
             >
               <ArrowLeft size={16} />
               Back to home
@@ -69,11 +69,13 @@ export function FolderSettingsView() {
   if (!folder.exists) {
     return (
       <Box height="100%" overflowY="auto">
-        <Box p="6" style={{ maxWidth: "600px", margin: "0 auto" }}>
+        <Box p="6" style={{ margin: "0 auto" }} className="max-w-[600px]">
           <Flex direction="column" gap="6">
             <Flex direction="column" gap="2">
-              <Heading size="4">Repository Not Found</Heading>
-              <Text size="1" color="gray">
+              <Heading className="text-lg leading-6.5">
+                Repository Not Found
+              </Heading>
+              <Text color="gray" className="text-[13px]">
                 {folder.name}
               </Text>
             </Flex>
@@ -84,10 +86,10 @@ export function FolderSettingsView() {
               </Callout.Icon>
               <Callout.Text>
                 <Flex direction="column" gap="1">
-                  <Text weight="medium">
+                  <Text className="font-medium">
                     The repository folder could not be found
                   </Text>
-                  <Text size="1">
+                  <Text className="text-[13px]">
                     The folder at <Code>{folder.path}</Code> no longer exists or
                     has been moved.
                   </Text>
@@ -104,14 +106,14 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px]">
                     Option 1: Restore the folder
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     Move or restore the repository folder back to its original
                     location:
                   </Text>
-                  <Code size="1">{folder.path}</Code>
+                  <Code className="text-[13px]">{folder.path}</Code>
                 </Flex>
               </Flex>
             </Card>
@@ -119,10 +121,10 @@ export function FolderSettingsView() {
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px]">
                     Option 2: Remove the repository
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.
@@ -133,7 +135,7 @@ export function FolderSettingsView() {
                   color="red"
                   size="1"
                   onClick={handleRemoveFolder}
-                  style={{ alignSelf: "flex-start" }}
+                  className="self-start"
                 >
                   Remove repository
                 </Button>
@@ -144,7 +146,7 @@ export function FolderSettingsView() {
               variant="soft"
               size="2"
               onClick={() => navigateToTaskInput()}
-              style={{ alignSelf: "flex-start" }}
+              className="self-start"
             >
               <ArrowLeft size={16} />
               Back to home
@@ -158,11 +160,13 @@ export function FolderSettingsView() {
   // Normal settings view when folder exists
   return (
     <Box height="100%" overflowY="auto">
-      <Box p="6" style={{ maxWidth: "600px", margin: "0 auto" }}>
+      <Box p="6" style={{ margin: "0 auto" }} className="max-w-[600px]">
         <Flex direction="column" gap="6">
           <Flex direction="column" gap="2">
-            <Heading size="4">Repository Settings</Heading>
-            <Text size="1" color="gray">
+            <Heading className="text-lg leading-6.5">
+              Repository Settings
+            </Heading>
+            <Text color="gray" className="text-[13px]">
               Manage settings for {folder.name}
             </Text>
           </Flex>
@@ -174,13 +178,11 @@ export function FolderSettingsView() {
           )}
 
           <Flex direction="column" gap="3">
-            <Heading size="3">Location</Heading>
+            <Heading className="text-base">Location</Heading>
             <Card>
               <Flex direction="column" gap="2">
-                <Text size="1" weight="medium">
-                  Root path
-                </Text>
-                <Code size="1">{folder.path}</Code>
+                <Text className="font-medium text-[13px]">Root path</Text>
+                <Code className="text-[13px]">{folder.path}</Code>
               </Flex>
             </Card>
           </Flex>
@@ -188,14 +190,14 @@ export function FolderSettingsView() {
           <Box className="border-gray-6 border-t" />
 
           <Flex direction="column" gap="3">
-            <Heading size="3">Danger zone</Heading>
+            <Heading className="text-base">Danger zone</Heading>
             <Card>
               <Flex direction="column" gap="4">
                 <Flex direction="column" gap="2">
-                  <Text size="1" weight="medium">
+                  <Text className="font-medium text-[13px]">
                     Remove repository
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text color="gray" className="text-[13px]">
                     This will remove the repository from PostHog Code, including
                     all associated tasks and their workspaces. This action
                     cannot be undone.
@@ -206,7 +208,7 @@ export function FolderSettingsView() {
                   color="red"
                   size="1"
                   onClick={handleRemoveFolder}
-                  style={{ alignSelf: "flex-start" }}
+                  className="self-start"
                 >
                   Remove repository
                 </Button>

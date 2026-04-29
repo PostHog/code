@@ -27,18 +27,19 @@ export function ProjectSelect({
     ? `${currentProject.name} ${currentProject.id}`
     : undefined;
   const [highlightedValue, setHighlightedValue] = useState(defaultValue);
+  const sizeClass = size === "1" ? "text-[13px]" : "text-sm";
 
   if (projects.length <= 1) {
     return (
-      <Text size={size} style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+      <Text className={`text-(--gray-12) opacity-50 ${sizeClass}`}>
         {projectName}
       </Text>
     );
   }
 
   return (
-    <Text size={size}>
-      <span style={{ color: "var(--gray-12)", opacity: 0.5 }}>
+    <Text className={sizeClass}>
+      <span className="text-(--gray-12) opacity-50">
         {projectName}
         {" · "}
       </span>
@@ -56,23 +57,18 @@ export function ProjectSelect({
             type="button"
             disabled={disabled}
             style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              color: "var(--accent-9)",
               cursor: disabled ? "not-allowed" : "pointer",
               fontFamily: "inherit",
-              fontWeight: 500,
               fontSize: "inherit",
               opacity: disabled ? 0.5 : 1,
             }}
+            className="border-0 bg-transparent p-0 font-medium text-(--accent-9)"
           >
             change
           </button>
         </Popover.Trigger>
         <Popover.Content
-          className="project-select-popover"
-          style={{ padding: 0 }}
+          className="project-select-popover p-0"
           side="bottom"
           align="start"
           sideOffset={8}
@@ -96,7 +92,7 @@ export function ProjectSelect({
                   }}
                 >
                   <Flex align="center" justify="between" width="100%">
-                    <Text size="2">{project.name}</Text>
+                    <Text className="text-sm">{project.name}</Text>
                     {project.id === projectId && (
                       <Check size={14} className="text-accent-11" />
                     )}

@@ -62,58 +62,41 @@ export function OnboardingHogTip({
       transition={{ duration: 0.3, delay }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ cursor: "default" }}
+      className="cursor-default"
     >
       <Flex align="center" gap="3">
         <motion.img
           src={hogSrc}
           alt=""
           animate={controls}
-          style={{
-            width: 48,
-            height: 48,
-            objectFit: "contain",
-            flexShrink: 0,
-          }}
+          className="h-[48px] w-[48px] shrink-0 object-contain"
         />
-        <div
-          style={{
-            position: "relative",
-            backgroundColor: "var(--color-panel-solid)",
-            border: "1px solid var(--gray-a4)",
-            borderRadius: "var(--radius-3)",
-            padding: "8px 12px",
-          }}
-        >
+        <div className="relative rounded-(--radius-3) border border-(--gray-a4) bg-(--color-panel-solid) px-[12px] py-[8px]">
           {/* Border tail */}
           <div
             style={{
-              position: "absolute",
               top: "50%",
               left: -8,
               transform: "translateY(-50%)",
-              width: 0,
-              height: 0,
               borderTop: "8px solid transparent",
               borderBottom: "8px solid transparent",
               borderRight: "8px solid var(--gray-a4)",
             }}
+            className="absolute h-0 w-0"
           />
           {/* Fill tail */}
           <div
             style={{
-              position: "absolute",
               top: "50%",
               left: -7,
               transform: "translateY(-50%)",
-              width: 0,
-              height: 0,
               borderTop: "7px solid transparent",
               borderBottom: "7px solid transparent",
               borderRight: "7px solid var(--color-panel-solid)",
             }}
+            className="absolute h-0 w-0"
           />
-          <Text size="1" style={{ color: "var(--gray-11)", lineHeight: 1.5 }}>
+          <Text className="text-(--gray-11) text-[13px] leading-normal">
             {message}
           </Text>
         </div>

@@ -107,16 +107,14 @@ function VirtualizedListInner<T>(
   }, []);
 
   return (
-    <div
-      className={className}
-      style={{ height: "100%", display: "flex", flexDirection: "column" }}
-    >
+    <div className={`flex h-full flex-col ${className}`}>
       <VList
         ref={listRef}
         shift={false}
-        style={{ flex: 1, scrollbarGutter: "stable" }}
+        style={{ scrollbarGutter: "stable" }}
         onScroll={handleScroll}
         keepMounted={keepMounted}
+        className="flex-1"
       >
         {items.map((item, index) => (
           <div

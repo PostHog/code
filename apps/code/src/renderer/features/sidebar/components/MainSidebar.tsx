@@ -16,7 +16,7 @@ export function MainSidebar() {
   }, [isFetched, workspaces, setOpenAuto]);
 
   return (
-    <Box flexShrink="0" style={{ flexShrink: 0 }}>
+    <Box flexShrink="0" className="shrink-0">
       <Sidebar>
         <SidebarContent />
       </Sidebar>

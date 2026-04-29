@@ -6,13 +6,8 @@ import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import type { Task } from "@shared/types";
 import { useMemo } from "react";
-import { LazyDiff } from "./LazyDiff";
-import { PatchedFileDiff } from "./PatchedFileDiff";
-import {
-  DeferredDiffPlaceholder,
-  ReviewShell,
-  useReviewState,
-} from "./ReviewShell";
+import { RemoteDiffList } from "./RemoteDiffList";
+import { ReviewShell, useReviewState } from "./ReviewShell";
 
 interface CloudReviewPageProps {
   task: Task;
@@ -52,8 +47,8 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
     getDeferredReason,
   } = useReviewState(reviewFiles, allPaths);
 
-  const toolCallDiffs = useMemo(() => {
-    if (remoteFiles.length > 0) return null;
+  const toolCallFallbacks = useMemo(() => {
+    if (remoteFiles.length > 0) return undefined;
     const diffs = new Map<
       string,
       { oldText: string | null; newText: string | null }
@@ -76,7 +71,7 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
         >
           <Flex direction="column" align="center" gap="2">
             <Spinner size="2" />
-            <Text size="2">Waiting for changes...</Text>
+            <Text className="text-sm">Waiting for changes...</Text>
           </Flex>
         </Flex>
       );
@@ -97,48 +92,18 @@ export function CloudReviewPage({ task }: CloudReviewPageProps) {
       onCollapseAll={collapseAll}
       onUncollapseFile={uncollapseFile}
     >
-      {reviewFiles.map((file) => {
-        const isCollapsed = collapsedFiles.has(file.path);
-        const deferredReason = getDeferredReason(file.path);
-
-        if (deferredReason) {
-          return (
-            <div key={file.path} data-file-path={file.path}>
-              <DeferredDiffPlaceholder
-                filePath={file.path}
-                linesAdded={file.linesAdded ?? 0}
-                linesRemoved={file.linesRemoved ?? 0}
-                reason={deferredReason}
-                collapsed={isCollapsed}
-                onToggle={() => toggleFile(file.path)}
-                onShow={() => revealFile(file.path)}
-              />
-            </div>
-          );
-        }
-
-        const githubFileUrl = prUrl
-          ? `${prUrl}/files#diff-${file.path.replaceAll("/", "-")}`
-          : undefined;
-
-        return (
-          <div key={file.path} data-file-path={file.path}>
-            <LazyDiff>
-              <PatchedFileDiff
-                file={file}
-                taskId={taskId}
-                prUrl={prUrl}
-                options={diffOptions}
-                collapsed={isCollapsed}
-                onToggle={() => toggleFile(file.path)}
-                commentThreads={showReviewComments ? commentThreads : undefined}
-                fallback={toolCallDiffs?.get(file.path) ?? null}
-                externalUrl={githubFileUrl}
-              />
-            </LazyDiff>
-          </div>
-        );
-      })}
+      <RemoteDiffList
+        files={reviewFiles}
+        taskId={taskId}
+        prUrl={prUrl}
+        options={diffOptions}
+        collapsedFiles={collapsedFiles}
+        toggleFile={toggleFile}
+        revealFile={revealFile}
+        getDeferredReason={getDeferredReason}
+        commentThreads={showReviewComments ? commentThreads : undefined}
+        fallbacks={toolCallFallbacks}
+      />
     </ReviewShell>
   );
 }

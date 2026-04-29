@@ -42,7 +42,7 @@ function LoadMoreTrigger({
   return (
     <Flex ref={ref} align="center" justify="center" py="3">
       {isFetchingNextPage ? (
-        <Text size="1" color="gray" className="text-[12px]">
+        <Text color="gray" className="text-[12px]">
           Loading more...
         </Text>
       ) : null}
@@ -118,7 +118,7 @@ export function ReportListPane({
       <Flex align="center" justify="center" py="8" px="4">
         <Flex direction="column" align="center" gap="3" className="text-center">
           <WarningIcon size={20} className="text-amber-10" weight="bold" />
-          <Text size="1" color="gray" className="text-[12px]">
+          <Text color="gray" className="text-[12px]">
             Could not load signals
           </Text>
           <Button
@@ -143,7 +143,7 @@ export function ReportListPane({
   if (reports.length === 0 && searchQuery.trim()) {
     return (
       <Flex direction="column" align="center" justify="center" gap="2" py="6">
-        <Text size="1" color="gray" className="text-[12px]">
+        <Text color="gray" className="text-[12px]">
           No matching reports
         </Text>
       </Flex>
@@ -154,7 +154,7 @@ export function ReportListPane({
   if (reports.length === 0 && hasActiveFilters) {
     return (
       <Flex direction="column" align="center" justify="center" gap="2" py="6">
-        <Text size="1" color="gray" className="text-[12px]">
+        <Text color="gray" className="text-[12px]">
           No reports match current filters
         </Text>
       </Flex>

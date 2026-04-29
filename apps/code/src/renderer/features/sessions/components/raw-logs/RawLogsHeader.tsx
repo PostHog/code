@@ -29,7 +29,7 @@ export function RawLogsHeader({
     <Box className="p-4 pb-2">
       <Flex direction="column" gap="2">
         <Flex justify="between" align="center">
-          <Text size="3" weight="medium" color="gray">
+          <Text color="gray" className="font-medium text-base">
             Raw Logs ({filteredCount}
             {searchQuery && ` of ${totalCount}`} events)
           </Text>

@@ -91,11 +91,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
           py="1"
           className="shrink-0 border-gray-6 border-b"
         >
-          <Text
-            size="1"
-            weight="medium"
-            className="font-mono text-[11px] text-gray-11"
-          >
+          <Text className="font-medium font-mono text-[11px] text-gray-11">
             New task
           </Text>
           <button
@@ -132,7 +128,7 @@ function EmptyCell({ cellIndex }: { cellIndex: number }) {
             Add task
           </button>
         </TaskSelector>
-        <Text size="1" className="text-[11px] text-gray-9">
+        <Text className="text-[11px] text-gray-9">
           or drag a task from the sidebar
         </Text>
       </Flex>
@@ -168,9 +164,7 @@ function PopulatedCell({
         className="shrink-0 border-gray-6 border-b"
       >
         <Text
-          size="1"
-          weight="medium"
-          className="min-w-0 flex-1 truncate text-[12px]"
+          className="min-w-0 flex-1 truncate font-medium text-[12px]"
           title={cell.task.title}
         >
           {cell.task.title}

@@ -73,7 +73,7 @@ export function ServerDetailView({
     "Server";
   const description = installation?.description || template?.description || "";
   const docsUrl = template?.docs_url || null;
-  const iconKey = template?.icon_key || name;
+  const iconKey = installation?.icon_key || template?.icon_key || null;
   const authType = installation?.auth_type || template?.auth_type;
 
   const {
@@ -86,6 +86,7 @@ export function ServerDetailView({
     refreshPending,
   } = useMcpInstallationTools(installation?.id ?? null, {
     includeRemoved: showRemoved,
+    autoRefreshIfEmpty: true,
   });
 
   const status = installation ? getInstallationStatus(installation) : null;
@@ -121,7 +122,7 @@ export function ServerDetailView({
   const removedCount = tools.filter((t) => !!t.removed_at).length;
 
   return (
-    <Flex direction="column" gap="4" style={{ minWidth: 0 }}>
+    <Flex direction="column" gap="4" className="min-w-0">
       <Flex align="center" gap="2">
         <Button variant="ghost" color="gray" size="1" onClick={onBack}>
           <ArrowLeft size={12} />
@@ -130,10 +131,10 @@ export function ServerDetailView({
       </Flex>
 
       <Flex align="start" gap="3">
-        <ServerIcon iconKey={iconKey} name={name} size={56} />
-        <Flex direction="column" gap="1" style={{ minWidth: 0, flex: 1 }}>
+        <ServerIcon iconKey={iconKey} size={56} />
+        <Flex direction="column" gap="1" className="min-w-0 flex-1">
           <Flex align="center" gap="2">
-            <Text size="5" weight="bold" truncate>
+            <Text truncate className="font-bold text-xl">
               {name}
             </Text>
             {installation && (
@@ -143,7 +144,7 @@ export function ServerDetailView({
             )}
           </Flex>
           {description && (
-            <Text size="2" color="gray">
+            <Text color="gray" className="text-sm">
               {description}
             </Text>
           )}
@@ -225,9 +226,7 @@ export function ServerDetailView({
           <Separator size="4" />
           <Flex align="center" justify="between" wrap="wrap" gap="2">
             <Flex align="center" gap="3">
-              <Text size="3" weight="medium">
-                Tools
-              </Text>
+              <Text className="font-medium text-base">Tools</Text>
               <Badge color="gray" variant="soft" size="1">
                 {tools.filter((t) => !t.removed_at).length}
               </Badge>
@@ -250,7 +249,7 @@ export function ServerDetailView({
               </Flex>
             </Flex>
             <Flex gap="2" align="center">
-              <Text size="1" color="gray">
+              <Text color="gray" className="text-[13px]">
                 Set all:
               </Text>
               <Tooltip content="Approve all">
@@ -318,12 +317,18 @@ export function ServerDetailView({
               py="6"
               className="rounded border border-gray-6 border-dashed"
             >
-              <Text size="2" weight="medium">
-                No tools discovered yet.
-              </Text>
-              <Text size="1" color="gray">
-                Try refreshing, or check that the server is online.
-              </Text>
+              {refreshPending ? (
+                <Spinner size="1" />
+              ) : (
+                <>
+                  <Text className="font-medium text-sm">
+                    No tools discovered yet.
+                  </Text>
+                  <Text color="gray" className="text-[13px]">
+                    Try refreshing, or check that the server is online.
+                  </Text>
+                </>
+              )}
             </Flex>
           ) : (
             <Flex direction="column" gap="2">
@@ -352,7 +357,7 @@ export function ServerDetailView({
               )}
               {filteredTools.length === 0 ? (
                 <Flex align="center" justify="center" py="4">
-                  <Text size="2" color="gray">
+                  <Text color="gray" className="text-sm">
                     No tools match &ldquo;{toolSearch}&rdquo;
                   </Text>
                 </Flex>
@@ -397,12 +402,12 @@ export function ServerDetailView({
           py="6"
           className="rounded border border-gray-6 border-dashed"
         >
-          <Text size="2" weight="medium">
+          <Text className="font-medium text-sm">
             {status === "pending_oauth"
               ? "Finish connecting to start using this server."
               : "This server needs to be reconnected."}
           </Text>
-          <Text size="1" color="gray">
+          <Text color="gray" className="text-[13px]">
             Click Reconnect above to resume the OAuth flow.
           </Text>
         </Flex>

@@ -31,60 +31,36 @@ export function FullScreenLayout({
       <Flex
         direction="column"
         height="100vh"
-        style={{ position: "relative", overflow: "hidden" }}
+        className="relative overflow-hidden"
       >
         <DraggableTitleBar />
 
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: "var(--color-background)",
-          }}
-        />
+        <div className="absolute inset-0 bg-(--color-background)" />
         <DotPatternBackground />
 
         <Flex
           direction="column"
           flexGrow="1"
-          style={{
-            position: "relative",
-            zIndex: 1,
-            minHeight: 0,
-            width: "100%",
-          }}
+          className="relative z-[1] min-h-0 w-full"
         >
           <img
             src={isDarkMode ? phWordmarkWhite : phWordmark}
             alt="PostHog"
-            style={{
-              height: "40px",
-              objectFit: "contain",
-              alignSelf: "flex-start",
-              marginLeft: 32,
-              marginTop: "clamp(24px, 6vh, 80px)",
-              flexShrink: 0,
-            }}
+            className="mt-[clamp(24px,6vh,80px)] ml-8 h-10 shrink-0 self-start object-contain"
           />
 
           <Flex
             direction="column"
             flexGrow="1"
             overflow="hidden"
-            style={{ minHeight: 0 }}
+            className="min-h-0"
           >
             {children}
           </Flex>
 
           <Flex
             justify="between"
-            style={{
-              position: "absolute",
-              bottom: 20,
-              left: 32,
-              right: 32,
-              zIndex: 2,
-            }}
+            className="absolute right-[32px] bottom-[20px] left-[32px] z-[2]"
           >
             {footerLeft ?? (
               <Button
@@ -96,7 +72,7 @@ export function FullScreenLayout({
                     url: EXTERNAL_LINKS.discord,
                   })
                 }
-                style={{ opacity: 0.5 }}
+                className="opacity-50"
               >
                 <Lifebuoy size={14} />
                 Get support

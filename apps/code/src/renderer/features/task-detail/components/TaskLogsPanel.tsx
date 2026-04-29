@@ -122,7 +122,7 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
   return (
     <BackgroundWrapper>
       <Flex direction="column" height="100%" width="100%">
-        <Box style={{ flex: 1, minHeight: 0 }}>
+        <Box className="min-h-0 flex-1">
           <ErrorBoundary name="SessionView">
             <SessionView
               events={events}

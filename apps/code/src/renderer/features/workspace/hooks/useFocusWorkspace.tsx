@@ -47,7 +47,7 @@ export function useFocusWorkspace(taskId: string) {
       toast.success(
         <>
           Returned to{" "}
-          <Text style={{ color: "var(--accent-11)" }}>
+          <Text className="text-(--accent-11)">
             {focusSession.originalBranch}
           </Text>
         </>,

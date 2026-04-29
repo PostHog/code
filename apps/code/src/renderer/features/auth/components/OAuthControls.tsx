@@ -32,20 +32,11 @@ export function OAuthControls() {
         type="button"
         onClick={isPending ? handleCancel : handleAuth}
         disabled={false}
+        className="flex h-[44px] w-full cursor-pointer items-center justify-center gap-[8px] rounded-[6px] font-medium text-[15px]"
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "8px",
-          width: "100%",
-          height: "44px",
           border: isPending
             ? "1.5px solid var(--gray-6)"
             : "1.5px solid var(--accent-8)",
-          borderRadius: "6px",
-          fontSize: "15px",
-          fontWeight: 500,
-          cursor: "pointer",
           backgroundColor: isPending ? "var(--gray-3)" : "var(--accent-9)",
           color: isPending ? "var(--gray-11)" : "var(--accent-contrast)",
           boxShadow: isPending ? "none" : "0 3px 0 -1px var(--accent-8)",
@@ -55,11 +46,7 @@ export function OAuthControls() {
         {isPending ? (
           <Spinner size="1" />
         ) : (
-          <img
-            src={posthogIcon}
-            alt=""
-            style={{ width: "20px", height: "20px" }}
-          />
+          <img src={posthogIcon} alt="" className="h-[20px] w-[20px]" />
         )}
         {isPending ? "Cancel" : "Sign in / sign up with PostHog"}
       </button>

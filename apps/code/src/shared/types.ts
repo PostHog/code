@@ -226,7 +226,11 @@ export interface ChangedFile {
 }
 
 // External apps detection types
-export type ExternalAppType = "editor" | "terminal" | "file-manager";
+export type ExternalAppType =
+  | "editor"
+  | "terminal"
+  | "file-manager"
+  | "git-client";
 
 export interface DetectedApplication {
   id: string; // "vscode", "cursor", "iterm"

@@ -65,13 +65,8 @@ export function ZenHedgehog() {
         layoutId="zen-hedgehog"
         src={hovered ? roboZen : zenHedgehog}
         alt=""
-        style={{
-          width: "600px",
-          maxWidth: "90%",
-          cursor: "default",
-          display: "block",
-        }}
         transition={{ type: "spring", stiffness: 120, damping: 20, mass: 0.8 }}
+        className="block w-[600px] max-w-[90%] cursor-default"
       />
     </div>
   );

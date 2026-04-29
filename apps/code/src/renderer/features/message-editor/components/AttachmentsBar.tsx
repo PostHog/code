@@ -55,7 +55,7 @@ function ImageThumbnail({
         <Dialog.Trigger>
           <button
             type="button"
-            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight hover:bg-[var(--gray-a4)]"
+            className="inline-flex items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] hover:bg-[var(--gray-a4)]"
           >
             {dataUrl ? (
               isGif ? (
@@ -86,11 +86,8 @@ function ImageThumbnail({
           <X size={8} weight="bold" />
         </IconButton>
       </div>
-      <Dialog.Content
-        maxWidth="85vw"
-        style={{ padding: 16, width: "fit-content" }}
-      >
-        <Dialog.Title size="2" mb="2">
+      <Dialog.Content maxWidth="85vw" className="w-fit p-[16px]">
+        <Dialog.Title mb="2" className="text-sm">
           {attachment.label}
         </Dialog.Title>
         {dataUrl ? (
@@ -98,15 +95,12 @@ function ImageThumbnail({
             src={dataUrl}
             alt={attachment.label}
             style={{
-              maxWidth: "80vw",
-              maxHeight: "75vh",
-              objectFit: "contain",
-              display: "block",
               margin: "0 auto",
             }}
+            className="block max-h-[75vh] max-w-[80vw] object-contain"
           />
         ) : (
-          <Text size="2" color="gray">
+          <Text color="gray" className="text-sm">
             Unable to load image preview
           </Text>
         )}
@@ -123,7 +117,7 @@ function FileChip({
   onRemove: () => void;
 }) {
   return (
-    <span className="group/chip inline-flex flex-shrink-0 items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)] leading-tight">
+    <span className="group/chip inline-flex flex-shrink-0 items-center gap-1 rounded-[var(--radius-1)] bg-[var(--gray-a3)] p-1 font-medium text-[11px] text-[var(--gray-11)]">
       <button
         type="button"
         tabIndex={-1}

@@ -74,7 +74,7 @@ export function ProgressGroupView({
               ) : (
                 <CaretRight size={12} className="text-gray-10" />
               )}
-              <Text size="2" weight="medium" className="text-gray-12">
+              <Text className="font-medium text-gray-12 text-sm">
                 {summaryLabel}
               </Text>
             </button>

@@ -55,15 +55,10 @@ export function ActionTabIcon({ actionId }: ActionTabIconProps) {
       onMouseLeave={() => setHovered(false)}
       onClick={handleClick}
       style={{
-        display: "flex",
-        alignItems: "center",
         cursor: hovered ? "pointer" : undefined,
-        background: "none",
-        border: "none",
-        padding: 0,
-        margin: 0,
         color: "inherit",
       }}
+      className="m-0 flex items-center border-0 bg-transparent p-0"
     >
       {icon}
     </button>

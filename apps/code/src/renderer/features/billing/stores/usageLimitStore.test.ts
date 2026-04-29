@@ -3,34 +3,22 @@ import { useUsageLimitStore } from "./usageLimitStore";
 
 describe("usageLimitStore", () => {
   beforeEach(() => {
-    useUsageLimitStore.setState({ isOpen: false, context: null });
+    useUsageLimitStore.setState({ isOpen: false });
   });
 
-  it("starts closed with no context", () => {
+  it("starts closed", () => {
     const state = useUsageLimitStore.getState();
     expect(state.isOpen).toBe(false);
-    expect(state.context).toBeNull();
   });
 
-  it("show opens with mid-task context", () => {
-    useUsageLimitStore.getState().show("mid-task");
-    const state = useUsageLimitStore.getState();
-    expect(state.isOpen).toBe(true);
-    expect(state.context).toBe("mid-task");
+  it("show opens the modal", () => {
+    useUsageLimitStore.getState().show();
+    expect(useUsageLimitStore.getState().isOpen).toBe(true);
   });
 
-  it("show opens with idle context", () => {
-    useUsageLimitStore.getState().show("idle");
-    const state = useUsageLimitStore.getState();
-    expect(state.isOpen).toBe(true);
-    expect(state.context).toBe("idle");
-  });
-
-  it("hide closes but preserves context for exit animation", () => {
-    useUsageLimitStore.getState().show("mid-task");
+  it("hide closes the modal", () => {
+    useUsageLimitStore.getState().show();
     useUsageLimitStore.getState().hide();
-    const state = useUsageLimitStore.getState();
-    expect(state.isOpen).toBe(false);
-    expect(state.context).toBe("mid-task");
+    expect(useUsageLimitStore.getState().isOpen).toBe(false);
   });
 });

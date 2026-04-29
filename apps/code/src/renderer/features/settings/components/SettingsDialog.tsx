@@ -180,19 +180,11 @@ export function SettingsDialog() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex"
-      style={{ backgroundColor: "var(--color-background)" }}
+      className="fixed inset-0 z-[100] flex bg-(--color-background)"
       data-overlay="settings"
     >
       <div className="flex h-full w-[256px] shrink-0 flex-col border-gray-6 border-r">
-        <div
-          className="drag"
-          style={{
-            height: 36,
-            flexShrink: 0,
-            borderBottom: "1px solid var(--gray-6)",
-          }}
-        />
+        <div className="drag h-[36px] shrink-0 border-b border-b-(--gray-6)" />
 
         {isAuthenticated && user && initials && (
           <Flex
@@ -200,15 +192,15 @@ export function SettingsDialog() {
             gap="3"
             px="3"
             py="3"
-            style={{ borderBottom: "1px solid var(--gray-5)" }}
+            className="border-b border-b-(--gray-5)"
           >
             <Avatar size="2" fallback={initials} radius="full" color="amber" />
-            <Flex direction="column" style={{ minWidth: 0 }}>
-              <Text size="2" weight="medium" truncate>
+            <Flex direction="column" className="min-w-0">
+              <Text truncate className="font-medium text-sm">
                 {user.email}
               </Text>
               {seat && (
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
+                <Text className="text-(--gray-9) text-[13px]">
                   {planLabel} Plan
                 </Text>
               )}
@@ -225,7 +217,7 @@ export function SettingsDialog() {
           <span>Back to app</span>
         </button>
 
-        <ScrollArea style={{ flex: 1 }}>
+        <ScrollArea className="flex-1">
           <div className="flex flex-col pt-2">
             {sidebarItems.map((item) => (
               <SidebarNavItem
@@ -255,29 +247,16 @@ export function SettingsDialog() {
       </div>
 
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        <div
-          className="drag"
-          style={{
-            height: 36,
-            flexShrink: 0,
-            borderBottom: "1px solid var(--gray-6)",
-          }}
-        />
+        <div className="drag h-[36px] shrink-0 border-b border-b-(--gray-6)" />
         <div className="relative flex flex-1 justify-center overflow-hidden">
           <svg
             aria-hidden="true"
             style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-              opacity: 0.4,
               maskImage: "linear-gradient(to top, black 0%, transparent 100%)",
               WebkitMaskImage:
                 "linear-gradient(to top, black 0%, transparent 100%)",
             }}
+            className="pointer-events-none absolute bottom-0 left-0 h-full w-full opacity-40"
           >
             <defs>
               <pattern
@@ -300,32 +279,14 @@ export function SettingsDialog() {
             />
           </svg>
           {isFullwidth ? (
-            <div
-              style={{
-                position: "relative",
-                zIndex: 1,
-                height: "100%",
-                width: "100%",
-                display: "flex",
-                minHeight: 0,
-              }}
-            >
+            <div className="relative z-[1] flex h-full min-h-0 w-full">
               <ActiveComponent />
             </div>
           ) : (
-            <ScrollArea
-              style={{
-                height: "100%",
-                width: "100%",
-              }}
-            >
-              <Box
-                p="6"
-                mx="auto"
-                style={{ position: "relative", zIndex: 1, maxWidth: "800px" }}
-              >
+            <ScrollArea className="h-full w-full">
+              <Box p="6" mx="auto" className="relative z-[1] max-w-[800px]">
                 <Flex direction="column" gap="4">
-                  <Text size="4" weight="medium">
+                  <Text className="font-medium text-lg leading-6.5">
                     {CATEGORY_TITLES[activeCategory]}
                   </Text>
                   <ActiveComponent />

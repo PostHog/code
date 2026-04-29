@@ -8,6 +8,7 @@ import {
   getAuthenticatedClient,
 } from "@features/auth/hooks/authClient";
 import { fetchAuthState } from "@features/auth/hooks/authQueries";
+import { useUsageLimitStore } from "@features/billing/stores/usageLimitStore";
 import { useSessionAdapterStore } from "@features/sessions/stores/sessionAdapterStore";
 import {
   getPersistedConfigOptions,
@@ -70,6 +71,7 @@ import {
   extractPromptText,
   getUserShellExecutesSinceLastPrompt,
   isFatalSessionError,
+  isRateLimitError,
   normalizePromptToBlocks,
   shellExecutesToContextBlocks,
 } from "@utils/session";
@@ -100,6 +102,35 @@ const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
  * trpc query, which is async. Callers populate them by calling
  * `fetchAndApplyCloudPreviewOptions` after the session exists in the store.
  */
+function extractLatestConfigOptionsFromEntries(
+  entries: StoredLogEntry[],
+): SessionConfigOption[] | undefined {
+  let latest: SessionConfigOption[] | undefined;
+  for (const entry of entries) {
+    if (
+      entry.type !== "notification" ||
+      entry.notification?.method !== "session/update"
+    ) {
+      continue;
+    }
+    const params = entry.notification.params as
+      | {
+          update?: {
+            sessionUpdate?: string;
+            configOptions?: SessionConfigOption[];
+          };
+        }
+      | undefined;
+    if (
+      params?.update?.sessionUpdate === "config_option_update" &&
+      params.update.configOptions
+    ) {
+      latest = params.update.configOptions;
+    }
+  }
+  return latest;
+}
+
 function buildCloudDefaultConfigOptions(
   initialMode: string | undefined,
   adapter: Adapter = "claude",
@@ -1385,6 +1416,18 @@ export class SessionService {
 
       sessionStoreSetters.clearOptimisticItems(session.taskRunId);
 
+      if (isRateLimitError(errorMessage, errorDetails)) {
+        log.warn("Rate limit exceeded, showing usage limit modal", {
+          taskRunId: session.taskRunId,
+        });
+        sessionStoreSetters.updateSession(session.taskRunId, {
+          isPromptPending: false,
+          promptStartedAt: null,
+        });
+        useUsageLimitStore.getState().show();
+        return { stopReason: "rate_limited" };
+      }
+
       if (isFatalSessionError(errorMessage, errorDetails)) {
         log.error("Fatal prompt error, attempting recovery", {
           taskRunId: session.taskRunId,
@@ -2542,12 +2585,17 @@ export class SessionService {
         return;
       }
 
+      const events = convertStoredEntriesToEvents(rawEntries);
       sessionStoreSetters.updateSession(taskRunId, {
-        events: convertStoredEntriesToEvents(rawEntries),
+        events,
         isCloud: true,
         logUrl: logUrl ?? session.logUrl,
         processedLineCount: rawEntries.length,
       });
+      // Without this the "Galumphing…" indicator stays hidden when the hydrated
+      // baseline already contains an in-flight session/prompt — the live delta
+      // path otherwise sees delta <= 0 and never re-evaluates the tail.
+      this.updatePromptStateFromEvents(taskRunId, events);
     })().catch((err: unknown) => {
       log.warn("Failed to hydrate cloud task session from logs", {
         taskId,
@@ -2883,6 +2931,20 @@ export class SessionService {
       (update.kind === "logs" || update.kind === "snapshot") &&
       update.newEntries.length > 0
     ) {
+      // Cloud streams deliver `session/update` notifications as regular log
+      // entries rather than live ACP messages. Without this, config changes
+      // made mid-run (e.g. plan-approval switching to bypassPermissions) never
+      // reach the session store and the footer mode selector stays stale.
+      const latestConfigOptions = extractLatestConfigOptionsFromEntries(
+        update.newEntries,
+      );
+      if (latestConfigOptions) {
+        sessionStoreSetters.updateSession(taskRunId, {
+          configOptions: latestConfigOptions,
+        });
+        setPersistedConfigOptions(taskRunId, latestConfigOptions);
+      }
+
       const session = sessionStoreSetters.getSessions()[taskRunId];
       const currentCount = session?.processedLineCount ?? 0;
       const expectedCount = update.totalEntryCount;

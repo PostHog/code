@@ -75,14 +75,10 @@ function InlineFileLink({
         type="button"
         onClick={taskId ? handleClick : undefined}
         disabled={!taskId}
-        className={
-          taskId ? "cursor-pointer underline-offset-2 hover:underline" : ""
-        }
+        className={`inline text-(--accent-11) ${taskId ? "cursor-pointer underline-offset-2 hover:underline" : ""}`}
         style={{
           all: "unset",
-          color: "var(--accent-11)",
           font: "inherit",
-          display: "inline",
         }}
       >
         {filename}
@@ -104,7 +100,7 @@ function BareFileLink({ text }: { text: string }) {
 
   if (!resolved) {
     return (
-      <Code size="1" variant="ghost" style={{ color: "var(--accent-11)" }}>
+      <Code variant="ghost" className="text-(--accent-11) text-[13px]">
         {text}
       </Code>
     );
@@ -134,7 +130,7 @@ const agentComponents: Partial<Components> = {
     }
 
     return (
-      <Code size="1" variant="ghost" style={{ color: "var(--accent-11)" }}>
+      <Code variant="ghost" className="text-(--accent-11) text-[13px]">
         {children}
       </Code>
     );
@@ -157,7 +153,7 @@ export const AgentMessage = memo(function AgentMessage({
   }, [content]);
 
   return (
-    <Box className="group/msg relative py-1 pl-3 [&>*:last-child]:mb-0">
+    <Box className="group/msg relative py-1 pl-3 text-[13px] [&>*:last-child]:mb-0">
       <MarkdownRenderer
         content={content}
         componentsOverride={agentComponents}

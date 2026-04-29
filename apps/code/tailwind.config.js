@@ -33,27 +33,8 @@ module.exports = {
           900: "#7f1d1d",
         },
       },
-      fontFamily: {
-        sans: [
-          "-apple-system",
-          "BlinkMacSystemFont",
-          "Segoe UI",
-          "Roboto",
-          "Helvetica",
-          "Arial",
-          "sans-serif",
-          "Apple Color Emoji",
-          "Segoe UI Emoji",
-          "Segoe UI Symbol",
-        ],
-        mono: [
-          "Berkeley Mono",
-          "JetBrains Mono",
-          "Consolas",
-          "Monaco",
-          "monospace",
-        ],
-      },
+      // fontFamily lives in globals.css `@theme` (--font-sans / --font-mono)
+      // — the Tailwind v4 source of truth. Don't re-declare here.
     },
   },
   plugins: [],

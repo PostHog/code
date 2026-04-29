@@ -32,21 +32,18 @@ export function StepTabs({
             px="2"
             onClick={() => onStepClick(i)}
             style={{
-              borderRadius: "var(--radius-2)",
               background: isCurrent ? "var(--blue-3)" : "transparent",
-              cursor: "pointer",
             }}
+            className="cursor-pointer rounded-(--radius-2)"
           >
             <Text
-              size="1"
-              weight={isCurrent ? "medium" : "regular"}
-              className={
+              className={`text-[13px] ${
                 isCurrent
-                  ? "text-blue-11"
+                  ? "font-medium text-blue-11"
                   : isCompleted
                     ? "text-green-11"
                     : "text-gray-11"
-              }
+              }`}
             >
               {isCompleted && "✓ "}
               {step.label}

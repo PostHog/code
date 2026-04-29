@@ -87,23 +87,24 @@ describe.each([
       "src/a/very/deeply/nested/structure/ReviewShell.tsx",
     )[which];
 
-    const dirSpan = findSpan(
-      rendered.container,
-      (s) => s.style.color === "var(--gray-9)" && !s.style.fontWeight,
+    // Inline styles were migrated to Tailwind utility classes; check classes
+    // instead. The dir span gets the muted color + truncation utilities, the
+    // file span gets bold weight + a non-shrinking flex behavior.
+    const dirSpan = findSpan(rendered.container, (s) =>
+      s.classList.contains("text-(--gray-9)"),
     );
-    const fileSpan = findSpan(
-      rendered.container,
-      (s) => s.style.fontWeight === "600",
+    const fileSpan = findSpan(rendered.container, (s) =>
+      s.classList.contains("font-semibold"),
     );
 
-    expect(dirSpan.style.overflow).toBe("hidden");
-    expect(dirSpan.style.textOverflow).toBe("ellipsis");
-    expect(dirSpan.style.whiteSpace).toBe("nowrap");
+    expect(dirSpan.classList.contains("overflow-hidden")).toBe(true);
+    expect(dirSpan.classList.contains("text-ellipsis")).toBe(true);
+    expect(dirSpan.classList.contains("whitespace-nowrap")).toBe(true);
 
-    expect(fileSpan.style.whiteSpace).toBe("nowrap");
-    expect(fileSpan.style.flexShrink).toBe("0");
+    expect(fileSpan.classList.contains("whitespace-nowrap")).toBe(true);
+    expect(fileSpan.classList.contains("shrink-0")).toBe(true);
 
     expect(dirSpan.parentElement).toBe(fileSpan.parentElement);
-    expect(dirSpan.parentElement?.style.display).toBe("flex");
+    expect(dirSpan.parentElement?.classList.contains("flex")).toBe(true);
   });
 });

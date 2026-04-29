@@ -5,7 +5,6 @@ import { Button, Dialog, Flex, Text } from "@radix-ui/themes";
 
 export function UsageLimitModal() {
   const isOpen = useUsageLimitStore((s) => s.isOpen);
-  const context = useUsageLimitStore((s) => s.context);
   const hide = useUsageLimitStore((s) => s.hide);
 
   const handleUpgrade = () => {
@@ -26,10 +25,9 @@ export function UsageLimitModal() {
             <Dialog.Title className="mb-0">Usage limit reached</Dialog.Title>
           </Flex>
           <Dialog.Description>
-            <Text size="2" color="gray">
-              {context === "mid-task"
-                ? "You've hit your free plan usage limit. Your current task can't continue until usage resets or you upgrade to Pro."
-                : "You've reached your free plan usage limit. Upgrade to Pro for unlimited usage."}
+            <Text color="gray" className="text-sm">
+              You've reached your free plan usage limit. Upgrade to Pro for
+              unlimited usage.
             </Text>
           </Dialog.Description>
           <Flex justify="end" gap="3" mt="2">

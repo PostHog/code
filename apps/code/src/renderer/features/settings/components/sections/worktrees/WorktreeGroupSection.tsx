@@ -35,7 +35,7 @@ export function WorktreeGroupSection({
 
   return (
     <Flex direction="column">
-      <Text size="1" color="gray" mb="2">
+      <Text color="gray" mb="2" className="text-[13px]">
         {folderName}
       </Text>
       <Flex direction="column">

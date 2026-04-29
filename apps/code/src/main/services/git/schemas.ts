@@ -258,6 +258,16 @@ export const prStatusOutput = z.object({
 export type PrStatusInput = z.infer<typeof prStatusInput>;
 export type PrStatusOutput = z.infer<typeof prStatusOutput>;
 
+// Look up the PR for an arbitrary branch (not necessarily the current one).
+export const getPrUrlForBranchInput = z.object({
+  directoryPath: z.string(),
+  branchName: z.string(),
+});
+export const getPrUrlForBranchOutput = z.string().nullable();
+
+export type GetPrUrlForBranchInput = z.infer<typeof getPrUrlForBranchInput>;
+export type GetPrUrlForBranchOutput = z.infer<typeof getPrUrlForBranchOutput>;
+
 // Create PR operation
 export const createPrInput = z.object({
   directoryPath: z.string(),
@@ -405,6 +415,12 @@ export const getBranchChangedFilesInput = z.object({
   branch: z.string(),
 });
 export const getBranchChangedFilesOutput = z.array(changedFileSchema);
+
+export const getLocalBranchChangedFilesInput = z.object({
+  directoryPath: z.string(),
+  branch: z.string(),
+});
+export const getLocalBranchChangedFilesOutput = z.array(changedFileSchema);
 
 export const generateCommitMessageInput = z.object({
   directoryPath: z.string(),

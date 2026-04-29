@@ -1,6 +1,12 @@
 import { Tooltip } from "@components/ui/Tooltip";
-import { useGitQueries } from "@features/git-interaction/hooks/useGitQueries";
-import { computeDiffStats } from "@features/git-interaction/utils/diffStats";
+import {
+  useLocalBranchChangedFiles,
+  usePrChangedFiles,
+} from "@features/git-interaction/hooks/useGitQueries";
+import {
+  computeDiffStats,
+  type DiffStats,
+} from "@features/git-interaction/utils/diffStats";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useCloudChangedFiles } from "@features/task-detail/hooks/useCloudChangedFiles";
 import { useWorkspace } from "@features/workspace/hooks/useWorkspace";
@@ -14,51 +20,74 @@ import {
 import { useReviewNavigationStore } from "@renderer/features/code-review/stores/reviewNavigationStore";
 import type { Task } from "@shared/types";
 import { useMemo } from "react";
+import { useEffectiveDiffSource } from "../hooks/useEffectiveDiffSource";
 
 interface DiffStatsBadgeProps {
   task: Task;
 }
 
-function useChangedFileStats(task: Task) {
-  const taskId = task.id;
-  const workspace = useWorkspace(taskId);
+export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
+  const workspace = useWorkspace(task.id);
   const isCloud =
     workspace?.mode === "cloud" || task.latest_run?.environment === "cloud";
-  const repoPath = useCwd(taskId);
-
-  const { diffStats: localDiffStats } = useGitQueries(
-    isCloud ? undefined : repoPath,
+  return isCloud ? (
+    <CloudDiffStatsBadge task={task} />
+  ) : (
+    <LocalDiffStatsBadge task={task} />
   );
-
-  const { reviewFiles } = useCloudChangedFiles(taskId, task);
-
-  return useMemo(() => {
-    if (isCloud) {
-      const stats = computeDiffStats(reviewFiles);
-      return {
-        filesChanged: stats.filesChanged,
-        linesAdded: stats.linesAdded,
-        linesRemoved: stats.linesRemoved,
-      };
-    }
-    return {
-      filesChanged: localDiffStats.filesChanged,
-      linesAdded: localDiffStats.linesAdded,
-      linesRemoved: localDiffStats.linesRemoved,
-    };
-  }, [isCloud, reviewFiles, localDiffStats]);
 }
 
-export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
+function CloudDiffStatsBadge({ task }: { task: Task }) {
+  const { reviewFiles } = useCloudChangedFiles(task.id, task);
+  const stats = useMemo(() => computeDiffStats(reviewFiles), [reviewFiles]);
+  return <DiffStatsButton taskId={task.id} stats={stats} />;
+}
+
+function LocalDiffStatsBadge({ task }: { task: Task }) {
   const taskId = task.id;
-  const { filesChanged, linesAdded, linesRemoved } = useChangedFileStats(task);
+  const repoPath = useCwd(taskId);
+  const {
+    effectiveSource,
+    linkedBranch,
+    prUrl,
+    diffStats: localDiffStats,
+  } = useEffectiveDiffSource(taskId);
+
+  const { data: branchFiles } = useLocalBranchChangedFiles(
+    effectiveSource === "branch" ? (repoPath ?? null) : null,
+    effectiveSource === "branch" ? linkedBranch : null,
+  );
+  const { data: prFiles } = usePrChangedFiles(
+    effectiveSource === "pr" ? prUrl : null,
+  );
+
+  const stats = useMemo<DiffStats>(() => {
+    if (effectiveSource === "branch" && branchFiles) {
+      return computeDiffStats(branchFiles);
+    }
+    if (effectiveSource === "pr" && prFiles) {
+      return computeDiffStats(prFiles);
+    }
+    return localDiffStats;
+  }, [effectiveSource, branchFiles, prFiles, localDiffStats]);
+
+  return <DiffStatsButton taskId={taskId} stats={stats} />;
+}
+
+function DiffStatsButton({
+  taskId,
+  stats,
+}: {
+  taskId: string;
+  stats: DiffStats;
+}) {
   const reviewMode = useReviewNavigationStore(
     (s) => s.reviewModes[taskId] ?? "closed",
   );
   const setReviewMode = useReviewNavigationStore((s) => s.setReviewMode);
 
+  const { filesChanged, linesAdded, linesRemoved } = stats;
   const hasChanges = filesChanged > 0;
-
   const isOpen = reviewMode !== "closed";
 
   const handleClick = () => {
@@ -77,22 +106,22 @@ export function DiffStatsBadge({ task }: DiffStatsBadgeProps) {
         size="sm"
         className={`no-drag font-mono text-(--gray-11) text-[11px] transition-colors duration-100 hover:bg-(--gray-a3) ${isOpen ? "bg-(--gray-a3)" : "bg-transparent"}`}
       >
-        <GitDiff size={14} style={{ flexShrink: 0 }} />
+        <GitDiff size={14} className="shrink-0" />
         {hasChanges ? (
           <Flex align="center" gap="1">
             {linesAdded > 0 && (
-              <Text style={{ color: "var(--green-9)", fontSize: "11px" }}>
+              <Text className="text-(--green-9) text-[11px]">
                 +{linesAdded}
               </Text>
             )}
             {linesRemoved > 0 && (
-              <Text style={{ color: "var(--red-9)", fontSize: "11px" }}>
+              <Text className="text-(--red-9) text-[11px]">
                 -{linesRemoved}
               </Text>
             )}
           </Flex>
         ) : (
-          <Text style={{ color: "var(--gray-9)", fontSize: "11px" }}>0</Text>
+          <Text className="text-(--gray-9) text-[11px]">0</Text>
         )}
       </Button>
     </Tooltip>

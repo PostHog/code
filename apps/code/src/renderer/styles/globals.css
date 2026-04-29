@@ -57,6 +57,50 @@
 
 @config "../../../tailwind.config.js";
 
+/*
+ * Tighten the default line-height paired with each named font-size utility.
+ * Tailwind v4 ships --text-{size}--line-height tokens; overriding them here
+ * means every <element className="text-sm"> automatically gets the tighter
+ * leading without needing a leading-* class at every call site.
+ *
+ * Body sizes (xs/sm/base) use snug (1.375), heading sizes (lg/xl/2xl) use
+ * tight (1.25) to match how hero titles already render.
+ */
+@theme {
+  /*
+   * Default font stacks. Tailwind v4 derives --default-font-family
+   * from --font-sans, which the preflight applies to <html>. So setting
+   * these here means Open Runde / Berkeley Mono cascade to every element
+   * in the document — no per-component or body-level override needed.
+   *
+   * The Radix Themes scope (.radix-themes) re-declares its own font
+   * variables further down in this file; those reference var(--font-sans)
+   * so Radix-rendered components share the same source of truth.
+   */
+  --font-sans:
+    "Open Runde", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  --font-mono:
+    "Berkeley Mono", "JetBrains Mono", "Consolas", "Monaco", monospace;
+
+  /*
+   * Tighten the default line-height paired with each named font-size utility.
+   * Tailwind v4 ships --text-{size}--line-height tokens; overriding them here
+   * means every <element className="text-sm"> automatically gets the tighter
+   * leading without needing a leading-* class at every call site.
+   *
+   * Body sizes (xs/sm/base) use snug (1.375), heading sizes (lg/xl/2xl) use
+   * tight (1.25) to match how hero titles already render.
+   */
+  --text-xs--line-height: calc(0.75rem * 1.375); /* 12 → 16.5px */
+  --text-sm--line-height: calc(0.875rem * 1.375); /* 14 → 19.25px */
+  --text-base--line-height: calc(1rem * 1.375); /* 16 → 22px */
+  --text-lg--line-height: calc(1.125rem * 1.25); /* 18 → 22.5px */
+  --text-xl--line-height: calc(1.25rem * 1.25); /* 20 → 25px */
+  --text-2xl--line-height: calc(1.5rem * 1.25); /* 24 → 30px */
+}
+
 @font-face {
   font-family: "Berkeley Mono";
   src: url("../../../assets/fonts/BerkeleyMono/BerkeleyMono-Regular.woff2")
@@ -176,6 +220,50 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: "Open Runde";
+  src:
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Regular.woff2")
+    format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Open Runde";
+  src:
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Medium.woff2")
+    format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Medium.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Open Runde";
+  src:
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Semibold.woff2")
+    format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Semibold.woff")
+    format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Open Runde";
+  src:
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Bold.woff2") format("woff2"),
+    url("../../../assets/fonts/OpenRunde/OpenRunde-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ph-orange: #f54d00;
   --ph-yellow: #f8be2a;
@@ -222,45 +310,37 @@
   --cursor-slider-thumb: pointer;
   --cursor-slider-thumb-active: grab;
 
-  /* Font families */
-  --default-font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --heading-font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --code-font-family:
-    "Berkeley Mono", "JetBrains Mono", "Monaco", "Menlo", "Ubuntu Mono",
-    "Courier New", monospace;
-  --strong-font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --em-font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  --quote-font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  /*
+   * Radix Themes font variables — wired to the @theme tokens above so the
+   * Open Runde / Berkeley Mono stacks are defined exactly once.
+   */
+  --default-font-family: var(--font-sans);
+  --heading-font-family: var(--font-sans);
+  --strong-font-family: var(--font-sans);
+  --em-font-family: var(--font-sans);
+  --quote-font-family: var(--font-sans);
+  --code-font-family: var(--font-mono);
 
   /* Font weights — Berkeley Mono provides 400/700, JetBrains Mono fills 300/500/600 */
   --font-weight-light: 300;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
-  --font-weight-bold: 600;
+  --font-weight-bold: 700;
 
-  /* Bump the smallest Radix text size so size="1" is more legible */
+  /*
+   * Override Radix's smallest text size to 13px / 20px LH (default is
+   * 12 / 16). This still applies to *Radix-internal* components that
+   * read --font-size-1 — buttons with size="1", DropdownMenu items,
+   * TextField with size="1", etc. App-level <Text> / <Heading>
+   * typography is now controlled via Tailwind utilities, not these
+   * tokens.
+   */
   --font-size-1: calc(13px * var(--scaling));
   --line-height-1: calc(20px * var(--scaling));
-
-  /* Custom font sizes (extending Radix scale) */
-  --font-size-1-5: calc(13px * var(--scaling));
-  --line-height-1-5: calc(16px * var(--scaling));
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  /* font-family inherited from <html> via Tailwind preflight + --font-sans */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -499,8 +579,7 @@ body {
 }
 
 .rich-text-editor-content {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  /* font-family inherited from --font-sans via the global cascade */
   line-height: 1.6;
 }
 
@@ -693,9 +772,7 @@ body {
 }
 
 .sidebar-tree {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+  /* font-family inherited from --font-sans via the global cascade */
   font-size: 13px;
   line-height: 1.5;
   color: var(--gray-11);

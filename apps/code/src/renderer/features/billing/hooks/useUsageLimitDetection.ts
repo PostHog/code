@@ -20,16 +20,15 @@ export function useUsageLimitDetection(billingEnabled: boolean) {
     const exceeded = isUsageExceeded(usage);
 
     if (exceeded && !hasAlertedRef.current) {
-      hasAlertedRef.current = true;
-
       const sessions = useSessionStore.getState().sessions;
       const hasActiveSession = Object.values(sessions).some(
         (s) => s.status === "connected" && s.isPromptPending,
       );
 
-      useUsageLimitStore
-        .getState()
-        .show(hasActiveSession ? "mid-task" : "idle");
+      if (hasActiveSession) {
+        hasAlertedRef.current = true;
+        useUsageLimitStore.getState().show();
+      }
     }
 
     if (!exceeded) {

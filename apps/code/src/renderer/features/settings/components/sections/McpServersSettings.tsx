@@ -33,6 +33,15 @@ export function McpServersSettings() {
     useState<Parameters<typeof MarketplaceView>[0]["category"]>("all");
   const [uninstallTarget, setUninstallTarget] =
     useState<McpServerInstallation | null>(null);
+  // Snapshot of installation IDs taken when the user submits the Add Custom
+  // form. The new installation is whichever id appears that wasn't in the
+  // snapshot — robust against backend URL normalisation that would break a
+  // string-equality match on `installation.url`.
+  const [pendingCustomKnownIds, setPendingCustomKnownIds] =
+    useState<Set<string> | null>(null);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(
+    null,
+  );
 
   const {
     installations,
@@ -87,6 +96,7 @@ export function McpServersSettings() {
 
   const handleConnect = useCallback(
     (template: McpRecommendedServer) => {
+      setPendingTemplateId(template.id);
       installTemplate(template);
     },
     [installTemplate],
@@ -124,6 +134,33 @@ export function McpServersSettings() {
     }
   }, [view, installationList]);
 
+  // After a custom server install resolves, jump to its detail panel once the
+  // new installation appears in the list. Identifies the new one as any id
+  // not present in the pre-submit snapshot — does not rely on URL equality.
+  useEffect(() => {
+    if (!pendingCustomKnownIds) return;
+    const newOne = installationList.find(
+      (i) => !pendingCustomKnownIds.has(i.id),
+    );
+    if (newOne) {
+      setPendingCustomKnownIds(null);
+      setView({ kind: "detail-installation", installationId: newOne.id });
+    }
+  }, [pendingCustomKnownIds, installationList]);
+
+  // After a template install resolves, jump to the new installation's detail
+  // panel. Stays put if the install fails (no matching installation appears).
+  useEffect(() => {
+    if (!pendingTemplateId) return;
+    const installation = installationList.find(
+      (i) => i.template_id === pendingTemplateId,
+    );
+    if (installation) {
+      setPendingTemplateId(null);
+      setView({ kind: "detail-installation", installationId: installation.id });
+    }
+  }, [pendingTemplateId, installationList]);
+
   const selectedInstallationId =
     view.kind === "detail-installation" ? view.installationId : null;
 
@@ -134,8 +171,11 @@ export function McpServersSettings() {
           pending={installCustomPending}
           onBack={() => setView({ kind: "marketplace" })}
           onSubmit={(values) => {
+            setPendingCustomKnownIds(
+              new Set(installationList.map((i) => i.id)),
+            );
             installCustom(values, {
-              onSuccess: () => setView({ kind: "marketplace" }),
+              onError: () => setPendingCustomKnownIds(null),
             });
           }}
         />
@@ -156,7 +196,7 @@ export function McpServersSettings() {
             {installationsLoading || serversLoading ? (
               <Spinner size="2" />
             ) : (
-              <Text size="2" color="gray">
+              <Text color="gray" className="text-sm">
                 Server not found.
               </Text>
             )}
@@ -173,7 +213,10 @@ export function McpServersSettings() {
           isReauthorizing={reauthorizePending}
           onBack={() => setView({ kind: "marketplace" })}
           onConnect={() => {
-            if (template) installTemplate(template);
+            if (template) {
+              setPendingTemplateId(template.id);
+              installTemplate(template);
+            }
           }}
           onReauthorize={() => {
             if (install) reauthorize(install.id);
@@ -211,7 +254,7 @@ export function McpServersSettings() {
   })();
 
   return (
-    <Flex style={{ flex: 1, minHeight: 0, width: "100%", overflow: "hidden" }}>
+    <Flex className="min-h-0 w-full flex-1 overflow-hidden">
       <McpInstalledRail
         installations={installationList}
         templates={serverList}
@@ -221,12 +264,13 @@ export function McpServersSettings() {
           setView({ kind: "detail-installation", installationId })
         }
       />
-      <Box style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-        <ScrollArea style={{ height: "100%", width: "100%" }}>
+      <Box className="min-h-0 min-w-0 flex-1">
+        <ScrollArea className="h-full w-full">
           <Box
             p="6"
             mx="auto"
-            style={{ position: "relative", zIndex: 1, maxWidth: "960px" }}
+            style={{ zIndex: 1 }}
+            className="relative max-w-[960px]"
           >
             {mainContent}
           </Box>
@@ -265,9 +309,10 @@ function UninstallConfirmDialog({
     >
       <AlertDialog.Content maxWidth="450px">
         <AlertDialog.Title>Remove MCP server</AlertDialog.Title>
-        <AlertDialog.Description size="2">
-          Are you sure you want to remove <Text weight="bold">{name}</Text>?
-          This will revoke its tools from your agent.
+        <AlertDialog.Description className="text-sm">
+          Are you sure you want to remove{" "}
+          <Text className="font-bold">{name}</Text>? This will revoke its tools
+          from your agent.
         </AlertDialog.Description>
         <Flex gap="3" mt="4" justify="end">
           <AlertDialog.Cancel>

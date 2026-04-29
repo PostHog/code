@@ -558,35 +558,24 @@ export function TaskInput({
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop container
     <div
       ref={containerRef}
-      style={{
-        position: "relative",
-        height: "100%",
-        width: "100%",
-      }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      className="relative h-full w-full"
     >
       <DropZoneOverlay isVisible={isDraggingFile} />
-      <Flex
-        align="center"
-        justify="center"
-        height="100%"
-        style={{ position: "relative" }}
-      >
-        <DotPatternBackground style={{ height: "100.333%" }} />
+      <Flex align="center" justify="center" height="100%" className="relative">
+        <DotPatternBackground className="h-[100.333%]" />
         <Flex
           direction="column"
           gap="2"
           style={{
-            width: "100%",
-            maxWidth: "600px",
-            position: "relative",
             zIndex: 1,
           }}
+          className="relative w-full max-w-[600px]"
         >
-          <Flex gap="2" align="center" style={{ minWidth: 0 }}>
+          <Flex gap="2" align="center" className="min-w-0">
             <WorkspaceModeSelect
               value={workspaceMode}
               onChange={setWorkspaceMode}
@@ -689,7 +678,7 @@ export function TaskInput({
                   className="inline-block h-2 w-2 rounded-full bg-orange-9"
                   aria-hidden
                 />
-                <Text size="1" color="orange" weight="medium">
+                <Text color="orange" className="font-medium text-[13px]">
                   Dev
                 </Text>
               </Flex>

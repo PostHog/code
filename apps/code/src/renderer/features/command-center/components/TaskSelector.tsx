@@ -57,7 +57,7 @@ export function TaskSelector({
         side="bottom"
         align="center"
         sideOffset={4}
-        style={{ minWidth: 240 }}
+        className="min-w-[240px]"
       >
         {({ filtered, hasMore, moreCount }) => (
           <>
