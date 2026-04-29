@@ -93,7 +93,6 @@ export function GitIntegrationStep({
       {
         installationKey: string;
         accountName: string | null;
-        sourceIntegrationId: number;
         sourceProjectId: number;
         sourceProjectName: string;
       }
@@ -108,7 +107,6 @@ export function GitIntegrationStep({
         seen.set(key, {
           installationKey: key,
           accountName: integration.config?.account?.name ?? null,
-          sourceIntegrationId: integration.id,
           sourceProjectId: project.id,
           sourceProjectName: project.name,
         });
@@ -137,7 +135,7 @@ export function GitIntegrationStep({
       }
       return client.linkExistingGithubIntegration(
         selectedProjectId,
-        selectedInstallation.sourceIntegrationId,
+        selectedInstallation.sourceProjectId,
       );
     },
     onSuccess: () => {

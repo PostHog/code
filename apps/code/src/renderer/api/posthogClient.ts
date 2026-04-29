@@ -1330,10 +1330,7 @@ export class PostHogAPIClient {
     return data.results ?? data ?? [];
   }
 
-  async linkExistingGithubIntegration(
-    projectId: number,
-    sourceIntegrationId: number,
-  ) {
+  async linkExistingGithubIntegration(projectId: number, sourceTeamId: number) {
     const path = `/api/environments/${projectId}/integrations/github/link_existing/`;
     const url = new URL(`${this.api.baseUrl}${path}`);
     const response = await this.api.fetcher.fetch({
@@ -1341,7 +1338,7 @@ export class PostHogAPIClient {
       url,
       path,
       overrides: {
-        body: JSON.stringify({ source_integration_id: sourceIntegrationId }),
+        body: JSON.stringify({ source_team_id: sourceTeamId }),
       },
     });
 
