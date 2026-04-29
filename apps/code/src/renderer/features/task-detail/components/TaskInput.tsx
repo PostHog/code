@@ -41,6 +41,7 @@ import {
 } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
+import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
@@ -554,10 +555,18 @@ export function TaskInput({
     editorRef.current?.focus();
   }, []);
 
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    if (!e.currentTarget.contains(e.target as Node)) return;
+    if ((e.target as HTMLElement).closest(FOCUSABLE_SELECTOR)) return;
+    editorRef.current?.focus();
+  }, []);
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop container
+    // biome-ignore lint/a11y/useKeyWithClickEvents: click delegates focus to the editor; keyboard users tab into it directly
     <div
       ref={containerRef}
+      onClick={handleContainerClick}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
