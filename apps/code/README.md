@@ -128,11 +128,9 @@ pnpm build-native
 
 PostHog Code uses Electron's built-in `autoUpdater` pointed at the public `update.electronjs.org` service for `PostHog/code`. Every time a non-draft GitHub release is published with the platform archives, packaged apps will automatically download and install the newest version on macOS and Windows.
 
-Releases are batched on a 12-hour cadence rather than firing on every merge to `main`. The `Tag PostHog Code Release` workflow runs at 17:00 UTC (18:00 CET / 09:00 PT) and 01:00 UTC (02:00 CET / 17:00 PT). It counts commits since the latest base tag and pushes a new `vX.Y.Z` tag if there's anything to ship. Tag pushes then trigger `code-release.yml`, which builds, signs, notarizes, and publishes the GitHub release.
-
 There are three ways a release can fire:
 
-1. **Scheduled (default)** — automatic at 00:00 and 12:00 UTC.
+1. **Scheduled (default)** — automatic at 17:00 and 01:00 UTC.
 2. **Hotfix** — add the `create release` label to a PR before it merges. On merge, the tag workflow runs immediately and ships whatever is on `main`.
 3. **Manual** — run `Tag PostHog Code Release` via `workflow_dispatch` from the Actions tab.
 
