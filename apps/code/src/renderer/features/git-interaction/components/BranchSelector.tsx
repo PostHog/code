@@ -1,3 +1,4 @@
+import { Tooltip } from "@components/ui/Tooltip";
 import { useGitInteractionStore } from "@features/git-interaction/state/gitInteractionStore";
 import { getSuggestedBranchName } from "@features/git-interaction/utils/getSuggestedBranchName";
 import { invalidateGitBranchQueries } from "@features/git-interaction/utils/gitCacheKeys";
@@ -77,6 +78,7 @@ export function BranchSelector({
   anchor,
 }: BranchSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const localAnchorRef = useRef<HTMLButtonElement>(null);
   const trpc = useTRPC();
@@ -171,31 +173,38 @@ export function BranchSelector({
       disabled={isDisabled}
       filter={isCloudMode ? null : undefined}
     >
-      <ComboboxTrigger
-        render={
-          <Button
-            ref={localAnchorRef}
-            variant="outline"
-            size="sm"
-            disabled={isDisabled}
-            aria-label="Branch"
-            title={displayedBranch ?? undefined}
-            className="min-w-0 max-w-[250px] shrink"
-          >
-            {showSpinner ? (
-              <Spinner size={14} className="shrink-0 animate-spin" />
-            ) : (
-              <GitBranch size={14} weight="regular" className="shrink-0" />
-            )}
-            <span className="min-w-0 truncate">{displayText}</span>
-            <CaretDown
-              size={10}
-              weight="bold"
-              className="text-muted-foreground"
-            />
-          </Button>
-        }
-      />
+      <Tooltip
+        content={displayedBranch ?? "Switch branch"}
+        side="bottom"
+        open={hovered && !open && !effectiveLoading}
+      >
+        <ComboboxTrigger
+          render={
+            <Button
+              ref={localAnchorRef}
+              variant="outline"
+              size="sm"
+              disabled={isDisabled}
+              aria-label="Branch"
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+              className="min-w-0 max-w-[250px] shrink"
+            >
+              {showSpinner ? (
+                <Spinner size={14} className="shrink-0 animate-spin" />
+              ) : (
+                <GitBranch size={14} weight="regular" className="shrink-0" />
+              )}
+              <span className="min-w-0 truncate">{displayText}</span>
+              <CaretDown
+                size={10}
+                weight="bold"
+                className="text-muted-foreground"
+              />
+            </Button>
+          }
+        />
+      </Tooltip>
       <ComboboxContent
         anchor={anchor ?? localAnchorRef}
         side="bottom"
