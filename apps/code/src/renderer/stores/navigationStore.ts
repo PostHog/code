@@ -209,16 +209,33 @@ export const useNavigationStore = create<NavigationStore>()(
         },
 
         clearTaskInputReportAssociation: () => {
-          const { view, history, historyIndex, taskInputReportAssociation } =
-            get();
-          if (!taskInputReportAssociation && !view.reportAssociation) return;
+          const {
+            view,
+            history,
+            historyIndex,
+            taskInputReportAssociation,
+            taskInputCloudRepository,
+          } = get();
+          if (
+            !taskInputReportAssociation &&
+            !view.reportAssociation &&
+            !taskInputCloudRepository &&
+            !view.initialCloudRepository
+          ) {
+            return;
+          }
 
-          const updatedView = { ...view, reportAssociation: undefined };
+          const updatedView = {
+            ...view,
+            reportAssociation: undefined,
+            initialCloudRepository: undefined,
+          };
           const updatedHistory = [...history];
           if (updatedHistory[historyIndex]?.type === "task-input") {
             updatedHistory[historyIndex] = {
               ...updatedHistory[historyIndex],
               reportAssociation: undefined,
+              initialCloudRepository: undefined,
             };
           }
 
