@@ -40,8 +40,8 @@ export function PendingReviewBar({ taskId }: PendingReviewBarProps) {
   const handleSend = () => {
     const prompt = buildBatchedInlineCommentsPrompt(drafts);
     if (!prompt) return;
-    clearDrafts(taskId);
     sendPromptToAgent(taskId, prompt);
+    clearDrafts(taskId);
   };
 
   const countLabel = `${drafts.length} pending comment${drafts.length === 1 ? "" : "s"}`;
