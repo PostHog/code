@@ -639,38 +639,48 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain("stop with local changes ready for review");
     });
 
-    it("allows explicit clone and PR work in no-repository mode", () => {
-      const s = createServer({ repositoryPath: undefined });
-      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
-      expect(prompt).toContain("Cloud Task Execution — No Repository Mode");
-      expect(prompt).toContain(
-        "Clone the repository into /tmp/workspace/repos/<owner>/<repo>",
-      );
-      expect(prompt).toContain(
-        "gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>",
-      );
-      expect(prompt).toContain(
-        "If the user explicitly asks you to open or update a pull request",
-      );
-      expect(prompt).toContain("open a draft pull request");
-      expect(prompt).toContain("unless the user explicitly asks");
-      expect(prompt).toContain("Generated-By: PostHog Code");
-      expect(prompt).toContain("Task-Id: test-task-id");
-    });
+    it.each([
+      {
+        label: "createPr unset",
+        config: { repositoryPath: undefined },
+        shouldContain: [
+          "Cloud Task Execution — No Repository Mode",
+          "Clone the repository into /tmp/workspace/repos/<owner>/<repo>",
+          "gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>",
+          "If the user explicitly asks you to open or update a pull request",
+          "open a draft pull request",
+          "unless the user explicitly asks",
+          "Generated-By: PostHog Code",
+          "Task-Id: test-task-id",
+        ],
+        shouldNotContain: [],
+      },
+      {
+        label: "createPr false",
+        config: { repositoryPath: undefined, createPr: false },
+        shouldContain: [
+          "Cloud Task Execution — No Repository Mode",
+          "You may clone a repository and make local edits in that clone",
+          "Do NOT create branches, commits, push changes, or open pull requests in this run",
+        ],
+        shouldNotContain: ["open a draft pull request", "gh pr create --draft"],
+      },
+    ])(
+      "returns no-repository prompt for $label",
+      ({ config, shouldContain, shouldNotContain }) => {
+        const s = createServer(config);
+        const prompt = (
+          s as unknown as TestableServer
+        ).buildCloudSystemPrompt();
 
-    it("keeps publish disabled in no-repository mode when createPr is false", () => {
-      const s = createServer({ repositoryPath: undefined, createPr: false });
-      const prompt = (s as unknown as TestableServer).buildCloudSystemPrompt();
-      expect(prompt).toContain("Cloud Task Execution — No Repository Mode");
-      expect(prompt).toContain(
-        "You may clone a repository and make local edits in that clone",
-      );
-      expect(prompt).toContain(
-        "Do NOT create branches, commits, push changes, or open pull requests in this run",
-      );
-      expect(prompt).not.toContain("open a draft pull request");
-      expect(prompt).not.toContain("gh pr create --draft");
-    });
+        for (const text of shouldContain) {
+          expect(prompt).toContain(text);
+        }
+        for (const text of shouldNotContain) {
+          expect(prompt).not.toContain(text);
+        }
+      },
+    );
 
     it("returns auto-PR prompt for Slack-origin runs", () => {
       process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
