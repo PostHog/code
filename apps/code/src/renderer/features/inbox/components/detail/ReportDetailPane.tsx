@@ -302,7 +302,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
               gap="2"
               px="2"
               py="2"
-              className="user-select-none rounded-sm border border-red-6 bg-red-2"
+              className="select-none rounded-sm border border-red-6 bg-red-2"
             >
               <WarningIcon
                 size={14}
