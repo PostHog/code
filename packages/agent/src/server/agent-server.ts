@@ -29,6 +29,7 @@ import type { PermissionMode } from "../execution-mode";
 import { DEFAULT_CODEX_MODEL } from "../gateway-models";
 import { HandoffCheckpointTracker } from "../handoff-checkpoint";
 import { PostHogAPIClient } from "../posthog-api";
+import { extractCreatedPrUrl } from "../pr-url-detector";
 import {
   formatConversationForResume,
   type ResumeState,
@@ -2131,45 +2132,21 @@ ${attributionInstructions}
       const meta = (update?._meta as Record<string, unknown>)?.claudeCode as
         | Record<string, unknown>
         | undefined;
-      const toolResponse = meta?.toolResponse;
 
-      // Extract text content from tool response
-      let textToSearch = "";
+      const content = update?.content as
+        | Array<{ type?: string; text?: string }>
+        | undefined;
 
-      if (toolResponse) {
-        if (typeof toolResponse === "string") {
-          textToSearch = toolResponse;
-        } else if (typeof toolResponse === "object" && toolResponse !== null) {
-          const respObj = toolResponse as Record<string, unknown>;
-          textToSearch =
-            String(respObj.stdout || "") + String(respObj.stderr || "");
-          if (!textToSearch && respObj.output) {
-            textToSearch = String(respObj.output);
-          }
-        }
-      }
+      const prUrl = extractCreatedPrUrl({
+        toolName: meta?.toolName as string | undefined,
+        bashCommand: meta?.bashCommand as string | undefined,
+        toolResponse: meta?.toolResponse,
+        content,
+      });
+      if (!prUrl) return;
 
-      // Also check content array
-      const content = update?.content;
-      if (Array.isArray(content)) {
-        for (const item of content) {
-          if (item.type === "text" && item.text) {
-            textToSearch += ` ${item.text}`;
-          }
-        }
-      }
-
-      if (!textToSearch) return;
-
-      // Match GitHub PR URLs
-      const prUrlMatch = textToSearch.match(
-        /https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/,
-      );
-      if (!prUrlMatch) return;
-
-      const prUrl = prUrlMatch[0];
       this.detectedPrUrl = prUrl;
-      this.logger.debug("Detected PR URL in bash output", {
+      this.logger.debug("Detected PR URL from gh pr create", {
         runId: payload.run_id,
         prUrl,
       });

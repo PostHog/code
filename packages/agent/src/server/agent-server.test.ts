@@ -625,7 +625,7 @@ describe("AgentServer HTTP Mode", () => {
   });
 
   describe("detectedPrUrl tracking", () => {
-    it("stores PR URL when detectAndAttachPrUrl finds a match", () => {
+    it("stores PR URL when gh pr create produces it", () => {
       const s = createServer();
       const payload = {
         task_id: "test-task-id",
@@ -635,6 +635,7 @@ describe("AgentServer HTTP Mode", () => {
         _meta: {
           claudeCode: {
             toolName: "Bash",
+            bashCommand: 'gh pr create --title "x" --body "y"',
             toolResponse: {
               stdout:
                 "https://github.com/PostHog/posthog/pull/42\nCreating pull request...",
@@ -659,7 +660,73 @@ describe("AgentServer HTTP Mode", () => {
         _meta: {
           claudeCode: {
             toolName: "Bash",
+            bashCommand: "gh pr create",
             toolResponse: { stdout: "just some output" },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when the bash command is gh pr view", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            bashCommand: "gh pr view 42 --json url",
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when the bash command is gh search prs", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            bashCommand: 'gh search prs "fix login"',
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when bashCommand is missing", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
           },
         },
       };

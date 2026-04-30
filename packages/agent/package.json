@@ -20,6 +20,10 @@
       "types": "./dist/posthog-api.d.ts",
       "import": "./dist/posthog-api.js"
     },
+    "./pr-url-detector": {
+      "types": "./dist/pr-url-detector.d.ts",
+      "import": "./dist/pr-url-detector.js"
+    },
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js"

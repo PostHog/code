@@ -76,6 +76,7 @@ export default defineConfig([
       "src/gateway-models.ts",
       "src/handoff-checkpoint.ts",
       "src/posthog-api.ts",
+      "src/pr-url-detector.ts",
       "src/resume.ts",
       "src/types.ts",
       "src/adapters/claude/questions/utils.ts",
