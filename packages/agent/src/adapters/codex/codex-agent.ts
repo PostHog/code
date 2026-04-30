@@ -60,6 +60,7 @@ import {
 } from "../../utils/streams";
 import { BaseAcpAgent, type BaseSession } from "../base-acp-agent";
 import { createCodexClient } from "./codex-client";
+import { normalizeCodexConfigOptions } from "./models";
 import {
   type CodexSessionState,
   createSessionState,
@@ -265,6 +266,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
     const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
 
     const response = await this.codexConnection.newSession(params);
+    response.configOptions = normalizeCodexConfigOptions(
+      response.configOptions,
+    );
 
     // Initialize session state
     this.sessionState = createSessionState(response.sessionId, params.cwd, {
@@ -302,6 +306,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
     const response = await this.codexConnection.loadSession(params);
+    response.configOptions = normalizeCodexConfigOptions(
+      response.configOptions,
+    );
     const meta = params._meta as NewSessionMeta | undefined;
     const currentPermissionMode = getCurrentPermissionMode(
       response.modes?.currentModeId,
@@ -341,6 +348,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
       cwd: params.cwd,
       mcpServers: params.mcpServers ?? [],
     });
+    loadResponse.configOptions = normalizeCodexConfigOptions(
+      loadResponse.configOptions,
+    );
 
     const meta = params._meta as NewSessionMeta | undefined;
     const currentPermissionMode = getCurrentPermissionMode(
@@ -380,6 +390,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
       mcpServers: params.mcpServers ?? [],
       _meta: params._meta,
     });
+    newResponse.configOptions = normalizeCodexConfigOptions(
+      newResponse.configOptions,
+    );
 
     const meta = params._meta as NewSessionMeta | undefined;
     const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
@@ -665,6 +678,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
   ): Promise<SetSessionConfigOptionResponse> {
     const response = await this.codexConnection.setSessionConfigOption(params);
     if (response.configOptions) {
+      response.configOptions = normalizeCodexConfigOptions(
+        response.configOptions,
+      ) as typeof response.configOptions;
       this.sessionState.configOptions = response.configOptions;
     }
     if (params.configId === "mode" && typeof params.value === "string") {
