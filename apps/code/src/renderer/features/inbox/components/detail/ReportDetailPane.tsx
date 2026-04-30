@@ -315,7 +315,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                 </Text>
                 <Text className="text-(--red-9) text-[11px]">
                   There was an issue processing this report. This has been
-                  reported to the PostHog Code team.
+                  reported to the team.
                   <br />
                   To get in touch with the team directly,{" "}
                   <a
