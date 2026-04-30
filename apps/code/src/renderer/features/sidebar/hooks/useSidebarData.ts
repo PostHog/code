@@ -112,12 +112,12 @@ export function useSidebarData({
     ],
   );
 
-  const { data: summaryTasks = [], isPending: isSummariesPending } =
+  const { data: summaryTasks = [], isLoading: isSummariesLoading } =
     useTaskSummaries(summaryIds, { enabled: !showAllUsers });
   // showAllUsers stays on the heavy /tasks/ list endpoint until that path gets
   // its own optimization (e.g. server-side recency pagination). The mapping
   // below narrows full Task → TaskSummary so downstream sidebar code stays uniform.
-  const { data: fullTasks = [], isPending: isTasksPending } = useTasks(
+  const { data: fullTasks = [], isLoading: isTasksLoading } = useTasks(
     { showAllUsers },
     { enabled: showAllUsers },
   );
@@ -139,10 +139,8 @@ export function useSidebarData({
     }));
   }, [showAllUsers, summaryTasks, fullTasks]);
 
-  const isPrimaryReady = showAllUsers
-    ? !isTasksPending
-    : !isSummariesPending || summaryIds.length === 0;
-  const isLoading = !isPrimaryReady || !isWorkspacesFetched;
+  const isPrimaryLoading = showAllUsers ? isTasksLoading : isSummariesLoading;
+  const isLoading = isPrimaryLoading || !isWorkspacesFetched;
 
   const allTasks = useMemo(
     () =>
