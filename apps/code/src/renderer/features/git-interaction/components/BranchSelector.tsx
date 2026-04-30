@@ -27,6 +27,15 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 const COMBOBOX_LIMIT = 50;
 
+function LoadingRow({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">
+      <Spinner size={12} className="animate-spin" />
+      {label}
+    </div>
+  );
+}
+
 interface BranchSelectorProps {
   repoPath: string | null;
   currentBranch: string | null;
@@ -248,17 +257,11 @@ export function BranchSelector({
         </div>
 
         {isCloudMode && cloudBranchesFetchingMore ? (
-          <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">
-            <Spinner size={12} className="animate-spin" />
-            Loading more ({branches.length})…
-          </div>
+          <LoadingRow label={`Loading more (${branches.length})…`} />
         ) : null}
 
         {branchListLoading && branches.length === 0 ? (
-          <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">
-            <Spinner size={12} className="animate-spin" />
-            Loading branches…
-          </div>
+          <LoadingRow label="Loading branches…" />
         ) : (
           <ComboboxEmpty>No branches found.</ComboboxEmpty>
         )}
