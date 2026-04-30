@@ -324,6 +324,8 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                     rel="noreferrer"
                     className="text-(--red-9) underline hover:text-(--red-11)"
                   >
+                    Discord
+                  </a>
                   .
                 </Text>
               </Flex>
