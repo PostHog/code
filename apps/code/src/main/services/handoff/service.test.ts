@@ -87,6 +87,7 @@ function createService(): HandoffService {
     createPosthogConfig: mockCreatePosthogConfig,
   } as never;
   const workspaceRepo = { updateMode: mockUpdateMode } as never;
+  const repositoryRepo = { findByPath: vi.fn().mockReturnValue(null) } as never;
   const dialog = { confirm: vi.fn().mockResolvedValue(1) } as never;
   const appLifecycle = {
     whenReady: vi.fn().mockResolvedValue(undefined),
@@ -98,6 +99,7 @@ function createService(): HandoffService {
     cloudTaskService,
     agentAuthAdapter,
     workspaceRepo,
+    repositoryRepo,
     dialog,
     appLifecycle,
   );
