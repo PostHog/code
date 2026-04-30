@@ -321,10 +321,9 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
                   <a
                     href={EXTERNAL_LINKS.discord}
                     target="_blank"
+                    rel="noreferrer"
                     className="text-(--red-9) underline hover:text-(--red-11)"
                   >
-                    join our Discord
-                  </a>
                   .
                 </Text>
               </Flex>
