@@ -131,9 +131,11 @@ function TaskFilterMenu() {
   const organizeMode = useSidebarStore((state) => state.organizeMode);
   const sortMode = useSidebarStore((state) => state.sortMode);
   const showAllUsers = useSidebarStore((state) => state.showAllUsers);
+  const showInternal = useSidebarStore((state) => state.showInternal);
   const setOrganizeMode = useSidebarStore((state) => state.setOrganizeMode);
   const setSortMode = useSidebarStore((state) => state.setSortMode);
   const setShowAllUsers = useSidebarStore((state) => state.setShowAllUsers);
+  const setShowInternal = useSidebarStore((state) => state.setShowInternal);
 
   return (
     <DropdownMenu>
@@ -191,6 +193,17 @@ function TaskFilterMenu() {
               <DropdownMenuRadioItem value="all">
                 All tasks
               </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+
+            <MenuLabel>Internal tasks</MenuLabel>
+            <DropdownMenuRadioGroup
+              value={showInternal ? "show" : "hide"}
+              onValueChange={(value) => setShowInternal(value === "show")}
+            >
+              <DropdownMenuRadioItem value="hide">Hide</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </>
         )}
