@@ -43,6 +43,15 @@ const mockTrpcFs = vi.hoisted(() => ({
   readFileAsBase64: { query: vi.fn() },
 }));
 
+const mockTrpcHandoff = vi.hoisted(() => ({
+  preflightToCloud: { query: vi.fn() },
+  executeToCloud: { mutate: vi.fn() },
+}));
+
+const mockTrpcOs = vi.hoisted(() => ({
+  openExternal: { mutate: vi.fn() },
+}));
+
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     agent: mockTrpcAgent,
@@ -50,6 +59,8 @@ vi.mock("@renderer/trpc/client", () => ({
     logs: mockTrpcLogs,
     cloudTask: mockTrpcCloudTask,
     fs: mockTrpcFs,
+    handoff: mockTrpcHandoff,
+    os: mockTrpcOs,
   },
 }));
 
@@ -109,6 +120,7 @@ const mockAuthenticatedClient = vi.hoisted(() => ({
   finalizeTaskRunArtifactUploads: vi.fn(),
   prepareTaskStagedArtifactUploads: vi.fn(),
   finalizeTaskStagedArtifactUploads: vi.fn(),
+  startGithubUserIntegrationConnect: vi.fn(),
 }));
 
 type MockAuthenticatedClient = typeof mockAuthenticatedClient;
@@ -231,11 +243,12 @@ vi.mock("@utils/notifications", () => ({
   notifyPromptComplete: vi.fn(),
 }));
 vi.mock("@renderer/utils/toast", () => ({
-  toast: { error: vi.fn() },
+  toast: { error: vi.fn(), info: vi.fn() },
 }));
 vi.mock("@utils/queryClient", () => ({
   queryClient: {
     invalidateQueries: vi.fn(),
+    refetchQueries: vi.fn(),
     setQueriesData: vi.fn(),
   },
 }));
@@ -282,6 +295,7 @@ vi.mock("@utils/session", async () => {
   };
 });
 
+import { toast } from "@renderer/utils/toast";
 import { getSessionService, resetSessionService } from "./service";
 
 // --- Test Fixtures ---
@@ -350,6 +364,14 @@ describe("SessionService", () => {
       unsubscribe: vi.fn(),
     });
     mockTrpcFs.readFileAsBase64.query.mockResolvedValue(null);
+    mockTrpcHandoff.preflightToCloud.query.mockResolvedValue({
+      canHandoff: true,
+    });
+    mockTrpcHandoff.executeToCloud.mutate.mockResolvedValue({
+      success: true,
+      logEntryCount: 0,
+    });
+    mockTrpcOs.openExternal.mutate.mockResolvedValue(undefined);
     mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue([]);
     mockAuthenticatedClient.finalizeTaskRunArtifactUploads.mockResolvedValue(
       [],
@@ -359,6 +381,12 @@ describe("SessionService", () => {
     );
     mockAuthenticatedClient.finalizeTaskStagedArtifactUploads.mockResolvedValue(
       [],
+    );
+    mockAuthenticatedClient.startGithubUserIntegrationConnect.mockResolvedValue(
+      {
+        install_url: "https://github.com/login/oauth/authorize",
+        connect_flow: "oauth_authorize",
+      },
     );
   });
 
@@ -2388,6 +2416,43 @@ describe("SessionService", () => {
       await expect(
         service.clearSessionError("task-123", "/repo"),
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe("handoffToCloud", () => {
+    it("starts GitHub reauth when cloud handoff needs user authorization", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession(),
+      );
+      mockTrpcHandoff.executeToCloud.mutate.mockResolvedValue({
+        success: false,
+        code: "github_authorization_required",
+        error: "Connect GitHub in your browser, then retry Continue in cloud.",
+      });
+
+      await service.handoffToCloud("task-123", "/repo/path");
+
+      expect(
+        mockAuthenticatedClient.startGithubUserIntegrationConnect,
+      ).toHaveBeenCalledWith(123);
+      expect(mockTrpcOs.openExternal.mutate).toHaveBeenCalledWith({
+        url: "https://github.com/login/oauth/authorize",
+      });
+      expect(toast.info).toHaveBeenCalledWith(
+        "Connect GitHub to continue in cloud",
+        "Complete the authorization in your browser, then click Continue again.",
+      );
+      expect(toast.error).not.toHaveBeenCalledWith(
+        expect.stringContaining("github_authorization_required"),
+      );
+      expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+        "run-123",
+        {
+          handoffInProgress: false,
+          status: "disconnected",
+        },
+      );
     });
   });
 

@@ -28,6 +28,7 @@ interface UseTaskCreationOptions {
   selectedDirectory: string;
   selectedRepository?: string | null;
   githubIntegrationId?: number;
+  githubUserIntegrationId?: string;
   workspaceMode: WorkspaceMode;
   branch?: string | null;
   editorIsEmpty: boolean;
@@ -53,6 +54,7 @@ function prepareTaskInput(
     selectedDirectory: string;
     selectedRepository?: string | null;
     githubIntegrationId?: number;
+    githubUserIntegrationId?: string;
     workspaceMode: WorkspaceMode;
     branch?: string | null;
     executionMode?: ExecutionMode;
@@ -81,6 +83,7 @@ function prepareTaskInput(
         ? options.selectedRepository
         : undefined,
     githubIntegrationId: options.githubIntegrationId,
+    githubUserIntegrationId: options.githubUserIntegrationId,
     workspaceMode: options.workspaceMode,
     branch: options.branch,
     executionMode: options.executionMode,
@@ -118,6 +121,7 @@ export function useTaskCreation({
   selectedDirectory,
   selectedRepository,
   githubIntegrationId,
+  githubUserIntegrationId,
   workspaceMode,
   branch,
   editorIsEmpty,
@@ -167,6 +171,7 @@ export function useTaskCreation({
         selectedDirectory,
         selectedRepository,
         githubIntegrationId,
+        githubUserIntegrationId,
         workspaceMode,
         branch,
         executionMode,
@@ -219,6 +224,7 @@ export function useTaskCreation({
     selectedDirectory,
     selectedRepository,
     githubIntegrationId,
+    githubUserIntegrationId,
     workspaceMode,
     branch,
     executionMode,

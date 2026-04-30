@@ -39,7 +39,6 @@ import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpc } from "@renderer/trpc";
 import { trpcClient } from "@renderer/trpc/client";
-import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
 import {
   type CloudTaskPermissionRequestUpdate,
@@ -93,6 +92,16 @@ const LOCAL_SESSION_RECOVERY_MESSAGE =
   "Lost connection to the agent. Reconnecting…";
 const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
   "Connecting to to the agent has been lost. Retry, or start a new session.";
+const GITHUB_AUTHORIZATION_REQUIRED_CODE = "github_authorization_required";
+
+class GitHubAuthorizationRequiredForCloudHandoffError extends Error {
+  constructor(
+    message = "Connect GitHub before continuing this task in cloud.",
+  ) {
+    super(message);
+    this.name = "GitHubAuthorizationRequiredForCloudHandoffError";
+  }
+}
 
 /**
  * Build default configOptions for cloud sessions so the mode switcher
@@ -1733,11 +1742,10 @@ export class SessionService {
       transport.filePaths,
     );
 
-    const [previousRun, task] = await Promise.all([
-      authCredentials.client.getTaskRun(session.taskId, session.taskRunId),
-      authCredentials.client.getTask(session.taskId),
-    ]);
-    const hasGitHubRepo = !!task.repository && !!task.github_integration;
+    const previousRun = await authCredentials.client.getTaskRun(
+      session.taskId,
+      session.taskRunId,
+    );
     const previousState = previousRun.state as Record<string, unknown>;
     const previousOutput = (previousRun.output ?? {}) as Record<
       string,
@@ -1757,10 +1765,6 @@ export class SessionService {
         : null) ??
       session.cloudBranch;
     const prAuthorshipMode = this.getCloudPrAuthorshipMode(previousState);
-    const githubUserToken =
-      prAuthorshipMode === "user" && hasGitHubRepo
-        ? await getGhUserTokenOrThrow()
-        : undefined;
 
     log.info("Creating resume run for terminal cloud task", {
       taskId: session.taskId,
@@ -1790,7 +1794,6 @@ export class SessionService {
           typeof previousState.signal_report_id === "string"
             ? previousState.signal_report_id
             : undefined,
-        githubUserToken,
       },
     );
     const newRun = updatedTask.latest_run;
@@ -2780,6 +2783,11 @@ export class SessionService {
         localGitState: preflight.localGitState,
       });
       if (!result.success) {
+        if (result.code === GITHUB_AUTHORIZATION_REQUIRED_CODE) {
+          throw new GitHubAuthorizationRequiredForCloudHandoffError(
+            result.error,
+          );
+        }
         throw new Error(result.error ?? "Handoff to cloud failed");
       }
 
@@ -2803,14 +2811,52 @@ export class SessionService {
       log.info("Local-to-cloud handoff complete", { taskId, runId });
     } catch (err) {
       log.error("Handoff to cloud failed", { taskId, err });
-      toast.error(
-        err instanceof Error ? err.message : "Handoff to cloud failed",
-      );
+      if (err instanceof GitHubAuthorizationRequiredForCloudHandoffError) {
+        await this.startGithubReauthForCloudHandoff(auth.projectId);
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "Handoff to cloud failed",
+        );
+      }
       this.subscribeToChannel(runId);
       sessionStoreSetters.updateSession(runId, {
         handoffInProgress: false,
         status: "disconnected",
       });
+    }
+  }
+
+  private async startGithubReauthForCloudHandoff(
+    projectId: number,
+  ): Promise<void> {
+    const client = await getAuthenticatedClient();
+    if (!client) {
+      toast.error("Sign in before connecting GitHub.");
+      return;
+    }
+
+    try {
+      const { install_url: installUrl } =
+        await client.startGithubUserIntegrationConnect(projectId);
+      const url = installUrl?.trim();
+      if (!url) {
+        toast.error(
+          "GitHub connection did not return a URL. Please try again.",
+        );
+        return;
+      }
+
+      await trpcClient.os.openExternal.mutate({ url });
+      toast.info(
+        "Connect GitHub to continue in cloud",
+        "Complete the authorization in your browser, then click Continue again.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to start GitHub connection",
+      );
     }
   }
 

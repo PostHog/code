@@ -26,7 +26,6 @@ import {
   type Task,
 } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
-import { getGhUserTokenOrThrow } from "@utils/github";
 import { logger } from "@utils/logger";
 import { getCachedTask, queryClient } from "@utils/queryClient";
 
@@ -83,6 +82,7 @@ export interface TaskCreationInput {
   workspaceMode?: WorkspaceMode;
   branch?: string | null;
   githubIntegrationId?: number;
+  githubUserIntegrationId?: string;
   executionMode?: ExecutionMode;
   adapter?: "claude" | "codex";
   model?: string;
@@ -274,14 +274,11 @@ export class TaskCreationSaga extends Saga<
       task = await this.step({
         name: "cloud_run",
         execute: async () => {
-          const hasGitHubRepo = !!task.repository && !!task.github_integration;
+          const hasUserGitHubIntegration =
+            !!input.githubUserIntegrationId || !!task.github_user_integration;
           const prAuthorshipMode =
-            input.cloudPrAuthorshipMode ?? (hasGitHubRepo ? "user" : "bot");
-          let githubUserToken: string | undefined;
-
-          if (prAuthorshipMode === "user" && hasGitHubRepo) {
-            githubUserToken = await getGhUserTokenOrThrow();
-          }
+            input.cloudPrAuthorshipMode ??
+            (hasUserGitHubIntegration ? "user" : "bot");
 
           const transport =
             (input.content || input.filePaths?.length) &&
@@ -299,7 +296,6 @@ export class TaskCreationSaga extends Saga<
             prAuthorshipMode,
             runSource: input.cloudRunSource ?? "manual",
             signalReportId: input.signalReportId,
-            githubUserToken,
             initialPermissionMode: input.adapter
               ? (input.executionMode ??
                 (input.adapter === "codex" ? "auto" : "plan"))
@@ -453,10 +449,18 @@ export class TaskCreationSaga extends Saga<
           description: input.taskDescription ?? input.content ?? "",
           repository: repository ?? undefined,
           github_integration:
-            input.workspaceMode === "cloud"
+            input.workspaceMode === "cloud" &&
+            input.cloudRunSource === "signal_report"
               ? input.githubIntegrationId
               : undefined,
-          origin_product: input.signalReportId ? "signal_report" : undefined,
+          github_user_integration:
+            input.workspaceMode === "cloud" &&
+            input.cloudRunSource !== "signal_report"
+              ? input.githubUserIntegrationId
+              : undefined,
+          origin_product: input.signalReportId
+            ? "signal_report"
+            : "user_created",
           signal_report: input.signalReportId ?? undefined,
           signal_report_task_relationship: input.signalReportId
             ? SIGNAL_REPORT_TASK_IMPLEMENTATION_RELATIONSHIP

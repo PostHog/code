@@ -34,6 +34,7 @@ import {
   type HandoffToCloudSagaDeps,
 } from "./handoff-to-cloud-saga";
 import {
+  type HandoffErrorCode,
   HandoffEvent,
   type HandoffExecuteInput,
   type HandoffExecuteResult,
@@ -48,6 +49,18 @@ import {
 
 const log = logger.scope("handoff");
 const CONTINUE_DIVERGENCE_BUTTON = 1;
+const GITHUB_AUTHORIZATION_REQUIRED_CODE = "github_authorization_required";
+const GITHUB_AUTHORIZATION_REQUIRED_MESSAGE =
+  "Connect GitHub in your browser, then retry Continue in cloud.";
+
+export function extractHandoffErrorCode(
+  message: string | undefined,
+): HandoffErrorCode | undefined {
+  if (message?.includes(GITHUB_AUTHORIZATION_REQUIRED_CODE)) {
+    return GITHUB_AUTHORIZATION_REQUIRED_CODE;
+  }
+  return undefined;
+}
 
 @injectable()
 export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
@@ -314,9 +327,14 @@ export class HandoffService extends TypedEventEmitter<HandoffServiceEvents> {
         failedStep: result.failedStep,
       });
       deps.onProgress("failed", result.error ?? "Handoff to cloud failed");
+      const code = extractHandoffErrorCode(result.error);
       return {
         success: false,
-        error: `Handoff to cloud failed at step '${result.failedStep}': ${result.error}`,
+        code,
+        error:
+          code === GITHUB_AUTHORIZATION_REQUIRED_CODE
+            ? GITHUB_AUTHORIZATION_REQUIRED_MESSAGE
+            : `Handoff to cloud failed at step '${result.failedStep}': ${result.error}`,
       };
     }
 
