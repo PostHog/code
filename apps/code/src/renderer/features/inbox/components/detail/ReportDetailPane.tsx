@@ -15,6 +15,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Box, Flex, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
+import { EXTERNAL_LINKS } from "@renderer/utils/links";
 import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
@@ -294,6 +295,43 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           gap="2"
           className="min-w-0 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2 @2xl:pt-3 @3xl:pt-4 @4xl:pt-5 @5xl:pt-6 @lg:pt-2 @md:pt-1.5 @xl:pt-2.5 pt-1 @2xl:pb-6 @3xl:pb-8 @4xl:pb-10 @5xl:pb-12 @lg:pb-4 @md:pb-3 @xl:pb-5 pb-2"
         >
+          {/* ── Failed report error ──────────────────────────── */}
+          {report.status === "failed" && (
+            <Flex
+              align="start"
+              gap="2"
+              px="2"
+              py="2"
+              className="select-none rounded-sm border border-red-6 bg-red-2"
+            >
+              <WarningIcon
+                size={14}
+                weight="fill"
+                className="mt-0.5 shrink-0 text-(--red-9)"
+              />
+              <Flex direction="column" className="min-w-0 flex-1">
+                <Text className="font-medium text-(--red-11) text-[12px]">
+                  Report processing failed
+                </Text>
+                <Text className="text-(--red-9) text-[11px]">
+                  There was an issue processing this report. This has been
+                  reported to our team.
+                  <br />
+                  To get in touch with the team directly,{" "}
+                  <a
+                    href={EXTERNAL_LINKS.discord}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-(--red-9) underline hover:text-(--red-11)"
+                  >
+                    join our Discord
+                  </a>
+                  .
+                </Text>
+              </Flex>
+            </Flex>
+          )}
+
           {/* ── Description ─────────────────────────────────────── */}
           {report.status !== "ready" ? (
             <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">

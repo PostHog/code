@@ -12,6 +12,7 @@ describe("inboxSignalsFilterStore", () => {
         "ready",
         "pending_input",
         "in_progress",
+        "failed",
         "candidate",
         "potential",
       ],
@@ -29,6 +30,7 @@ describe("inboxSignalsFilterStore", () => {
       "ready",
       "pending_input",
       "in_progress",
+      "failed",
       "candidate",
       "potential",
     ]);
@@ -119,6 +121,7 @@ describe("inboxSignalsFilterStore", () => {
       "ready",
       "pending_input",
       "in_progress",
+      "failed",
       "candidate",
       "potential",
     ]);

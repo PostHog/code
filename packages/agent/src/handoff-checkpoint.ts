@@ -18,7 +18,7 @@ export interface HandoffCheckpointTrackerConfig {
   logger?: Logger;
 }
 
-type ArtifactTransfer<T extends object = {}> = T & {
+type ArtifactTransfer<T extends object = Record<string, never>> = T & {
   rawBytes: number;
   wireBytes: number;
 };
