@@ -204,6 +204,10 @@ function createStreamStatusError(status: number): CloudTaskStreamError {
   }
 }
 
+function shouldFailWatcherForFetchStatus(status: number): boolean {
+  return status === 401 || status === 403 || status === 404;
+}
+
 @injectable()
 export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
   private watchers = new Map<string, WatcherState>();
@@ -444,6 +448,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     const run = await this.fetchTaskRun(watcher);
     const currentWatcher = this.watchers.get(key);
     if (!currentWatcher || currentWatcher !== watcher) return;
+    if (watcher.failed) return;
 
     if (!run) {
       this.failWatcher(key, {
@@ -650,7 +655,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         return;
       }
 
-      await this.handleStreamCompletion(key);
+      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: false });
     } catch (error) {
       this.flushLogBatch(key);
 
@@ -672,7 +677,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         key,
         error: errorMessage,
       });
-      await this.handleStreamCompletion(key);
+      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: true });
     } finally {
       const currentWatcher = this.watchers.get(key);
       if (currentWatcher?.sseAbortController === controller) {
@@ -696,8 +701,6 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       throw new Error(message);
     }
 
-    watcher.reconnectAttempts = 0;
-
     if (
       event.event === "keepalive" ||
       (typeof event.data === "object" &&
@@ -707,6 +710,8 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     ) {
       return;
     }
+
+    watcher.reconnectAttempts = 0;
 
     if (isTaskRunStateEvent(event.data)) {
       if (this.applyTaskRunState(watcher, event.data)) {
@@ -988,13 +993,18 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }, delay);
   }
 
-  private async handleStreamCompletion(key: string): Promise<void> {
+  private async handleStreamCompletion(
+    key: string,
+    options: { reconnectIfNonTerminal: boolean },
+  ): Promise<void> {
     const watcher = this.watchers.get(key);
     if (!watcher) return;
 
+    const { reconnectIfNonTerminal } = options;
     const run = await this.fetchTaskRun(watcher);
     const currentWatcher = this.watchers.get(key);
     if (!currentWatcher || currentWatcher !== watcher) return;
+    if (watcher.failed) return;
 
     if (watcher.isBootstrapping) {
       if (!run) {
@@ -1003,7 +1013,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       }
 
       this.applyTaskRunState(watcher, run);
-      if (isTerminalStatus(watcher.lastStatus)) {
+      if (isTerminalStatus(watcher.lastStatus) || !reconnectIfNonTerminal) {
         watcher.needsStopAfterBootstrap = true;
       } else {
         watcher.needsPostBootstrapReconnect = true;
@@ -1026,7 +1036,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
     this.applyTaskRunState(watcher, run);
 
-    if (!isTerminalStatus(watcher.lastStatus)) {
+    if (!isTerminalStatus(watcher.lastStatus) && reconnectIfNonTerminal) {
       log.warn("Cloud task stream ended before terminal status", {
         key,
         status: watcher.lastStatus,
@@ -1035,9 +1045,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return;
     }
 
-    // Always emit terminal status — processEvent intentionally skips the emit
-    // for terminal states (to avoid acting on it before the stream fully ends),
-    // so this is the single place that notifies the renderer of completion.
+    // Always emit the latest status before stopping. Terminal states are
+    // intentionally deferred until stream completion; clean EOFs can also mean
+    // the backend has no more stream events even when the run status remains active.
     this.emit(CloudTaskEvent.Update, {
       taskId: watcher.taskId,
       runId: watcher.runId,
@@ -1126,6 +1136,12 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
           runId: watcher.runId,
           offset,
         });
+        if (shouldFailWatcherForFetchStatus(authedResponse.status)) {
+          this.failWatcher(
+            watcherKey(watcher.taskId, watcher.runId),
+            createStreamStatusError(authedResponse.status).details,
+          );
+        }
         return null;
       }
 
@@ -1188,6 +1204,12 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
           taskId: watcher.taskId,
           runId: watcher.runId,
         });
+        if (shouldFailWatcherForFetchStatus(authedResponse.status)) {
+          this.failWatcher(
+            watcherKey(watcher.taskId, watcher.runId),
+            createStreamStatusError(authedResponse.status).details,
+          );
+        }
         return null;
       }
 
