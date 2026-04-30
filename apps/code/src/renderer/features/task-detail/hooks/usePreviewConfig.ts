@@ -141,13 +141,14 @@ export function usePreviewConfig(
                 ? "reasoning_effort"
                 : "effort";
 
+          const defaultEffort = adapter === "codex" ? "high" : "medium";
           if (effortOpts && existingIdx >= 0) {
             const currentEffort = updated[existingIdx].currentValue;
             const validEffort = effortOpts.some(
               (e) => e.value === currentEffort,
             )
               ? currentEffort
-              : "high";
+              : defaultEffort;
             updated[existingIdx] = {
               ...updated[existingIdx],
               currentValue: validEffort,
@@ -160,7 +161,7 @@ export function usePreviewConfig(
                 id: effortOptionId,
                 name: adapter === "codex" ? "Reasoning Level" : "Effort",
                 type: "select",
-                currentValue: "high",
+                currentValue: defaultEffort,
                 options: effortOpts,
                 category: "thought_level",
                 description:

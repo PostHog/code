@@ -1309,7 +1309,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     const configOptions = this.buildConfigOptions(
       permissionMode,
       modelOptions,
-      effort ?? "high",
+      effort ?? "medium",
     );
     session.configOptions = configOptions;
 
@@ -1406,7 +1406,7 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
       currentModelId: string;
       options: SessionConfigSelectOption[];
     },
-    currentEffort: EffortLevel = "high",
+    currentEffort: EffortLevel = "medium",
   ): SessionConfigOption[] {
     const modeOptions = getAvailableModes().map((mode) => ({
       value: mode.id,
