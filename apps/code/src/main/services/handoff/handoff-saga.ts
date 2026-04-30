@@ -124,15 +124,11 @@ export class HandoffSaga extends Saga<HandoffSagaInput, HandoffSagaOutput> {
       });
     }
 
-    let attachmentRevert: (() => void) | null = null;
-    await this.step({
+    await this.step<{ revert: () => void }>({
       name: "attach_workspace_to_folder",
-      execute: async () => {
-        const { revert } = this.deps.attachWorkspaceToFolder(taskId, repoPath);
-        attachmentRevert = revert;
-      },
-      rollback: async () => {
-        attachmentRevert?.();
+      execute: async () => this.deps.attachWorkspaceToFolder(taskId, repoPath),
+      rollback: async ({ revert }) => {
+        revert();
       },
     });
 
