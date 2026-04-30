@@ -80,8 +80,10 @@ export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
   const showAllUsers = useSidebarStore((state) => state.showAllUsers);
+  const showInternal = useSidebarStore((state) => state.showInternal);
   const { data: rawTasks = [], isFetched: isTasksFetched } = useTasks({
     showAllUsers,
+    showInternal,
   });
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
@@ -94,10 +96,18 @@ export function useSidebarData({
         (task) =>
           !archivedTaskIds.has(task.id) &&
           (showAllUsers ||
+            showInternal ||
             !!workspaces?.[task.id] ||
             provisioningTaskIds.has(task.id)),
       ),
-    [rawTasks, archivedTaskIds, workspaces, showAllUsers, provisioningTaskIds],
+    [
+      rawTasks,
+      archivedTaskIds,
+      workspaces,
+      showAllUsers,
+      showInternal,
+      provisioningTaskIds,
+    ],
   );
   const sessions = useSessions();
   const { timestamps } = useTaskViewed();
