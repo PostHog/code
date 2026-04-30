@@ -558,7 +558,9 @@ describe("CloudTaskService", () => {
 
     mockStreamFetch.mockImplementation(() =>
       Promise.resolve(
-        createSseResponse('event: error\ndata: {"error":"boom"}\n\n'),
+        createSseResponse(
+          'event: keepalive\ndata: {"type":"keepalive"}\n\nevent: error\ndata: {"error":"boom"}\n\n',
+        ),
       ),
     );
 
@@ -593,6 +595,75 @@ describe("CloudTaskService", () => {
       errorTitle: "Cloud stream disconnected",
       errorMessage:
         "Lost connection to the cloud run stream. Retry to reconnect.",
+      retryable: true,
+    });
+  });
+
+  it("fails the watcher when the status fetch loses access", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    mockNetFetch.mockResolvedValueOnce(
+      createJsonResponse({ detail: "Forbidden" }, 403),
+    );
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => updates.length === 1);
+
+    expect(mockStreamFetch).not.toHaveBeenCalled();
+    expect(updates).toContainEqual({
+      taskId: "task-1",
+      runId: "run-1",
+      kind: "error",
+      errorTitle: "Cloud access denied",
+      errorMessage:
+        "You no longer have access to this cloud run. Reauthenticate and retry.",
+      retryable: true,
+    });
+  });
+
+  it("fails the watcher when persisted log fetch loses access", async () => {
+    const updates: unknown[] = [];
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    mockNetFetch
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          id: "run-1",
+          status: "completed",
+          stage: null,
+          output: null,
+          error_message: null,
+          branch: "main",
+          updated_at: "2026-01-01T00:00:00Z",
+          completed_at: "2026-01-01T00:00:01Z",
+        }),
+      )
+      .mockResolvedValueOnce(createJsonResponse({ detail: "Forbidden" }, 403));
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => updates.length === 1);
+
+    expect(mockStreamFetch).not.toHaveBeenCalled();
+    expect(updates).toContainEqual({
+      taskId: "task-1",
+      runId: "run-1",
+      kind: "error",
+      errorTitle: "Cloud access denied",
+      errorMessage:
+        "You no longer have access to this cloud run. Reauthenticate and retry.",
       retryable: true,
     });
   });
