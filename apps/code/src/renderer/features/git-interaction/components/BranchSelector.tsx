@@ -94,17 +94,21 @@ export function BranchSelector({
     }
   }, [isSelectionOnly, defaultBranch, selectedBranch, onBranchSelect]);
 
-  const { data: localBranches = [] } = useQuery(
-    trpc.git.getAllBranches.queryOptions(
-      { directoryPath: repoPath as string },
-      { enabled: !isCloudMode && !!repoPath && open, staleTime: 10_000 },
-    ),
-  );
+  const { data: localBranches = [], isLoading: localBranchesLoading } =
+    useQuery(
+      trpc.git.getAllBranches.queryOptions(
+        { directoryPath: repoPath as string },
+        { enabled: !isCloudMode && !!repoPath && open, staleTime: 10_000 },
+      ),
+    );
 
   const branches = isCloudMode ? (cloudBranches ?? []) : localBranches;
   const effectiveLoading = loading || (isCloudMode && cloudBranchesLoading);
   const cloudStillLoading =
     isCloudMode && cloudBranchesLoading && branches.length === 0 && !open;
+  const branchListLoading = isCloudMode
+    ? !!cloudBranchesLoading
+    : localBranchesLoading;
 
   const checkoutMutation = useMutation(
     trpc.git.checkoutBranch.mutationOptions({
@@ -250,7 +254,14 @@ export function BranchSelector({
           </div>
         ) : null}
 
-        <ComboboxEmpty>No branches found.</ComboboxEmpty>
+        {branchListLoading && branches.length === 0 ? (
+          <div className="flex items-center gap-1 px-2 py-1.5 text-muted-foreground text-xs">
+            <Spinner size={12} className="animate-spin" />
+            Loading branches…
+          </div>
+        ) : (
+          <ComboboxEmpty>No branches found.</ComboboxEmpty>
+        )}
 
         <ComboboxList className="max-h-[min(14rem,calc(var(--available-height,14rem)-5rem))] pe-2">
           {(item: string) => (
