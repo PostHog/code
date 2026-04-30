@@ -531,6 +531,72 @@ describe("CloudTaskService", () => {
     ]);
   });
 
+  it("stops watching after clean stream completion even when the run remains active", async () => {
+    vi.useFakeTimers();
+
+    const updates: unknown[] = [];
+    const prUrl = "https://github.com/PostHog/code/pull/123";
+    let statusFetchCount = 0;
+    service.on(CloudTaskEvent.Update, (payload) => updates.push(payload));
+
+    const createInProgressRun = (output: Record<string, unknown> | null) =>
+      createJsonResponse({
+        id: "run-1",
+        status: "in_progress",
+        stage: "build",
+        output,
+        error_message: null,
+        branch: "main",
+        updated_at: output ? "2026-01-01T00:00:01Z" : "2026-01-01T00:00:00Z",
+      });
+
+    mockNetFetch.mockImplementation((input: string | Request) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/session_logs/")) {
+        return Promise.resolve(
+          createJsonResponse([], 200, { "X-Has-More": "false" }),
+        );
+      }
+
+      statusFetchCount += 1;
+      return Promise.resolve(
+        createInProgressRun(statusFetchCount === 1 ? null : { pr_url: prUrl }),
+      );
+    });
+
+    mockStreamFetch.mockResolvedValueOnce(createSseResponse(""));
+
+    service.watch({
+      taskId: "task-1",
+      runId: "run-1",
+      apiHost: "https://app.example.com",
+      teamId: 2,
+    });
+
+    await waitFor(() => mockStreamFetch.mock.calls.length === 1);
+    await waitFor(
+      () =>
+        !(
+          service as unknown as {
+            watchers: Map<string, unknown>;
+          }
+        ).watchers.has("task-1:run-1"),
+    );
+
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        taskId: "task-1",
+        runId: "run-1",
+        status: "in_progress",
+        output: { pr_url: prUrl },
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(70_000);
+
+    expect(mockStreamFetch).toHaveBeenCalledTimes(1);
+  });
+
   it("emits a retryable cloud error after repeated stream failures", async () => {
     vi.useFakeTimers();
 

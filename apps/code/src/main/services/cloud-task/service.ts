@@ -655,7 +655,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         return;
       }
 
-      await this.handleStreamCompletion(key);
+      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: false });
     } catch (error) {
       this.flushLogBatch(key);
 
@@ -677,7 +677,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         key,
         error: errorMessage,
       });
-      await this.handleStreamCompletion(key);
+      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: true });
     } finally {
       const currentWatcher = this.watchers.get(key);
       if (currentWatcher?.sseAbortController === controller) {
@@ -993,10 +993,14 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
     }, delay);
   }
 
-  private async handleStreamCompletion(key: string): Promise<void> {
+  private async handleStreamCompletion(
+    key: string,
+    options: { reconnectIfNonTerminal: boolean },
+  ): Promise<void> {
     const watcher = this.watchers.get(key);
     if (!watcher) return;
 
+    const { reconnectIfNonTerminal } = options;
     const run = await this.fetchTaskRun(watcher);
     const currentWatcher = this.watchers.get(key);
     if (!currentWatcher || currentWatcher !== watcher) return;
@@ -1009,7 +1013,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       }
 
       this.applyTaskRunState(watcher, run);
-      if (isTerminalStatus(watcher.lastStatus)) {
+      if (isTerminalStatus(watcher.lastStatus) || !reconnectIfNonTerminal) {
         watcher.needsStopAfterBootstrap = true;
       } else {
         watcher.needsPostBootstrapReconnect = true;
@@ -1032,7 +1036,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
 
     this.applyTaskRunState(watcher, run);
 
-    if (!isTerminalStatus(watcher.lastStatus)) {
+    if (!isTerminalStatus(watcher.lastStatus) && reconnectIfNonTerminal) {
       log.warn("Cloud task stream ended before terminal status", {
         key,
         status: watcher.lastStatus,
@@ -1041,9 +1045,9 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return;
     }
 
-    // Always emit terminal status — processEvent intentionally skips the emit
-    // for terminal states (to avoid acting on it before the stream fully ends),
-    // so this is the single place that notifies the renderer of completion.
+    // Always emit the latest status before stopping. Terminal states are
+    // intentionally deferred until stream completion; clean EOFs can also mean
+    // the backend has no more stream events even when the run status remains active.
     this.emit(CloudTaskEvent.Update, {
       taskId: watcher.taskId,
       runId: watcher.runId,
