@@ -93,7 +93,7 @@ export class GitHandoffTracker {
   }
 
   async captureForHandoff(
-    _localGitState?: HandoffLocalGitState,
+    localGitState?: HandoffLocalGitState,
   ): Promise<GitHandoffCaptureResult> {
     const captureSaga = new CaptureCheckpointSaga(this.logger);
     const result = await captureSaga.run({ baseDir: this.repositoryPath });
@@ -107,10 +107,12 @@ export class GitHandoffTracker {
     const git = createGitClient(this.repositoryPath);
     const tempDir = await this.createTempDir(checkpoint.checkpointId);
     const checkpointRef = `${CHECKPOINT_REF_PREFIX}${checkpoint.checkpointId}`;
+    const packBaseline = localGitState?.upstreamHead ?? null;
     const packRefs = [
       checkpoint.head,
       checkpoint.indexTree,
       checkpoint.worktreeTree,
+      packBaseline ? `^${packBaseline}` : null,
     ].filter((ref): ref is string => !!ref);
     const headRef = checkpoint.head
       ? `${HANDOFF_HEAD_REF_PREFIX}${checkpoint.checkpointId}`
@@ -161,6 +163,7 @@ export class GitHandoffTracker {
     const git = createGitClient(this.repositoryPath);
 
     if (headPackPath) {
+      await this.ensureBaselineForApply(git, checkpoint, localGitState);
       await this.unpackPackFile(headPackPath);
     }
 
@@ -285,6 +288,25 @@ export class GitHandoffTracker {
         (tracking.upstreamRemote !== null ||
           tracking.upstreamMergeRef !== null))
     );
+  }
+
+  private async ensureBaselineForApply(
+    git: GitClient,
+    checkpoint: GitHandoffCheckpoint,
+    localGitState: HandoffLocalGitState | undefined,
+  ): Promise<void> {
+    const tracking = this.getPreferredTracking(localGitState, checkpoint);
+    if (!tracking.upstreamRemote || !tracking.upstreamMergeRef) return;
+
+    await this.ensureRemoteForTracking(git, tracking).catch(() => {});
+    await git
+      .raw(["fetch", tracking.upstreamRemote, tracking.upstreamMergeRef])
+      .catch((err) => {
+        this.logger?.warn(
+          "Handoff baseline fetch failed; continuing with locally available history",
+          { err: String(err) },
+        );
+      });
   }
 
   private async ensureRemoteForTracking(
