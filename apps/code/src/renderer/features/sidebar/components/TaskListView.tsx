@@ -2,6 +2,7 @@ import { PointerSensor } from "@dnd-kit/dom";
 import type { DragDropEvents } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { useFolders } from "@features/folders/hooks/useFolders";
+import { useMeQuery } from "@hooks/useMeQuery";
 import {
   FunnelSimple as FunnelSimpleIcon,
   GitBranch,
@@ -136,6 +137,8 @@ function TaskFilterMenu() {
   const setSortMode = useSidebarStore((state) => state.setSortMode);
   const setShowAllUsers = useSidebarStore((state) => state.setShowAllUsers);
   const setShowInternal = useSidebarStore((state) => state.setShowInternal);
+  const { data: currentUser } = useMeQuery();
+  const isStaff = currentUser?.is_staff === true;
 
   return (
     <DropdownMenu>
@@ -194,16 +197,24 @@ function TaskFilterMenu() {
                 All tasks
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
+          </>
+        )}
 
+        {isStaff && (
+          <>
             <DropdownMenuSeparator />
 
-            <MenuLabel>Internal tasks</MenuLabel>
+            <MenuLabel>Task visibility</MenuLabel>
             <DropdownMenuRadioGroup
-              value={showInternal ? "show" : "hide"}
-              onValueChange={(value) => setShowInternal(value === "show")}
+              value={showInternal ? "internal" : "external"}
+              onValueChange={(value) => setShowInternal(value === "internal")}
             >
-              <DropdownMenuRadioItem value="hide">Hide</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="show">Show</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="external">
+                External
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="internal">
+                Internal
+              </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </>
         )}
