@@ -56,6 +56,18 @@ export function GitHubIntegrationSection({
     }
   }, [hasGithubIntegration, connecting, stopPolling]);
 
+  // Fallback for when the `posthog-code://integration` deep link from PostHog Cloud
+  // never makes it back to the app (browser blocked the protocol prompt, focus didn't
+  // return cleanly, etc.). The integrations query has a 5-minute staleTime so the
+  // global `refetchOnWindowFocus: true` won't refetch it on its own — invalidate
+  // explicitly while a connect flow is in flight.
+  useEffect(() => {
+    if (!connecting) return;
+    const handleFocus = () => invalidateIntegrations();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [connecting, invalidateIntegrations]);
+
   useGitHubIntegrationCallback({
     onSuccess: () => {
       stopPolling();
@@ -111,7 +123,7 @@ export function GitHubIntegrationSection({
         </Box>
         <Flex direction="column">
           <Text className="font-medium text-(--gray-12) text-sm">
-            Code access
+            Project-level code access
           </Text>
           {hasGithubIntegration &&
           !isLoadingRepos &&

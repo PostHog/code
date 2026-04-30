@@ -167,6 +167,8 @@ jobs:
       - name: Extract version from tag
         id: version
         shell: pwsh
+        env:
+          GITHUB_REF: ${{ github.ref }}
         run: |
           $tagVersion = "$env:GITHUB_REF" -replace "refs/tags/v", ""
           echo "Version: $tagVersion"

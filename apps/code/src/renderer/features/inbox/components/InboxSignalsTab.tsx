@@ -24,7 +24,10 @@ import {
   isReportUpForReview,
 } from "@features/inbox/utils/filterReports";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import {
+  useIntegrations,
+  useRepositoryIntegration,
+} from "@hooks/useIntegrations";
 import { Box, Flex, ScrollArea } from "@radix-ui/themes";
 import type { SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -55,7 +58,15 @@ export function InboxSignalsTab() {
   const { hasGithubIntegration } = useRepositoryIntegration();
 
   // ── Signal source configs ───────────────────────────────────────────────
-  const { data: signalSourceConfigs } = useSignalSourceConfigs();
+  const { data: signalSourceConfigs, isPending: signalSourceConfigsPending } =
+    useSignalSourceConfigs();
+  const { isPending: integrationsPending, data: integrationsData } =
+    useIntegrations();
+  /** Matches store-backed `hasGithubIntegration`, but uses query data so there is no lag behind the `useIntegrations` → Zustand sync effect. */
+  const hasGithubIntegrationFromQuery = useMemo(
+    () => integrationsData?.some((i) => i.kind === "github") ?? false,
+    [integrationsData],
+  );
   const hasSignalSources = signalSourceConfigs?.some((c) => c.enabled) ?? false;
   const enabledProducts = useMemo(() => {
     const seen = new Set<string>();
@@ -77,6 +88,9 @@ export function InboxSignalsTab() {
   const windowFocused = useRendererWindowFocusStore((s) => s.focused);
   const isInboxView = useNavigationStore((s) => s.view.type === "inbox");
   const inboxPollingActive = windowFocused && isInboxView;
+
+  const inboxSourcesPrerequisitesLoaded =
+    !integrationsPending && !signalSourceConfigsPending;
 
   // ── Data fetching ───────────────────────────────────────────────────────
   useInboxAvailableSuggestedReviewers({
@@ -120,6 +134,40 @@ export function InboxSignalsTab() {
     refetchIntervalInBackground: false,
     staleTime: inboxPollingActive ? INBOX_REFETCH_INTERVAL_MS : 12_000,
   });
+
+  const didAutoOpenSourcesDialogThisInboxVisitRef = useRef(false);
+
+  useEffect(() => {
+    if (!isInboxView) {
+      didAutoOpenSourcesDialogThisInboxVisitRef.current = false;
+      return;
+    }
+    if (!inboxSourcesPrerequisitesLoaded || isLoading || error != null) {
+      return;
+    }
+    if (totalCount <= 0) {
+      return;
+    }
+    const needsSourcesOrGithubSetup =
+      !hasSignalSources || !hasGithubIntegrationFromQuery;
+    if (!needsSourcesOrGithubSetup) {
+      return;
+    }
+    if (didAutoOpenSourcesDialogThisInboxVisitRef.current) {
+      return;
+    }
+    didAutoOpenSourcesDialogThisInboxVisitRef.current = true;
+    setSourcesDialogOpen(true);
+  }, [
+    isInboxView,
+    inboxSourcesPrerequisitesLoaded,
+    isLoading,
+    error,
+    totalCount,
+    hasSignalSources,
+    hasGithubIntegrationFromQuery,
+    setSourcesDialogOpen,
+  ]);
 
   const reports = useMemo(
     () => filterReportsBySearch(allReports, searchQuery),
