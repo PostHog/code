@@ -41,6 +41,7 @@ import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
 import { TypedEventEmitter } from "../../utils/typed-event-emitter";
 import type { LlmGatewayService } from "../llm-gateway/service";
+import type { WorkspaceService } from "../workspace/service";
 import { CreatePrSaga } from "./create-pr-saga";
 import type {
   ChangedFile,
@@ -117,6 +118,8 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   constructor(
     @inject(MAIN_TOKENS.LlmGatewayService)
     private readonly llmGateway: LlmGatewayService,
+    @inject(MAIN_TOKENS.WorkspaceService)
+    private readonly workspaceService: WorkspaceService,
   ) {
     super();
   }
@@ -625,6 +628,14 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const state = await this.getStateSnapshot(directoryPath, {
       includePrStatus: true,
     });
+
+    if (input.taskId) {
+      const linkedBranch =
+        input.branchName ?? (await getCurrentBranch(directoryPath));
+      if (linkedBranch) {
+        this.workspaceService.linkBranch(input.taskId, linkedBranch, "user");
+      }
+    }
 
     emitProgress(
       "complete",
