@@ -1,4 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// electron-store mkdir's userDataDir at import time, which fails in CI where
+// the default mocked path (/mock/userData) isn't writable. The tests below
+// don't exercise the store paths, so a no-op mock is safe.
+vi.mock("../../utils/store", () => ({
+  rendererStore: {
+    has: () => false,
+    get: () => undefined,
+    set: () => {},
+  },
+}));
+
 import { PostHogCodeInternalMcpEvent } from "./schemas";
 import { PostHogCodeInternalMcpService } from "./service";
 
