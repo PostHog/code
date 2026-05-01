@@ -1,3 +1,4 @@
+import { getAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useUsage } from "@features/billing/hooks/useUsage";
 import { useSeatStore } from "@features/billing/stores/seatStore";
@@ -20,8 +21,26 @@ import {
 } from "@radix-ui/themes";
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
+import { logger } from "@utils/logger";
 import { getPostHogUrl } from "@utils/urls";
 import { useEffect, useState } from "react";
+
+const log = logger.scope("plan-usage");
+
+async function openBillingPage(orgId: string | null): Promise<void> {
+  if (orgId) {
+    try {
+      const client = await getAuthenticatedClient();
+      if (client) {
+        await client.switchOrganization(orgId);
+      }
+    } catch (err) {
+      log.warn("Failed to switch org before opening billing", err);
+    }
+  }
+  const url = getPostHogUrl("/organization/billing");
+  if (url) window.open(url, "_blank");
+}
 
 function formatResetTime(seconds: number): string {
   if (seconds < 3600) return "less than 1 hour";
@@ -43,11 +62,15 @@ export function PlanUsageSettings() {
     isLoading,
     error,
     redirectUrl,
+    billingOrgId,
   } = useSeat();
   const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const billingUrl = getPostHogUrl("/organization/billing", cloudRegion);
+  const redirectFullUrl = redirectUrl
+    ? getPostHogUrl(redirectUrl, cloudRegion)
+    : null;
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
@@ -104,8 +127,9 @@ export function PlanUsageSettings() {
                 size="1"
                 variant="outline"
                 color="amber"
+                disabled={!redirectFullUrl}
                 onClick={() => {
-                  window.open(redirectUrl, "_blank");
+                  if (redirectFullUrl) window.open(redirectFullUrl, "_blank");
                   clearError();
                 }}
                 className="self-start"
@@ -279,7 +303,7 @@ export function PlanUsageSettings() {
               variant="outline"
               disabled={!billingUrl}
               onClick={() => {
-                if (billingUrl) window.open(billingUrl, "_blank");
+                void openBillingPage(billingOrgId);
               }}
             >
               Open

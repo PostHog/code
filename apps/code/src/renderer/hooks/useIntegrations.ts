@@ -205,6 +205,7 @@ export function useGithubRepositories(
       },
       enabled: queryEnabled,
       staleTime: 5 * 60 * 1000,
+      placeholderData: (prev: unknown) => prev,
       meta: AUTH_SCOPED_QUERY_META,
     })),
     combine: (results) => {

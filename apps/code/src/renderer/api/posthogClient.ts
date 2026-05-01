@@ -815,9 +815,10 @@ export class PostHogAPIClient {
     repository?: string;
     createdBy?: number;
     originProduct?: string;
+    internal?: boolean;
   }) {
     const teamId = await this.getTeamId();
-    const params: Record<string, string | number> = {
+    const params: Record<string, string | number | boolean> = {
       limit: 500,
     };
 
@@ -831,6 +832,10 @@ export class PostHogAPIClient {
 
     if (options?.originProduct) {
       params.origin_product = options.originProduct;
+    }
+
+    if (options?.internal) {
+      params.internal = true;
     }
 
     const data = await this.api.get(`/api/projects/{project_id}/tasks/`, {
@@ -2444,6 +2449,7 @@ export class PostHogAPIClient {
     try {
       const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      url.searchParams.set("best", "true");
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,

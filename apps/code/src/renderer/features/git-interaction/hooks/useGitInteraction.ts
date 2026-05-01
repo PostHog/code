@@ -282,17 +282,6 @@ export function useGitInteraction(
       }
       if (store.createPrNeedsBranch) {
         invalidateGitBranchQueries(repoPath);
-        trpcClient.workspace.linkBranch
-          .mutate({ taskId, branchName: store.branchName.trim() })
-          .catch((err) =>
-            log.warn("Failed to link branch to task", { taskId, err }),
-          );
-      } else if (git.currentBranch) {
-        trpcClient.workspace.linkBranch
-          .mutate({ taskId, branchName: git.currentBranch })
-          .catch((err) =>
-            log.warn("Failed to link branch to task", { taskId, err }),
-          );
       }
 
       if (result.prUrl) {

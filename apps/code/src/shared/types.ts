@@ -49,6 +49,7 @@ export interface Task {
   github_user_integration?: string | null;
   json_schema?: Record<string, unknown> | null;
   signal_report?: string | null;
+  internal?: boolean;
   latest_run?: TaskRun;
 }
 
