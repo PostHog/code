@@ -10,8 +10,10 @@ export type CustomInstructionsChanged = z.infer<
 
 export const PostHogCodeInternalMcpEvent = {
   CustomInstructionsChanged: "custom-instructions-changed",
+  McpServerInstalled: "mcp-server-installed",
 } as const;
 
 export interface PostHogCodeInternalMcpEvents {
   [PostHogCodeInternalMcpEvent.CustomInstructionsChanged]: CustomInstructionsChanged;
+  [PostHogCodeInternalMcpEvent.McpServerInstalled]: Record<never, never>;
 }

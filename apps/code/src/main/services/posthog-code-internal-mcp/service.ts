@@ -21,6 +21,8 @@ const log = logger.scope("posthog-code-internal-mcp");
 const SETTINGS_STORE_KEY = "settings-storage";
 const SERVER_NAME = "posthog-code-internal";
 const SERVER_VERSION = "1.0.0";
+const OAUTH_POLL_INTERVAL_MS = 3000;
+const OAUTH_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * Local-only HTTP MCP server that exposes a few self-modification tools to
@@ -205,7 +207,7 @@ export class PostHogCodeInternalMcpService extends TypedEventEmitter<PostHogCode
 
     server.tool(
       "add_mcp_server",
-      'Install a new MCP server on the current project. Use auth_type="api_key" to attach a static bearer token (provide api_key); use auth_type="oauth" to start an OAuth flow — the response will include a redirect URL the user must visit.',
+      'Install a new MCP server on the current project. Use auth_type="api_key" to attach a static bearer token (provide api_key); use auth_type="oauth" to start an OAuth flow — the response will include a redirect URL the user must visit. Omit api_key for servers that require no authentication.',
       {
         name: z.string().min(1),
         url: z.string().url(),
@@ -334,17 +336,6 @@ export class PostHogCodeInternalMcpService extends TypedEventEmitter<PostHogCode
         ],
       };
     }
-    if (input.auth_type === "api_key" && !input.api_key) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: 'auth_type="api_key" requires the api_key field to be set.',
-          },
-        ],
-      };
-    }
     const baseUrl = apiHost.replace(/\/+$/, "");
     const url = `${baseUrl}/api/environments/${projectId}/mcp_server_installations/install_custom/`;
     const response = await this.authService.authenticatedFetch(fetch, url, {
@@ -373,22 +364,84 @@ export class PostHogCodeInternalMcpService extends TypedEventEmitter<PostHogCode
     }
     const data = (await response.json()) as Record<string, unknown>;
     if (typeof data.redirect_url === "string") {
+      const installationId = typeof data.id === "string" ? data.id : undefined;
+      void this.pollForOauthCompletion(installationId, input.name);
       return {
         content: [
           {
             type: "text",
-            text: `OAuth flow required. The user must visit: ${data.redirect_url} to finish installing "${input.name}". The new server will be available the next time an agent task is started after the OAuth flow completes.`,
+            text: `OAuth flow required. The user must visit: ${data.redirect_url} to finish installing "${input.name}". Once authorized, the session will refresh automatically.`,
           },
         ],
       };
     }
+    this.emit(PostHogCodeInternalMcpEvent.McpServerInstalled, {});
     return {
       content: [
         {
           type: "text",
-          text: `Installed MCP server "${input.name}" (id=${String(data.id ?? "unknown")}). It will be available the next time an agent task is started.`,
+          text: `Installed MCP server "${input.name}" (id=${String(data.id ?? "unknown")}). Refreshing session to make it available immediately.`,
         },
       ],
     };
+  }
+
+  private async pollForOauthCompletion(
+    installationId: string | undefined,
+    name: string,
+  ): Promise<void> {
+    const { apiHost } = await this.authService.getValidAccessToken();
+    const projectId = this.authService.getState().projectId;
+    if (!projectId) return;
+    const baseUrl = apiHost.replace(/\/+$/, "");
+    const url = `${baseUrl}/api/environments/${projectId}/mcp_server_installations/`;
+
+    log.info("Polling for OAuth completion", { installationId, name });
+
+    const start = Date.now();
+    while (Date.now() - start < OAUTH_POLL_TIMEOUT_MS) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, OAUTH_POLL_INTERVAL_MS),
+      );
+
+      try {
+        const response = await this.authService.authenticatedFetch(fetch, url, {
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) continue;
+        const data = (await response.json()) as {
+          results?: Array<{
+            id: string;
+            name?: string;
+            display_name?: string;
+            pending_oauth?: boolean;
+            is_enabled?: boolean;
+          }>;
+        };
+        const inst = (data.results ?? []).find((i) =>
+          installationId
+            ? i.id === installationId
+            : i.name === name || i.display_name === name,
+        );
+        if (!inst) {
+          log.info("OAuth installation no longer in list, stopping poll", {
+            installationId,
+            name,
+          });
+          return;
+        }
+        if (!inst.pending_oauth && inst.is_enabled !== false) {
+          log.info("OAuth install completed, triggering session refresh", {
+            installationId: inst.id,
+            name,
+          });
+          this.emit(PostHogCodeInternalMcpEvent.McpServerInstalled, {});
+          return;
+        }
+      } catch (err) {
+        log.warn("OAuth poll error", { err });
+      }
+    }
+    log.info("OAuth poll timed out", { installationId, name });
   }
 }
