@@ -14,6 +14,7 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/dist/**"],
     isolate: true,
     fileParallelism: false,
+    setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

@@ -1,6 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { chmod, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import type {
   ContentBlock,
   RequestPermissionRequest,
@@ -12,6 +16,7 @@ import {
   PROTOCOL_VERSION,
 } from "@agentclientprotocol/sdk";
 import { type ServerType, serve } from "@hono/node-server";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { getCurrentBranch } from "@posthog/git/queries";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -57,6 +62,7 @@ import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
 import {
   handoffLocalGitStateSchema,
   jsonRpcRequestSchema,
+  setGithubTokenBodySchema,
   validateCommandParams,
 } from "./schemas";
 import type { AgentServerConfig } from "./types";
@@ -70,6 +76,27 @@ const agentErrorClassificationSchema = z.enum([
 const errorWithClassificationSchema = z.object({
   data: z.object({ classification: agentErrorClassificationSchema }),
 });
+
+const execFileAsync = promisify(execFile);
+
+function isLoopbackAddress(addr: string | null): boolean {
+  if (!addr) return false;
+  return (
+    addr === "127.0.0.1" ||
+    addr === "::1" ||
+    addr === "::ffff:127.0.0.1" ||
+    addr.startsWith("127.")
+  );
+}
+
+function timingSafeEqualString(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
 
 type MessageCallback = (message: unknown) => void;
 
@@ -233,6 +260,12 @@ export class AgentServer {
       }) => void;
     }
   >();
+  private currentGithubToken: string | null = null;
+  // Per-process secret that gates GET /github-token. Generated at start() and
+  // exported into process.env so the gh wrapper and the credential helper
+  // (both running inside the sandbox) can read it. Codex-acp inherits this at
+  // spawn time — that's the whole point.
+  private wrapperSecret: string | null = null;
 
   private detachSseController(controller: SseController): void {
     if (this.session?.sseController === controller) {
@@ -450,11 +483,72 @@ export class AgentServer {
       }
     });
 
+    app.post("/github-token", async (c) => {
+      try {
+        this.authenticateRequest(c.req.header.bind(c.req));
+      } catch (error) {
+        return c.json(
+          {
+            error:
+              error instanceof JwtValidationError
+                ? error.message
+                : "Invalid token",
+          },
+          401,
+        );
+      }
+
+      const rawBody = await c.req.json().catch(() => null);
+      const parsed = setGithubTokenBodySchema.safeParse(rawBody);
+      if (!parsed.success) {
+        return c.json(
+          { error: parsed.error.issues[0]?.message ?? "Invalid body" },
+          400,
+        );
+      }
+
+      await this.setGithubToken(parsed.data.token);
+      return c.json({ ok: true });
+    });
+
+    app.get("/github-token", (c) => {
+      const remote = getConnInfo(c).remote.address ?? null;
+      if (!isLoopbackAddress(remote)) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+
+      const provided = c.req.header("x-posthog-local-secret");
+      if (
+        !this.wrapperSecret ||
+        !provided ||
+        !timingSafeEqualString(provided, this.wrapperSecret)
+      ) {
+        return c.json({ error: "Forbidden" }, 403);
+      }
+
+      if (!this.currentGithubToken) {
+        return c.json({ error: "No token available" }, 404);
+      }
+
+      return c.json({ token: this.currentGithubToken });
+    });
+
     app.notFound((c) => {
       return c.json({ error: "Not found" }, 404);
     });
 
     return app;
+  }
+
+  private async setGithubToken(token: string): Promise<void> {
+    this.currentGithubToken = token;
+    // Mutate process.env so the in-process Claude adapter (and any subprocess
+    // we spawn after this point) sees the fresh token. Codex-acp was already
+    // spawned with a snapshotted env, so it relies on the gh wrapper + git
+    // credential helper instead — both fetch from GET /github-token.
+    process.env.GH_TOKEN = token;
+    process.env.GITHUB_TOKEN = token;
+    this.logger.info("GitHub token updated");
   }
 
   async start(): Promise<void> {
@@ -473,7 +567,85 @@ export class AgentServer {
       );
     });
 
+    // Set up the gh-token wrapper secret + git credential helper before any
+    // session bootstrap. autoInitializeSession() can spawn codex-acp, which
+    // snapshots process.env at spawn time — env additions after that point
+    // are invisible to the child.
+    await this.setupGithubTokenBridge();
+
     await this.autoInitializeSession();
+  }
+
+  private async setupGithubTokenBridge(): Promise<void> {
+    this.wrapperSecret = randomBytes(32).toString("hex");
+    const wrapperUrl = `http://127.0.0.1:${this.config.port}/github-token`;
+
+    process.env.POSTHOG_GH_WRAPPER_URL = wrapperUrl;
+    process.env.POSTHOG_GH_WRAPPER_SECRET = this.wrapperSecret;
+
+    // The bridge mutates --global git config, which we never want to touch on
+    // a developer machine. The agent-server only runs in dedicated sandboxes,
+    // so anywhere else (e.g. vitest) this side-effect is opt-in.
+    if (process.env.VITEST || process.env.POSTHOG_AGENT_SKIP_GH_BRIDGE) {
+      return;
+    }
+
+    try {
+      await this.installGitCredentialHelper(wrapperUrl, this.wrapperSecret);
+    } catch (error) {
+      this.logger.warn("Failed to install git credential helper", { error });
+    }
+  }
+
+  private async installGitCredentialHelper(
+    wrapperUrl: string,
+    secret: string,
+  ): Promise<void> {
+    const helperDir = join(tmpdir(), "posthog-agent");
+    await mkdir(helperDir, { recursive: true });
+    const helperPath = join(helperDir, "git-credential-posthog");
+
+    // POSIX credential helper: prints `username=...` + `password=...` for
+    // `git credential fill`. We only handle `get` — `store`/`erase` are no-ops.
+    const script = `#!/bin/sh
+if [ "$1" != "get" ]; then
+  exit 0
+fi
+TOKEN=$(curl -fsS -H "x-posthog-local-secret: ${secret}" "${wrapperUrl}" | sed -n 's/.*"token":"\\([^"]*\\)".*/\\1/p')
+if [ -z "$TOKEN" ]; then
+  exit 0
+fi
+printf 'username=x-access-token\\npassword=%s\\n' "$TOKEN"
+`;
+
+    await writeFile(helperPath, script, { encoding: "utf8" });
+    await chmod(helperPath, 0o700);
+
+    // Scope the helper to github.com only — don't intercept credentials for
+    // other hosts. Replace any prior helper for this URL so reruns are clean.
+    await execFileAsync("git", [
+      "config",
+      "--global",
+      "--unset-all",
+      "credential.https://github.com.helper",
+    ]).catch(() => {
+      // unset-all returns non-zero when the key is absent; that's fine.
+    });
+    await execFileAsync("git", [
+      "config",
+      "--global",
+      "credential.https://github.com.helper",
+      "",
+    ]);
+    await execFileAsync("git", [
+      "config",
+      "--global",
+      "--add",
+      "credential.https://github.com.helper",
+      helperPath,
+    ]);
+
+    this.logger.info("Installed git credential helper", { helperPath });
   }
 
   private async loadResumeState(

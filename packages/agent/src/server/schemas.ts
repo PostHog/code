@@ -96,6 +96,10 @@ export const refreshSessionParamsSchema = z.object({
   mcpServers: mcpServersSchema,
 });
 
+export const setGithubTokenBodySchema = z.object({
+  token: z.string().min(1, "token is required"),
+});
+
 export const closeParamsSchema = z
   .object({
     localGitState: handoffLocalGitStateSchema.optional(),

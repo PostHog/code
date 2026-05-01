@@ -778,4 +778,131 @@ describe("AgentServer HTTP Mode", () => {
       delete process.env.POSTHOG_CODE_INTERACTION_ORIGIN;
     });
   });
+
+  describe("github token bridge", () => {
+    let savedSecret: string | undefined;
+    let savedUrl: string | undefined;
+    let savedGhToken: string | undefined;
+    let savedGithubToken: string | undefined;
+
+    beforeEach(() => {
+      savedSecret = process.env.POSTHOG_GH_WRAPPER_SECRET;
+      savedUrl = process.env.POSTHOG_GH_WRAPPER_URL;
+      savedGhToken = process.env.GH_TOKEN;
+      savedGithubToken = process.env.GITHUB_TOKEN;
+      delete process.env.POSTHOG_GH_WRAPPER_SECRET;
+      delete process.env.POSTHOG_GH_WRAPPER_URL;
+      delete process.env.GH_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+    });
+
+    afterEach(() => {
+      const restore = (key: string, value: string | undefined) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      };
+      restore("POSTHOG_GH_WRAPPER_SECRET", savedSecret);
+      restore("POSTHOG_GH_WRAPPER_URL", savedUrl);
+      restore("GH_TOKEN", savedGhToken);
+      restore("GITHUB_TOKEN", savedGithubToken);
+    });
+
+    it("exports wrapper secret + URL into process.env on start", async () => {
+      await createServer().start();
+
+      expect(process.env.POSTHOG_GH_WRAPPER_SECRET).toMatch(/^[0-9a-f]{64}$/);
+      expect(process.env.POSTHOG_GH_WRAPPER_URL).toBe(
+        `http://127.0.0.1:${port}/github-token`,
+      );
+    }, 30000);
+
+    it("POST /github-token requires JWT", async () => {
+      await createServer().start();
+
+      const response = await fetch(`http://localhost:${port}/github-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "ghp_test" }),
+      });
+
+      expect(response.status).toBe(401);
+    }, 30000);
+
+    it("POST /github-token rejects invalid body", async () => {
+      await createServer().start();
+      const token = createToken();
+
+      const response = await fetch(`http://localhost:${port}/github-token`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: "" }),
+      });
+
+      expect(response.status).toBe(400);
+    }, 30000);
+
+    it("POST /github-token stores token and updates GH_TOKEN/GITHUB_TOKEN", async () => {
+      await createServer().start();
+      const token = createToken();
+
+      const response = await fetch(`http://localhost:${port}/github-token`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: "ghp_new_token" }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(process.env.GH_TOKEN).toBe("ghp_new_token");
+      expect(process.env.GITHUB_TOKEN).toBe("ghp_new_token");
+    }, 30000);
+
+    it("GET /github-token rejects request without local secret", async () => {
+      await createServer().start();
+
+      const response = await fetch(`http://localhost:${port}/github-token`);
+      expect(response.status).toBe(403);
+    }, 30000);
+
+    it("GET /github-token returns 404 when no token has been set", async () => {
+      await createServer().start();
+
+      const secret = process.env.POSTHOG_GH_WRAPPER_SECRET;
+      expect(secret).toBeTruthy();
+
+      const response = await fetch(`http://localhost:${port}/github-token`, {
+        headers: { "x-posthog-local-secret": secret as string },
+      });
+
+      expect(response.status).toBe(404);
+    }, 30000);
+
+    it("GET /github-token returns the stored token when secret matches", async () => {
+      await createServer().start();
+      const jwtToken = createToken();
+      const secret = process.env.POSTHOG_GH_WRAPPER_SECRET as string;
+
+      await fetch(`http://localhost:${port}/github-token`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: "ghp_round_trip" }),
+      });
+
+      const response = await fetch(`http://localhost:${port}/github-token`, {
+        headers: { "x-posthog-local-secret": secret },
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ token: "ghp_round_trip" });
+    }, 30000);
+  });
 });
