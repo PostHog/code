@@ -1,4 +1,3 @@
-import { ConnectivityPrompt } from "@components/ConnectivityPrompt";
 import { HeaderRow } from "@components/HeaderRow";
 import { HedgehogMode } from "@components/HedgehogMode";
 import { KeyboardShortcutsSheet } from "@components/KeyboardShortcutsSheet";
@@ -24,7 +23,6 @@ import { useTasks } from "@features/tasks/hooks/useTasks";
 import { TourOverlay } from "@features/tour/components/TourOverlay";
 import { useTourStore } from "@features/tour/stores/tourStore";
 import { createFirstTaskTour } from "@features/tour/tours/createFirstTaskTour";
-import { useConnectivity } from "@hooks/useConnectivity";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { useIntegrations } from "@hooks/useIntegrations";
 import { Box, Flex } from "@radix-ui/themes";
@@ -37,8 +35,14 @@ import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
 export function MainLayout() {
-  const { view, hydrateTask, navigateToTaskInput, navigateToTask } =
-    useNavigationStore();
+  const {
+    view,
+    hydrateTask,
+    navigateToTaskInput,
+    navigateToTask,
+    taskInputReportAssociation,
+    taskInputCloudRepository,
+  } = useNavigationStore();
   const {
     isOpen: commandMenuOpen,
     setOpen: setCommandMenuOpen,
@@ -50,7 +54,6 @@ export function MainLayout() {
     close: closeShortcutsSheet,
   } = useShortcutsSheetStore();
   const { data: tasks } = useTasks();
-  const { showPrompt, isChecking, check, dismiss } = useConnectivity();
   const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   // Space switcher data
@@ -100,7 +103,18 @@ export function MainLayout() {
         <MainSidebar />
 
         <Box flexGrow="1" overflow="hidden">
-          {view.type === "task-input" && <TaskInput />}
+          {view.type === "task-input" && (
+            <TaskInput
+              initialPrompt={view.initialPrompt}
+              initialPromptKey={view.taskInputRequestId}
+              initialCloudRepository={
+                view.initialCloudRepository ?? taskInputCloudRepository
+              }
+              reportAssociation={
+                view.reportAssociation ?? taskInputReportAssociation
+              }
+            />
+          )}
 
           {view.type === "task-detail" && view.data && (
             <TaskDetail key={view.data.id} task={view.data} />
@@ -130,12 +144,6 @@ export function MainLayout() {
       <KeyboardShortcutsSheet
         open={shortcutsSheetOpen}
         onOpenChange={(open) => (open ? null : closeShortcutsSheet())}
-      />
-      <ConnectivityPrompt
-        open={showPrompt}
-        isChecking={isChecking}
-        onRetry={check}
-        onDismiss={dismiss}
       />
       <GlobalEventHandlers
         onToggleCommandMenu={handleToggleCommandMenu}

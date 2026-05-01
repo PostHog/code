@@ -1047,6 +1047,9 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
     }
     const previousMode = this.session.permissionMode;
     this.session.permissionMode = modeId as CodeExecutionMode;
+    if (modeId === "plan" && previousMode !== "plan") {
+      this.session.modeBeforePlan = previousMode;
+    }
     try {
       await this.session.query.setPermissionMode(modeId as CodeExecutionMode);
     } catch (error) {
@@ -1343,7 +1346,11 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   private createOnModeChange() {
     return async (newMode: CodeExecutionMode) => {
       if (this.session) {
+        const previousMode = this.session.permissionMode;
         this.session.permissionMode = newMode;
+        if (newMode === "plan" && previousMode !== "plan") {
+          this.session.modeBeforePlan = previousMode;
+        }
       }
       await this.updateConfigOption("mode", newMode);
     };

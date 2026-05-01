@@ -14,6 +14,7 @@ import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
+import { initializeConnectivityToast } from "@renderer/features/connectivity/connectivityToast";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
 import { useFocusStore } from "@renderer/stores/focusStore";
 import { useThemeStore } from "@renderer/stores/themeStore";
@@ -53,7 +54,12 @@ function App() {
 
   // Initialize connectivity monitoring
   useEffect(() => {
-    return initializeConnectivityStore();
+    const disposeStore = initializeConnectivityStore();
+    const disposeToast = initializeConnectivityToast();
+    return () => {
+      disposeToast();
+      disposeStore();
+    };
   }, []);
 
   // Initialize update store
@@ -102,6 +108,16 @@ function App() {
 
   useSubscription(
     trpcReact.workspace.onBranchChanged.subscriptionOptions(undefined, {
+      onData: () => {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      },
+    }),
+  );
+
+  useSubscription(
+    trpcReact.workspace.onLinkedBranchChanged.subscriptionOptions(undefined, {
       onData: () => {
         void queryClient.invalidateQueries(
           trpcReact.workspace.getAll.pathFilter(),

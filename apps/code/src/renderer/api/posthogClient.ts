@@ -558,6 +558,40 @@ export class PostHogAPIClient {
     return data.github_login;
   }
 
+  /**
+   * `POST .../integrations/github/start/`. Optional `teamId` matches app project when session `current_team` differs.
+   */
+  async startGithubUserIntegrationConnect(teamId?: number): Promise<{
+    install_url: string;
+    connect_flow?: "oauth_authorize" | "app_install";
+  }> {
+    const id = teamId ?? (await this.getTeamId());
+    const urlPath = `/api/users/@me/integrations/github/start/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: urlPath,
+      overrides: {
+        body: JSON.stringify({ team_id: id, connect_from: "posthog_code" }),
+      },
+    });
+    if (!response.ok) {
+      const err = (await response.json().catch(() => ({}))) as {
+        detail?: unknown;
+      };
+      const detail =
+        typeof err.detail === "string"
+          ? err.detail
+          : "Failed to start GitHub connection";
+      throw new Error(detail);
+    }
+    return (await response.json()) as {
+      install_url: string;
+      connect_flow?: "oauth_authorize" | "app_install";
+    };
+  }
+
   async switchOrganization(orgId: string): Promise<void> {
     await this.api.patch("/api/users/{uuid}/", {
       path: { uuid: "@me" },
@@ -751,9 +785,10 @@ export class PostHogAPIClient {
     repository?: string;
     createdBy?: number;
     originProduct?: string;
+    internal?: boolean;
   }) {
     const teamId = await this.getTeamId();
-    const params: Record<string, string | number> = {
+    const params: Record<string, string | number | boolean> = {
       limit: 500,
     };
 
@@ -767,6 +802,10 @@ export class PostHogAPIClient {
 
     if (options?.originProduct) {
       params.origin_product = options.originProduct;
+    }
+
+    if (options?.internal) {
+      params.internal = true;
     }
 
     const data = await this.api.get(`/api/projects/{project_id}/tasks/`, {

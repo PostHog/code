@@ -46,8 +46,9 @@ import type {
 } from "../types";
 import { resourceLink } from "../utils/acp-content";
 import { AsyncMutex } from "../utils/async-mutex";
-import { getLlmGatewayUrl } from "../utils/gateway";
+import { type GatewayProduct, getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
+import { logAgentshRuntimeInfo } from "./agentsh-runtime";
 import {
   normalizeCloudPromptContent,
   promptBlocksToText,
@@ -777,8 +778,6 @@ export class AgentServer {
       name: process.env.HOSTNAME || "cloud-sandbox",
     };
 
-    this.configureEnvironment();
-
     const [preTaskRun, preTask] = await Promise.all([
       this.posthogAPI
         .getTaskRun(payload.task_id, payload.run_id)
@@ -798,6 +797,8 @@ export class AgentServer {
         return null;
       }),
     ]);
+
+    this.configureEnvironment({ isInternal: preTask?.internal === true });
 
     const prUrl = getTaskRunStateString(preTaskRun, "slack_notified_pr_url");
 
@@ -954,6 +955,7 @@ export class AgentServer {
     this.logger.debug(
       `Agent version: ${this.config.version ?? packageJson.version}`,
     );
+    await logAgentshRuntimeInfo(this.logger);
     this.logger.debug(`Initial permission mode: ${initialPermissionMode}`);
 
     // Signal in_progress so the UI can start polling for updates
@@ -1708,10 +1710,15 @@ ${attributionInstructions}
     }
   }
 
-  private configureEnvironment(): void {
+  private configureEnvironment({
+    isInternal = false,
+  }: {
+    isInternal?: boolean;
+  } = {}): void {
     const { apiKey, apiUrl, projectId } = this.config;
-    const product =
-      this.config.mode === "background" ? "background_agents" : "posthog_code";
+    const product: GatewayProduct = isInternal
+      ? "background_agents"
+      : "posthog_code";
     const gatewayUrl =
       process.env.LLM_GATEWAY_URL || getLlmGatewayUrl(apiUrl, product);
     const openaiBaseUrl = gatewayUrl.endsWith("/v1")
@@ -2224,18 +2231,25 @@ ${attributionInstructions}
 
   private broadcastTurnComplete(stopReason: string): void {
     if (!this.session) return;
+    const notification = {
+      jsonrpc: "2.0",
+      method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
+      params: {
+        sessionId: this.session.acpSessionId,
+        stopReason,
+      },
+    };
+
     this.broadcastEvent({
       type: "notification",
       timestamp: new Date().toISOString(),
-      notification: {
-        jsonrpc: "2.0",
-        method: POSTHOG_NOTIFICATIONS.TURN_COMPLETE,
-        params: {
-          sessionId: this.session.acpSessionId,
-          stopReason,
-        },
-      },
+      notification,
     });
+
+    this.session.logWriter.appendRawLine(
+      this.session.payload.run_id,
+      JSON.stringify(notification),
+    );
   }
 
   private broadcastEvent(event: Record<string, unknown>): void {

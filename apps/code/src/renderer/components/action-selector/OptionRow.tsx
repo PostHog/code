@@ -120,14 +120,14 @@ export function OptionRow({
 
     const displayText = compactHomePath(option.label);
     const textClass = isSelected
-      ? "text-blue-11"
+      ? "text-primary"
       : isHovered
-        ? "text-blue-11"
+        ? "text-primary"
         : "text-gray-12";
 
     return (
       <Text
-        className={`whitespace-pre-wrap font-medium text-[13px] ${textClass}`}
+        className={`whitespace-pre-wrap font-medium text-[13px] leading-4 ${textClass}`}
       >
         {displayText}
       </Text>
@@ -142,24 +142,24 @@ export function OptionRow({
       py="1"
       className={`-mx-3 cursor-pointer select-none rounded-(--radius-2) pt-[4px] pr-3 pb-[4px] pl-3 ${
         isSelected
-          ? "bg-(--blue-3)"
+          ? "bg-primary/10"
           : isHovered
-            ? "bg-(--gray-a3)"
+            ? "bg-fill-hover"
             : "bg-transparent"
       }`}
     >
       <Flex align="center" gap="2" className="leading-4">
         <Text
-          className={`w-[1ch] shrink-0 text-[13px] leading-4 ${isSelected ? "text-blue-11" : "text-gray-11"}`}
+          className={`w-[1ch] shrink-0 text-[13px] leading-4 ${isSelected ? "text-primary" : "text-gray-11"}`}
         >
           {isSelected ? "›" : ""}
         </Text>
         <Text
           className={`min-w-[16px] shrink-0 whitespace-nowrap text-right text-[13px] leading-4 ${
             isSelected
-              ? "text-blue-11"
+              ? "text-primary"
               : isHovered
-                ? "text-blue-11"
+                ? "text-primary"
                 : "text-gray-11"
           }`}
         >

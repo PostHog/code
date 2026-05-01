@@ -170,8 +170,11 @@ function getShellPath(shell: string): string | undefined {
   return env?.PATH;
 }
 
-function buildFallbackPath(): string {
-  return [...FALLBACK_PATHS, process.env.PATH].filter(Boolean).join(":");
+function mergeFallbackPaths(basePath: string | undefined): string {
+  const base = basePath ? basePath.split(":").filter(Boolean) : [];
+  const existing = new Set(base);
+  const additions = FALLBACK_PATHS.filter((p) => !existing.has(p));
+  return [...additions, ...base].join(":");
 }
 
 export function fixPath(): void {
@@ -179,10 +182,9 @@ export function fixPath(): void {
     return;
   }
 
-  // Try cached PATH first (instant, no shell spawn)
   const cached = readCachedPath();
   if (cached) {
-    process.env.PATH = cached;
+    process.env.PATH = mergeFallbackPaths(cached);
     return;
   }
 
@@ -191,9 +193,10 @@ export function fixPath(): void {
 
   if (shellPath) {
     const cleaned = stripAnsi(shellPath);
-    process.env.PATH = cleaned;
+    const merged = mergeFallbackPaths(cleaned);
+    process.env.PATH = merged;
     writeCachedPath(cleaned);
   } else {
-    process.env.PATH = buildFallbackPath();
+    process.env.PATH = mergeFallbackPaths(process.env.PATH);
   }
 }

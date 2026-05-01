@@ -11,6 +11,7 @@ import {
   createBranch,
   getBranchNameInputState,
 } from "@features/git-interaction/utils/branchCreation";
+import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
@@ -27,15 +28,20 @@ import {
   useGithubRepositories,
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
+import { X } from "@phosphor-icons/react";
 import { ButtonGroup } from "@posthog/quill";
-import { Flex, Text } from "@radix-ui/themes";
+import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import { useAuthStore } from "@renderer/features/auth/stores/authStore";
 import { useDraftStore } from "@renderer/features/message-editor/stores/draftStore";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
-import { useNavigationStore } from "@stores/navigationStore";
+import {
+  type TaskInputReportAssociation,
+  useNavigationStore,
+} from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
+import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
@@ -44,15 +50,27 @@ import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 interface TaskInputProps {
   sessionId?: string;
   onTaskCreated?: (task: import("@shared/types").Task) => void;
+  initialPrompt?: string;
+  initialPromptKey?: string;
+  initialCloudRepository?: string;
+  reportAssociation?: TaskInputReportAssociation;
 }
 
 export function TaskInput({
   sessionId = "task-input",
   onTaskCreated,
+  initialPrompt,
+  initialPromptKey,
+  initialCloudRepository,
+  reportAssociation,
 }: TaskInputProps = {}) {
   const { cloudRegion } = useAuthStore();
   const trpcReact = useTRPC();
-  const { view } = useNavigationStore();
+  const { view, clearTaskInputReportAssociation, navigateToInbox } =
+    useNavigationStore();
+  const setSelectedReportIds = useInboxReportSelectionStore(
+    (s) => s.setSelectedReportIds,
+  );
   const { data: mostRecentRepo } = useQuery(
     trpcReact.folders.getMostRecentlyAccessedRepository.queryOptions(),
   );
@@ -75,6 +93,7 @@ export function TaskInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonGroupRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0);
+  const reportInputHadContentRef = useRef(false);
 
   const [editorIsEmpty, setEditorIsEmpty] = useState(true);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -90,10 +109,56 @@ export function TaskInput({
   const [selectedCloudEnvId, setSelectedCloudEnvId] = useState<string | null>(
     null,
   );
+  const [activeReportAssociation, setActiveReportAssociation] = useState(
+    reportAssociation ?? null,
+  );
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
   const workspaceMode = lastUsedWorkspaceMode || "local";
   const adapter = lastUsedAdapter;
+  const prefillRequestKey = initialPromptKey ?? initialPrompt;
+
+  useEffect(() => {
+    if (!initialPrompt || !prefillRequestKey) return;
+    useDraftStore.getState().actions.setPendingContent(sessionId, {
+      segments: [{ type: "text", text: initialPrompt }],
+    });
+  }, [initialPrompt, prefillRequestKey, sessionId]);
+
+  useEffect(() => {
+    reportInputHadContentRef.current = false;
+    setActiveReportAssociation(reportAssociation ?? null);
+  }, [reportAssociation]);
+
+  const handleDismissReportAssociation = useCallback(() => {
+    reportInputHadContentRef.current = false;
+    setActiveReportAssociation(null);
+    clearTaskInputReportAssociation();
+  }, [clearTaskInputReportAssociation]);
+
+  const handleEditorEmptyChange = useCallback(
+    (isEmpty: boolean) => {
+      setEditorIsEmpty(isEmpty);
+
+      if (!activeReportAssociation) return;
+      if (!isEmpty) {
+        reportInputHadContentRef.current = true;
+        return;
+      }
+      if (!reportInputHadContentRef.current) return;
+
+      reportInputHadContentRef.current = false;
+      setActiveReportAssociation(null);
+      clearTaskInputReportAssociation();
+    },
+    [activeReportAssociation, clearTaskInputReportAssociation],
+  );
+
+  const handleOpenAssociatedReport = useCallback(() => {
+    if (!activeReportAssociation) return;
+    navigateToInbox();
+    setSelectedReportIds([activeReportAssociation.reportId]);
+  }, [activeReportAssociation, navigateToInbox, setSelectedReportIds]);
 
   useEffect(() => {
     if (!selectedDirectory && mostRecentRepo?.path) {
@@ -124,7 +189,10 @@ export function TaskInput({
     loadMore: loadMoreCloudRepositories,
   } = useGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
-    () => lastUsedCloudRepository?.toLowerCase() ?? null,
+    () =>
+      initialCloudRepository?.toLowerCase() ??
+      lastUsedCloudRepository?.toLowerCase() ??
+      null,
   );
   const selectedCloudRepository = useMemo(() => {
     if (!selectedRepository) return null;
@@ -205,6 +273,12 @@ export function TaskInput({
     },
     [setLastUsedCloudRepository],
   );
+
+  useEffect(() => {
+    if (!initialCloudRepository) return;
+    setLastUsedWorkspaceMode("cloud");
+    setSelectedRepository(initialCloudRepository.toLowerCase());
+  }, [initialCloudRepository, setLastUsedWorkspaceMode]);
 
   const handleRefreshRepositories = useCallback(() => {
     void refreshRepositories().catch((error) => {
@@ -368,6 +442,7 @@ export function TaskInput({
       effectiveWorkspaceMode === "cloud" && selectedCloudEnvId
         ? selectedCloudEnvId
         : undefined,
+    signalReportId: activeReportAssociation?.reportId,
   });
 
   const handleModeChange = useCallback(
@@ -480,10 +555,18 @@ export function TaskInput({
     editorRef.current?.focus();
   }, []);
 
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    if (!e.currentTarget.contains(e.target as Node)) return;
+    if ((e.target as HTMLElement).closest(FOCUSABLE_SELECTOR)) return;
+    editorRef.current?.focus();
+  }, []);
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop container
+    // biome-ignore lint/a11y/useKeyWithClickEvents: click delegates focus to the editor; keyboard users tab into it directly
     <div
       ref={containerRef}
+      onClick={handleContainerClick}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -491,7 +574,12 @@ export function TaskInput({
       className="relative h-full w-full"
     >
       <DropZoneOverlay isVisible={isDraggingFile} />
-      <Flex align="center" justify="center" height="100%" className="relative">
+      <Flex
+        align="center"
+        justify="center"
+        height="100%"
+        className="relative px-4"
+      >
         <DotPatternBackground className="h-[100.333%]" />
         <Flex
           direction="column"
@@ -554,7 +642,6 @@ export function TaskInput({
                   placeholder="Select repository..."
                   size="1"
                   disabled={isCreatingTask}
-                  anchor={buttonGroupRef}
                 />
               ) : (
                 <FolderPicker
@@ -612,49 +699,78 @@ export function TaskInput({
             )}
           </Flex>
 
-          <PromptInput
-            ref={editorRef}
-            sessionId={promptSessionId}
-            placeholder={`What do you want to ship? ${hints}`}
-            disabled={isCreatingTask}
-            isLoading={isCreatingTask}
-            autoFocus
-            clearOnSubmit={false}
-            submitDisabledExternal={!canSubmit || isCreatingTask || !isOnline}
-            tourTarget="task-input"
-            repoPath={selectedDirectory}
-            modeOption={modeOption}
-            onModeChange={handleModeChange}
-            allowBypassPermissions={allowBypassPermissions}
-            enableCommands
-            enableBashMode={false}
-            modelSelector={
-              <UnifiedModelSelector
-                modelOption={modelOption}
-                adapter={adapter ?? "claude"}
-                onAdapterChange={setAdapter}
-                disabled={isCreatingTask}
-                isConnecting={isPreviewLoading}
-                onModelChange={handleModelChange}
-              />
-            }
-            reasoningSelector={
-              !isPreviewLoading && (
-                <ReasoningLevelSelector
-                  thoughtOption={thoughtOption}
-                  adapter={adapter}
-                  onChange={handleThoughtChange}
+          <Flex direction="column" gap="0">
+            <PromptInput
+              ref={editorRef}
+              sessionId={promptSessionId}
+              placeholder={`What do you want to ship? ${hints}`}
+              editorHeight="large"
+              disabled={isCreatingTask}
+              isLoading={isCreatingTask}
+              autoFocus
+              clearOnSubmit={false}
+              submitDisabledExternal={!canSubmit || isCreatingTask || !isOnline}
+              tourTarget="task-input"
+              repoPath={selectedDirectory}
+              modeOption={modeOption}
+              onModeChange={handleModeChange}
+              allowBypassPermissions={allowBypassPermissions}
+              enableCommands
+              enableBashMode={false}
+              modelSelector={
+                <UnifiedModelSelector
+                  modelOption={modelOption}
+                  adapter={adapter ?? "claude"}
+                  onAdapterChange={setAdapter}
                   disabled={isCreatingTask}
+                  isConnecting={isPreviewLoading}
+                  onModelChange={handleModelChange}
                 />
-              )
-            }
-            getPromptHistory={getPromptHistory}
-            onEmptyChange={setEditorIsEmpty}
-            onSubmitClick={handleSubmit}
-            onSubmit={() => {
-              if (canSubmit) handleSubmit();
-            }}
-          />
+              }
+              reasoningSelector={
+                !isPreviewLoading && (
+                  <ReasoningLevelSelector
+                    thoughtOption={thoughtOption}
+                    adapter={adapter}
+                    onChange={handleThoughtChange}
+                    disabled={isCreatingTask}
+                  />
+                )
+              }
+              getPromptHistory={getPromptHistory}
+              onEmptyChange={handleEditorEmptyChange}
+              onSubmitClick={handleSubmit}
+              onSubmit={() => {
+                if (canSubmit) handleSubmit();
+              }}
+            />
+            {activeReportAssociation && (
+              <div className="-mt-px mx-2 flex select-none items-center justify-between gap-2 rounded-b-md border border-blue-6 border-t-0 bg-blue-2 px-2 py-1 text-[12px] text-blue-11">
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="shrink-0">
+                    This task will be associated with report
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenAssociatedReport}
+                    className="min-w-0 truncate text-left font-medium underline underline-offset-2 hover:text-blue-12"
+                  >
+                    {activeReportAssociation.title || "Untitled report"}
+                  </button>
+                </span>
+                <Tooltip content="Exit Inbox mode">
+                  <button
+                    type="button"
+                    onClick={handleDismissReportAssociation}
+                    aria-label="Exit Inbox mode"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-blue-10 hover:bg-blue-4 hover:text-blue-12"
+                  >
+                    <X size={12} />
+                  </button>
+                </Tooltip>
+              </div>
+            )}
+          </Flex>
         </Flex>
       </Flex>
 

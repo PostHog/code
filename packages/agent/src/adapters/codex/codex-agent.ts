@@ -63,6 +63,7 @@ import {
 } from "../../utils/streams";
 import { BaseAcpAgent, type BaseSession } from "../base-acp-agent";
 import { createCodexClient } from "./codex-client";
+import { normalizeCodexConfigOptions } from "./models";
 import {
   type CodexSessionState,
   createSessionState,
@@ -326,8 +327,12 @@ export class CodexAcpAgent extends BaseAcpAgent {
     const meta = params._meta as NewSessionMeta | undefined;
     const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
 
+
     const injectedParams = this.applyStructuredOutput(params, meta);
     const response = await this.codexConnection.newSession(injectedParams);
+    response.configOptions = normalizeCodexConfigOptions(
+      response.configOptions,
+    );
 
     // Initialize session state
     this.sessionState = createSessionState(response.sessionId, params.cwd, {
@@ -364,6 +369,10 @@ export class CodexAcpAgent extends BaseAcpAgent {
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
+    const response = await this.codexConnection.loadSession(params);
+    response.configOptions = normalizeCodexConfigOptions(
+      response.configOptions,
+    );
     const meta = params._meta as NewSessionMeta | undefined;
     const injectedParams = this.applyStructuredOutput(params, meta);
     const response = await this.codexConnection.loadSession(injectedParams);
@@ -399,6 +408,16 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async unstable_resumeSession(
     params: ResumeSessionRequest,
   ): Promise<ResumeSessionResponse> {
+    // codex-acp doesn't support resume natively, use loadSession instead
+    const loadResponse = await this.codexConnection.loadSession({
+      sessionId: params.sessionId,
+      cwd: params.cwd,
+      mcpServers: params.mcpServers ?? [],
+    });
+    loadResponse.configOptions = normalizeCodexConfigOptions(
+      loadResponse.configOptions,
+    );
+
     const meta = params._meta as NewSessionMeta | undefined;
     const injectedParams = this.applyStructuredOutput(
       {
@@ -455,6 +474,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
     // Create a new session via codex-acp (fork isn't natively supported)
     const newResponse = await this.codexConnection.newSession(injectedParams);
+    newResponse.configOptions = normalizeCodexConfigOptions(
+      newResponse.configOptions,
+    );
 
     const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
     this.sessionState = createSessionState(newResponse.sessionId, params.cwd, {
@@ -773,6 +795,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
   ): Promise<SetSessionConfigOptionResponse> {
     const response = await this.codexConnection.setSessionConfigOption(params);
     if (response.configOptions) {
+      response.configOptions = normalizeCodexConfigOptions(
+        response.configOptions,
+      ) as typeof response.configOptions;
       this.sessionState.configOptions = response.configOptions;
     }
     if (params.configId === "mode" && typeof params.value === "string") {

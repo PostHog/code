@@ -24,6 +24,7 @@ const taskKeys = {
     repository?: string;
     createdBy?: number;
     originProduct?: string;
+    internal?: boolean;
   }) => [...taskKeys.lists(), filters] as const,
   details: () => [...taskKeys.all, "detail"] as const,
   detail: (id: string) => [...taskKeys.details(), id] as const,
@@ -32,16 +33,19 @@ const taskKeys = {
 export function useTasks(filters?: {
   repository?: string;
   showAllUsers?: boolean;
+  showInternal?: boolean;
 }) {
   const { data: currentUser } = useMeQuery();
   const createdBy = filters?.showAllUsers ? undefined : currentUser?.id;
+  const internal = filters?.showInternal ? true : undefined;
 
   return useAuthenticatedQuery(
-    taskKeys.list({ ...filters, createdBy }),
+    taskKeys.list({ repository: filters?.repository, createdBy, internal }),
     (client) =>
       client.getTasks({
         repository: filters?.repository,
         createdBy,
+        internal,
       }) as unknown as Promise<Task[]>,
     { enabled: !!currentUser?.id, refetchInterval: TASK_LIST_POLL_INTERVAL_MS },
   );
@@ -51,13 +55,16 @@ export function useCreateTask() {
   const queryClient = useQueryClient();
 
   const invalidateTasks = (newTask?: Task) => {
-    // If a new task is provided, add it to cache immediately for instant UI update
     if (newTask) {
-      queryClient.setQueryData<Task[]>(taskKeys.list(), (old) =>
-        old ? [newTask, ...old] : [newTask],
+      queryClient.setQueriesData<Task[]>(
+        { queryKey: taskKeys.lists() },
+        (old) => {
+          if (!old) return old;
+          if (old.some((task) => task.id === newTask.id)) return old;
+          return [newTask, ...old];
+        },
       );
     }
-    // Also invalidate to ensure we're in sync with server
     queryClient.invalidateQueries({ queryKey: taskKeys.lists() });
   };
 

@@ -7,14 +7,20 @@ import type {
 import { useTRPC } from "@renderer/trpc/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { dispatchBulkApproval } from "./mcpToolBulk";
 import { mcpKeys } from "./useMcpServers";
 
 interface UseMcpInstallationToolsOptions {
   includeRemoved?: boolean;
+  autoRefreshIfEmpty?: boolean;
 }
+
+// Module-scoped on purpose: state must survive remounts of this hook so a
+// detail-page revisit doesn't re-fire the auto-refresh. Tests that exercise
+// auto-refresh need to clear this in beforeEach.
+const autoRefreshedInstallations = new Set<string>();
 
 export function useMcpInstallationTools(
   installationId: string | null,
@@ -92,6 +98,8 @@ export function useMcpInstallationTools(
     },
   );
 
+  const silentRefreshRef = useRef(false);
+
   const refreshMutation = useAuthenticatedMutation(
     (client) => {
       if (!installationId) {
@@ -101,14 +109,56 @@ export function useMcpInstallationTools(
     },
     {
       onSuccess: () => {
-        toast.success("Tools refreshed");
+        const silent = silentRefreshRef.current;
+        silentRefreshRef.current = false;
+        if (!silent) toast.success("Tools refreshed");
         invalidate();
+        queryClient.invalidateQueries({ queryKey: mcpKeys.installations });
       },
       onError: (error: Error) => {
-        toast.error(error.message || "Failed to refresh tools");
+        const silent = silentRefreshRef.current;
+        silentRefreshRef.current = false;
+        if (!silent) toast.error(error.message || "Failed to refresh tools");
       },
     },
   );
+
+  const toolsLength = (tools ?? []).length;
+  const refreshIsPending = refreshMutation.isPending;
+  const refreshMutate = refreshMutation.mutate;
+
+  // Auto-fire the same call as the manual Refresh button when the detail
+  // panel opens to a freshly-connected installation that hasn't synced its
+  // tools yet. The guards exist because each one stops a different misfire:
+  //   - autoRefreshIfEmpty: opt-in; only the detail view passes it
+  //   - installationId:     nothing to refresh without one
+  //   - isLoading:          tools query hasn't settled — wait, we don't
+  //                         know yet whether it's empty
+  //   - toolsLength > 0:    tools already synced; no refresh needed
+  //   - autoRefreshedInstallations.has(...): already auto-refreshed this
+  //                         installation in this session — don't re-fire
+  //                         on every revisit (covers genuinely-empty
+  //                         servers too)
+  //   - refreshIsPending:   refresh already in flight (e.g. user clicked
+  //                         the manual button in the same render cycle)
+  useEffect(() => {
+    if (!options.autoRefreshIfEmpty) return;
+    if (!installationId) return;
+    if (isLoading) return;
+    if (toolsLength > 0) return;
+    if (autoRefreshedInstallations.has(installationId)) return;
+    if (refreshIsPending) return;
+    autoRefreshedInstallations.add(installationId);
+    silentRefreshRef.current = true;
+    refreshMutate(undefined);
+  }, [
+    options.autoRefreshIfEmpty,
+    installationId,
+    isLoading,
+    toolsLength,
+    refreshIsPending,
+    refreshMutate,
+  ]);
 
   useSubscription(
     trpcReact.mcpCallback.onOAuthComplete.subscriptionOptions(undefined, {

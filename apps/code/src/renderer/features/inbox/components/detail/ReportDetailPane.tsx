@@ -1,34 +1,21 @@
 import { Badge } from "@components/ui/Badge";
-import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import {
   useInboxReportArtefacts,
   useInboxReportSignals,
 } from "@features/inbox/hooks/useInboxReports";
-import { useInboxCloudTaskStore } from "@features/inbox/stores/inboxCloudTaskStore";
-import { buildSignalTaskPrompt } from "@features/inbox/utils/buildSignalTaskPrompt";
-import { useCreateTask } from "@features/tasks/hooks/useTasks";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useMeQuery } from "@hooks/useMeQuery";
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
-  Cloud as CloudIcon,
   EyeIcon,
   LinkSimpleIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import {
-  AlertDialog,
-  Box,
-  Button,
-  Flex,
-  ScrollArea,
-  Text,
-  TextArea,
-  Tooltip,
-} from "@radix-ui/themes";
+import { Box, Flex, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
+import { EXTERNAL_LINKS } from "@renderer/utils/links";
 import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
@@ -36,18 +23,13 @@ import type {
   PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReport,
+  SignalReportTask,
   SuggestedReviewer,
   SuggestedReviewersArtefact,
+  Task,
 } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
@@ -61,6 +43,38 @@ function isSuggestedReviewerRowMe(
   meUuid: string | undefined,
 ): boolean {
   return !!reviewer.user?.uuid && !!meUuid && meUuid === reviewer.user.uuid;
+}
+
+const REPOSITORY_SOURCE_RELATIONSHIPS: SignalReportTask["relationship"][] = [
+  "repo_selection",
+  "research",
+  "implementation",
+];
+
+function useReportRepository(reportId: string) {
+  return useAuthenticatedQuery<string | null>(
+    ["inbox", "report-repository", reportId],
+    async (client) => {
+      const reportTasks = await client.getSignalReportTasks(reportId);
+
+      for (const relationship of REPOSITORY_SOURCE_RELATIONSHIPS) {
+        const reportTask = reportTasks.find(
+          (task) => task.relationship === relationship,
+        );
+        if (!reportTask) continue;
+
+        const task = (await client.getTask(
+          reportTask.task_id,
+        )) as unknown as Task | null;
+        if (task?.repository) {
+          return task.repository.toLowerCase();
+        }
+      }
+
+      return null;
+    },
+    { enabled: !!reportId, staleTime: 30_000 },
+  );
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -185,73 +199,40 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   );
 
   // ── Task creation ───────────────────────────────────────────────────────
-  const { navigateToTask } = useNavigationStore();
-  const { invalidateTasks } = useCreateTask();
-  const { repositories, getIntegrationIdForRepo, isLoadingRepos } =
-    useRepositoryIntegration();
-  const showCloudConfirm = useInboxCloudTaskStore((s) => s.showConfirm);
-  const selectedRepo = useInboxCloudTaskStore((s) => s.selectedRepo);
-  const openCloudConfirm = useInboxCloudTaskStore((s) => s.openConfirm);
-  const closeCloudConfirm = useInboxCloudTaskStore((s) => s.closeConfirm);
-  const setSelectedRepo = useInboxCloudTaskStore((s) => s.setSelectedRepo);
-  const runCloudTask = useInboxCloudTaskStore((s) => s.runCloudTask);
+  const { navigateToTaskInput } = useNavigationStore();
+  const { data: reportRepository } = useReportRepository(report.id);
 
-  /** Matches server autostart rules: ready (or awaiting user input) + immediately actionable + not already fixed. */
+  /** True when the report is waiting on user input before implementation can proceed.
+   * Covers the `pending_input` status and the `ready + requires_human_input` combination
+   * (the actionability badge shows "Needs input" in that case). */
+  const isAwaitingInput =
+    report.status === "pending_input" ||
+    (report.status === "ready" &&
+      report.actionability === "requires_human_input");
+
+  /** Matches server autostart rules: ready + immediately actionable + not already fixed.
+   * When the report is awaiting input we also surface the action so the user can provide it. */
   const canCreateImplementationPr =
-    (report.status === "ready" || report.status === "pending_input") &&
-    report.actionability === "immediately_actionable" &&
-    report.already_addressed !== true;
+    isAwaitingInput ||
+    (report.status === "ready" &&
+      report.actionability === "immediately_actionable" &&
+      report.already_addressed !== true);
 
-  const [cloudPromptDraft, setCloudPromptDraft] = useState("");
-  const cloudRepoPickerAnchorRef = useRef<HTMLDivElement>(null);
-
-  const buildPrompt = useCallback(() => {
-    const repository = selectedRepo ?? repositories[0] ?? "";
-    return buildSignalTaskPrompt({
-      report,
-      repository,
-      priorityExplanation,
-    });
-  }, [report, selectedRepo, repositories, priorityExplanation]);
-
-  useEffect(() => {
-    if (showCloudConfirm) {
-      setCloudPromptDraft(buildPrompt() ?? "");
-    }
-  }, [showCloudConfirm, buildPrompt]);
-
-  const handleOpenCloudConfirm = useCallback(() => {
-    openCloudConfirm(repositories[0] ?? null);
-  }, [repositories, openCloudConfirm]);
-
-  const handleRunCloudTask = useCallback(async () => {
+  const handleCreateImplementationTask = useCallback(() => {
     if (!canCreateImplementationPr) return;
-    const prompt = cloudPromptDraft.trim();
-    if (!prompt) return;
-
-    const result = await runCloudTask({
-      prompt,
-      githubIntegrationId: selectedRepo
-        ? getIntegrationIdForRepo(selectedRepo)
-        : undefined,
-      reportId: report.id,
+    navigateToTaskInput({
+      initialPrompt: `Act on this signal report. Investigate the root cause, implement the fix, and open a PR if appropriate.\n\n${report.summary ?? ""}`,
+      initialCloudRepository: reportRepository ?? undefined,
+      reportAssociation: {
+        reportId: report.id,
+        title: report.title ?? "Untitled signal",
+      },
     });
-
-    if (result.success && result.task) {
-      invalidateTasks(result.task);
-      navigateToTask(result.task);
-    } else if (!result.success) {
-      toast.error(result.error ?? "Failed to create cloud task");
-    }
   }, [
     canCreateImplementationPr,
-    cloudPromptDraft,
-    runCloudTask,
-    invalidateTasks,
-    navigateToTask,
-    selectedRepo,
-    getIntegrationIdForRepo,
-    report.id,
+    navigateToTaskInput,
+    reportRepository,
+    report,
   ]);
 
   return (
@@ -314,6 +295,43 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           gap="2"
           className="min-w-0 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 @lg:px-4 @md:px-3 @xl:px-5 px-2 @2xl:pt-3 @3xl:pt-4 @4xl:pt-5 @5xl:pt-6 @lg:pt-2 @md:pt-1.5 @xl:pt-2.5 pt-1 @2xl:pb-6 @3xl:pb-8 @4xl:pb-10 @5xl:pb-12 @lg:pb-4 @md:pb-3 @xl:pb-5 pb-2"
         >
+          {/* ── Failed report error ──────────────────────────── */}
+          {report.status === "failed" && (
+            <Flex
+              align="start"
+              gap="2"
+              px="2"
+              py="2"
+              className="select-none rounded-sm border border-red-6 bg-red-2"
+            >
+              <WarningIcon
+                size={14}
+                weight="fill"
+                className="mt-0.5 shrink-0 text-(--red-9)"
+              />
+              <Flex direction="column" className="min-w-0 flex-1">
+                <Text className="font-medium text-(--red-11) text-[12px]">
+                  Report processing failed
+                </Text>
+                <Text className="text-(--red-9) text-[11px]">
+                  There was an issue processing this report. This has been
+                  reported to our team.
+                  <br />
+                  To get in touch with the team directly,{" "}
+                  <a
+                    href={EXTERNAL_LINKS.discord}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-(--red-9) underline hover:text-(--red-11)"
+                  >
+                    join our Discord
+                  </a>
+                  .
+                </Text>
+              </Flex>
+            </Flex>
+          )}
+
           {/* ── Description ─────────────────────────────────────── */}
           {report.status !== "ready" ? (
             <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">
@@ -507,80 +525,11 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         key={report.id}
         reportId={report.id}
         reportStatus={report.status}
-        onRunInCloud={
-          canCreateImplementationPr ? handleOpenCloudConfirm : undefined
+        isAwaitingInput={isAwaitingInput}
+        onCreateImplementationTask={
+          canCreateImplementationPr ? handleCreateImplementationTask : undefined
         }
       />
-
-      {/* ── Cloud task confirmation dialog ────────────────────── */}
-      <AlertDialog.Root
-        open={showCloudConfirm}
-        onOpenChange={(open) => {
-          if (!open) closeCloudConfirm();
-        }}
-      >
-        <AlertDialog.Content maxWidth="560px" className="overflow-visible">
-          <AlertDialog.Title>
-            <Flex align="center" gap="2">
-              <CloudIcon size={18} />
-              <Text className="font-bold">Run cloud task</Text>
-            </Flex>
-          </AlertDialog.Title>
-          <AlertDialog.Description className="overflow-visible text-sm">
-            <Flex direction="column" gap="3" className="overflow-visible">
-              <Text className="text-[13px]">
-                This will create and run a cloud task from this signal report.
-                You can edit the prompt below before running.
-              </Text>
-              <Flex direction="column" gap="1">
-                <Text className="font-medium text-[12px]">Task prompt</Text>
-                <TextArea
-                  size="2"
-                  rows={10}
-                  value={cloudPromptDraft}
-                  onChange={(e) => setCloudPromptDraft(e.target.value)}
-                  className="min-h-[140px] resize-y font-mono text-[12px] leading-relaxed"
-                  placeholder="Describe what the agent should do…"
-                />
-              </Flex>
-              <Box ref={cloudRepoPickerAnchorRef} className="overflow-visible">
-                <Flex direction="column" gap="1">
-                  <Text className="font-medium text-[12px]">
-                    Target repository
-                  </Text>
-                  <GitHubRepoPicker
-                    value={selectedRepo}
-                    onChange={setSelectedRepo}
-                    repositories={repositories}
-                    isLoading={isLoadingRepos}
-                    placeholder="Select repository..."
-                    size="1"
-                    anchor={cloudRepoPickerAnchorRef}
-                    showSearchInput={false}
-                  />
-                </Flex>
-              </Box>
-            </Flex>
-          </AlertDialog.Description>
-          <Flex gap="3" mt="4" justify="end">
-            <AlertDialog.Cancel>
-              <Button variant="soft" color="gray">
-                Cancel
-              </Button>
-            </AlertDialog.Cancel>
-            <AlertDialog.Action>
-              <Button
-                variant="solid"
-                disabled={!cloudPromptDraft.trim()}
-                onClick={() => void handleRunCloudTask()}
-              >
-                <CloudIcon size={14} />
-                Run
-              </Button>
-            </AlertDialog.Action>
-          </Flex>
-        </AlertDialog.Content>
-      </AlertDialog.Root>
     </>
   );
 }
