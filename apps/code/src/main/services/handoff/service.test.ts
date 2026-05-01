@@ -65,7 +65,7 @@ vi.mock("@main/di/tokens", () => ({
 }));
 
 import type { HandoffPreflightInput } from "./schemas";
-import { HandoffService } from "./service";
+import { extractHandoffErrorCode, HandoffService } from "./service";
 
 const DEFAULT_LOCAL_GIT_STATE = {
   head: "abc123",
@@ -170,5 +170,22 @@ describe("HandoffService.preflight", () => {
 
     expect(result.canHandoff).toBe(true);
     expect(result.localTreeDirty).toBe(false);
+  });
+});
+
+describe("extractHandoffErrorCode", () => {
+  it("detects GitHub authorization failures in backend error payloads", () => {
+    const message =
+      'Failed request: [400] {"type":"validation_error","code":"github_authorization_required","detail":"Link a GitHub account"}';
+
+    expect(extractHandoffErrorCode(message)).toBe(
+      "github_authorization_required",
+    );
+  });
+
+  it("ignores unrelated failures", () => {
+    expect(extractHandoffErrorCode("Failed request: [500] boom")).toBe(
+      undefined,
+    );
   });
 });
