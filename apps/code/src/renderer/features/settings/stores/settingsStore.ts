@@ -1,8 +1,12 @@
 import type { WorkspaceMode } from "@main/services/workspace/schemas";
+import { trpcClient } from "@renderer/trpc/client";
 import type { ExecutionMode } from "@shared/types";
 import { electronStorage } from "@utils/electronStorage";
+import { logger } from "@utils/logger";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+const log = logger.scope("settings-store");
 
 export type DefaultRunMode = "local" | "cloud" | "last_used";
 export type LocalWorkspaceMode = "worktree" | "local";
@@ -246,3 +250,24 @@ export const useSettingsStore = create<SettingsStore>()(
     },
   ),
 );
+
+/**
+ * Subscribe to custom-instructions writes coming from the agent's internal
+ * MCP server, so the in-memory store stays in sync after the persisted bucket
+ * is rewritten in the main process.
+ */
+export function initializeSettingsStore(): () => void {
+  const subscription =
+    trpcClient.posthogCodeInternalMcp.onCustomInstructionsChanged.subscribe(
+      undefined,
+      {
+        onData: ({ customInstructions }) => {
+          useSettingsStore.setState({ customInstructions });
+        },
+        onError: (error) => {
+          log.error("Custom instructions subscription error", { error });
+        },
+      },
+    );
+  return () => subscription.unsubscribe();
+}

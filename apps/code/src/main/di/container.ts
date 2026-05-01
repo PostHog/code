@@ -53,6 +53,7 @@ import { McpCallbackService } from "../services/mcp-callback/service";
 import { McpProxyService } from "../services/mcp-proxy/service";
 import { NotificationService } from "../services/notification/service";
 import { OAuthService } from "../services/oauth/service";
+import { PostHogCodeInternalMcpService } from "../services/posthog-code-internal-mcp/service";
 import { PosthogPluginService } from "../services/posthog-plugin/service";
 import { ProcessTrackingService } from "../services/process-tracking/service";
 import { ProvisioningService } from "../services/provisioning/service";
@@ -102,6 +103,9 @@ container.bind(MAIN_TOKENS.AgentService).to(AgentService);
 container.bind(MAIN_TOKENS.AuthService).to(AuthService);
 container.bind(MAIN_TOKENS.AuthProxyService).to(AuthProxyService);
 container.bind(MAIN_TOKENS.McpProxyService).to(McpProxyService);
+container
+  .bind(MAIN_TOKENS.PostHogCodeInternalMcpService)
+  .to(PostHogCodeInternalMcpService);
 container.bind(MAIN_TOKENS.ArchiveService).to(ArchiveService);
 container.bind(MAIN_TOKENS.SuspensionService).to(SuspensionService);
 container.bind(MAIN_TOKENS.AppLifecycleService).to(AppLifecycleService);

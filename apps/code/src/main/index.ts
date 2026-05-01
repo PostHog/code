@@ -22,6 +22,7 @@ import {
   initializePostHog,
   trackAppEvent,
 } from "./services/posthog-analytics";
+import type { PostHogCodeInternalMcpService } from "./services/posthog-code-internal-mcp/service";
 import type { PosthogPluginService } from "./services/posthog-plugin/service";
 import type { SuspensionService } from "./services/suspension/service";
 import type { TaskLinkService } from "./services/task-link/service";
@@ -51,6 +52,11 @@ async function initializeServices(): Promise<void> {
   container.get<PosthogPluginService>(MAIN_TOKENS.PosthogPluginService);
 
   await authService.initialize();
+
+  const internalMcp = container.get<PostHogCodeInternalMcpService>(
+    MAIN_TOKENS.PostHogCodeInternalMcpService,
+  );
+  await internalMcp.start();
 
   // Initialize workspace branch watcher for live branch rename detection
   const workspaceService = container.get<WorkspaceService>(

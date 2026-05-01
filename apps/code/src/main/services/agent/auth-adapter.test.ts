@@ -58,6 +58,12 @@ function createDependencies() {
           (id: string) => `http://127.0.0.1:9998/${encodeURIComponent(id)}`,
         ),
     },
+    internalMcp: {
+      getUrl: vi.fn().mockReturnValue("http://127.0.0.1:9997/mcp"),
+      getAuthHeader: vi
+        .fn()
+        .mockReturnValue({ name: "authorization", value: "Bearer test" }),
+    },
   };
 }
 
@@ -77,6 +83,7 @@ describe("AgentAuthAdapter", () => {
       deps.authService as never,
       deps.authProxy as never,
       deps.mcpProxy as never,
+      deps.internalMcp as never,
     );
   });
 
