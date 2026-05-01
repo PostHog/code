@@ -4,7 +4,7 @@ import type {
   LoadSessionResponse,
   NewSessionResponse,
 } from "@agentclientprotocol/sdk";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockCodexConnection = {
   initialize: vi.fn(),
@@ -52,6 +52,11 @@ vi.mock("./settings", () => ({
     getSettings: () => ({}),
   })),
 }));
+
+vi.mock("node:fs", async (importActual) => {
+  const actual = await importActual<typeof import("node:fs")>();
+  return { ...actual, existsSync: vi.fn(actual.existsSync) };
+});
 
 import { CodexAcpAgent } from "./codex-agent";
 
@@ -308,15 +313,13 @@ describe("CodexAcpAgent", () => {
       required: ["answer"],
     } as const;
 
-    beforeEach(() => {
-      // The resolver insists the script path exists. Point at the node
-      // binary itself — always present, and the agent only forwards the
-      // path to codex-acp; nothing in this test actually spawns it.
-      vi.stubEnv("POSTHOG_STRUCTURED_OUTPUT_MCP_SCRIPT", process.execPath);
-    });
-
-    afterEach(() => {
-      vi.unstubAllEnvs();
+    beforeEach(async () => {
+      // The resolver checks existsSync to find the compiled MCP script.
+      // In unit tests the dist asset isn't on the walk-up path, so we
+      // make the first candidate succeed. Nothing in this test actually
+      // spawns the script — the agent only forwards the path to codex-acp.
+      const fs = await import("node:fs");
+      vi.mocked(fs.existsSync).mockReturnValue(true);
     });
 
     it("injects the create_output MCP server and system-prompt note when jsonSchema and callback are present", async () => {

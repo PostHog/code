@@ -180,9 +180,6 @@ const STRUCTURED_OUTPUT_INSTRUCTIONS = `\n\nWhen you have completed the task, ca
  * up until we find the script so each bundle locates the shared dist asset.
  */
 function resolveStructuredOutputMcpScript(): string {
-  const override = process.env.POSTHOG_STRUCTURED_OUTPUT_MCP_SCRIPT;
-  if (override && existsSync(override)) return override;
-
   const rel = "adapters/codex/structured-output-mcp-server.js";
   let dir = import.meta.dirname ?? __dirname;
   for (let i = 0; i < 5; i++) {
@@ -191,7 +188,7 @@ function resolveStructuredOutputMcpScript(): string {
     dir = resolvePath(dir, "..");
   }
   throw new Error(
-    `Could not locate ${rel} relative to ${import.meta.dirname ?? __dirname}. Set POSTHOG_STRUCTURED_OUTPUT_MCP_SCRIPT to override.`,
+    `Could not locate ${rel} relative to ${import.meta.dirname ?? __dirname}.`,
   );
 }
 
@@ -327,7 +324,6 @@ export class CodexAcpAgent extends BaseAcpAgent {
     const meta = params._meta as NewSessionMeta | undefined;
     const requestedPermissionMode = toCodexPermissionMode(meta?.permissionMode);
 
-
     const injectedParams = this.applyStructuredOutput(params, meta);
     const response = await this.codexConnection.newSession(injectedParams);
     response.configOptions = normalizeCodexConfigOptions(
@@ -369,13 +365,12 @@ export class CodexAcpAgent extends BaseAcpAgent {
   }
 
   async loadSession(params: LoadSessionRequest): Promise<LoadSessionResponse> {
-    const response = await this.codexConnection.loadSession(params);
-    response.configOptions = normalizeCodexConfigOptions(
-      response.configOptions,
-    );
     const meta = params._meta as NewSessionMeta | undefined;
     const injectedParams = this.applyStructuredOutput(params, meta);
     const response = await this.codexConnection.loadSession(injectedParams);
+    response.configOptions = normalizeCodexConfigOptions(
+      response.configOptions,
+    );
     const currentPermissionMode = getCurrentPermissionMode(
       response.modes?.currentModeId,
       meta?.permissionMode,
@@ -408,16 +403,6 @@ export class CodexAcpAgent extends BaseAcpAgent {
   async unstable_resumeSession(
     params: ResumeSessionRequest,
   ): Promise<ResumeSessionResponse> {
-    // codex-acp doesn't support resume natively, use loadSession instead
-    const loadResponse = await this.codexConnection.loadSession({
-      sessionId: params.sessionId,
-      cwd: params.cwd,
-      mcpServers: params.mcpServers ?? [],
-    });
-    loadResponse.configOptions = normalizeCodexConfigOptions(
-      loadResponse.configOptions,
-    );
-
     const meta = params._meta as NewSessionMeta | undefined;
     const injectedParams = this.applyStructuredOutput(
       {
@@ -431,6 +416,9 @@ export class CodexAcpAgent extends BaseAcpAgent {
 
     // codex-acp doesn't support resume natively, use loadSession instead
     const loadResponse = await this.codexConnection.loadSession(injectedParams);
+    loadResponse.configOptions = normalizeCodexConfigOptions(
+      loadResponse.configOptions,
+    );
     const currentPermissionMode = getCurrentPermissionMode(
       loadResponse.modes?.currentModeId,
       meta?.permissionMode,
