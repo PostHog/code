@@ -553,6 +553,13 @@ export async function readHandoffLocalGitState(
   const head = await readCurrentHead(git);
   const branch = await getCurrentBranchName(git);
   const tracking = await getTrackingMetadata(git, branch);
+
+  if (tracking.upstreamRemote && tracking.upstreamMergeRef) {
+    await git
+      .raw(["fetch", tracking.upstreamRemote, tracking.upstreamMergeRef])
+      .catch(() => {});
+  }
+
   const upstreamHead =
     tracking.upstreamRemote && tracking.upstreamMergeRef
       ? await resolveUpstreamHead(
