@@ -28,6 +28,11 @@ import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service";
 import type { WorkspaceService } from "./services/workspace/service";
 import { ensureClaudeConfigDir } from "./utils/env";
+import {
+  getChromiumLogFilePath,
+  getLogFilePath,
+  readChromiumLogTail,
+} from "./utils/logger";
 import { createWindow } from "./window";
 
 // Single instance lock must be acquired FIRST before any other app setup
@@ -92,6 +97,9 @@ app.whenReady().then(async () => {
       `OS: ${process.platform} ${process.arch} ${os.release()}`,
     ].join(" | "),
   );
+  log.info(
+    `Logs: main=${getLogFilePath()} chromium=${getChromiumLogFilePath() ?? "(disabled)"}`,
+  );
   ensureClaudeConfigDir();
   registerMcpSandboxProtocol();
   createWindow();
@@ -101,6 +109,17 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   app.quit();
+});
+
+app.on("child-process-gone", (_event, details) => {
+  log.error("Child process gone", {
+    type: details.type,
+    reason: details.reason,
+    exitCode: details.exitCode,
+    serviceName: details.serviceName,
+    name: details.name,
+    chromiumLogTail: readChromiumLogTail(),
+  });
 });
 
 app.on("before-quit", async (event) => {
