@@ -572,7 +572,7 @@ export class PostHogAPIClient {
    */
   async startGithubUserIntegrationConnect(teamId?: number): Promise<{
     install_url: string;
-    connect_flow?: "oauth_authorize" | "app_install";
+    connect_flow?: "oauth_authorize" | "oauth_discover" | "app_install";
   }> {
     const id = teamId ?? (await this.getTeamId());
     const urlPath = `/api/users/@me/integrations/github/start/`;
@@ -597,7 +597,7 @@ export class PostHogAPIClient {
     }
     return (await response.json()) as {
       install_url: string;
-      connect_flow?: "oauth_authorize" | "app_install";
+      connect_flow?: "oauth_authorize" | "oauth_discover" | "app_install";
     };
   }
 
