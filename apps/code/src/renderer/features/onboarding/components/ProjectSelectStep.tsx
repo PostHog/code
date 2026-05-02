@@ -167,13 +167,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       <Popover.Trigger>
                         <button
                           type="button"
-                          className="box-border flex w-full cursor-pointer items-center justify-between rounded-[10px] border border-(--gray-a3) bg-(--color-panel-solid) px-[14px] py-[10px] text-sm"
-                          style={{
-                            all: "unset",
-                            boxShadow:
-                              "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-                            fontFamily: "inherit",
-                          }}
+                          className="box-border flex w-full cursor-pointer appearance-none items-center justify-between rounded-[10px] border border-(--gray-a3) bg-(--color-panel-solid) px-[14px] py-[10px] font-inherit text-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)]"
                         >
                           <Text className="font-medium text-(--gray-12) text-sm">
                             {currentOrg?.name ?? "Select organization..."}
@@ -262,13 +256,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
                       <Popover.Trigger>
                         <button
                           type="button"
-                          className="box-border flex w-full cursor-pointer items-center justify-between rounded-[10px] border border-(--gray-a3) bg-(--color-panel-solid) px-[14px] py-[10px] text-sm"
-                          style={{
-                            all: "unset",
-                            boxShadow:
-                              "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)",
-                            fontFamily: "inherit",
-                          }}
+                          className="box-border flex w-full cursor-pointer appearance-none items-center justify-between rounded-[10px] border border-(--gray-a3) bg-(--color-panel-solid) px-[14px] py-[10px] font-inherit text-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.02)]"
                         >
                           <Flex direction="column" gap="1">
                             <Text className="font-medium text-(--gray-12) text-sm">
