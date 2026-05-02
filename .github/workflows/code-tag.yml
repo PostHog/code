@@ -65,6 +65,23 @@ jobs:
 
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           TAG="v$NEW_VERSION"
+
+          # Skip if this tag already exists (no new commits since last release)
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Nothing new to release."
+            exit 0
+          fi
+
+          # Check that code app actually changed since the last release tag
+          LAST_RELEASE=$(git tag --list "v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -1)
+          CODE_PATHS="apps/code apps/cli packages/agent packages/core packages/shared packages/electron-trpc pnpm-lock.yaml"
+          CHANGES=$(git diff --name-only "$LAST_RELEASE"..HEAD -- $CODE_PATHS)
+
+          if [ -z "$CHANGES" ]; then
+            echo "No relevant changes since $LAST_RELEASE. Skipping release."
+            exit 0
+          fi
+
           echo "Creating tag: $TAG (from base tag $LATEST_TAG + $PATCH commits)"
 
           git config user.email "github-actions[bot]@users.noreply.github.com"
