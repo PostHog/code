@@ -4,6 +4,103 @@ import { logger } from "@utils/logger";
 
 const log = logger.scope("title-generator");
 
+const FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
+const ATTACHED_FILES_REGEX = /^\[?Attached files:.*]?$/gm;
+const PASTED_TEXT_SNIPPET_LIMIT = 500;
+
+const BINARY_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "bmp",
+  "ico",
+  "svg",
+  "mp3",
+  "mp4",
+  "wav",
+  "avi",
+  "mov",
+  "mkv",
+  "pdf",
+  "zip",
+  "tar",
+  "gz",
+  "rar",
+  "7z",
+  "exe",
+  "dll",
+  "so",
+  "dylib",
+  "wasm",
+  "ttf",
+  "otf",
+  "woff",
+  "woff2",
+  "eot",
+]);
+
+function getExtension(filePath: string): string {
+  const dot = filePath.lastIndexOf(".");
+  return dot >= 0 ? filePath.slice(dot + 1).toLowerCase() : "";
+}
+
+function getFileName(filePath: string): string {
+  const slash = filePath.lastIndexOf("/");
+  return slash >= 0 ? filePath.slice(slash + 1) : filePath;
+}
+
+/**
+ * When the description only contains file references (e.g. pasted text or
+ * image attachments saved to temp files), read text file contents so the LLM
+ * has something meaningful to derive a title from. For binary files (images,
+ * PDFs, etc.) the filename is used as a hint instead.
+ */
+export async function enrichDescriptionWithFileContent(
+  description: string,
+  filePaths: string[] = [],
+): Promise<string> {
+  const stripped = description
+    .replace(FILE_TAG_REGEX, "")
+    .replace(ATTACHED_FILES_REGEX, "")
+    .replace(/^\d+\.\s*$/gm, "")
+    .trim();
+
+  if (stripped.length > 0) return description;
+
+  const paths =
+    filePaths.length > 0
+      ? filePaths
+      : [...description.matchAll(FILE_TAG_REGEX)].map((m) => m[1]);
+
+  if (paths.length === 0) return description;
+
+  const parts: string[] = [];
+  for (const filePath of paths) {
+    if (BINARY_EXTENSIONS.has(getExtension(filePath))) {
+      parts.push(`[Attached: ${getFileName(filePath)}]`);
+      continue;
+    }
+    try {
+      const content = await trpcClient.fs.readAbsoluteFile.query({ filePath });
+      if (content) {
+        parts.push(
+          content.length > PASTED_TEXT_SNIPPET_LIMIT
+            ? content.slice(0, PASTED_TEXT_SNIPPET_LIMIT)
+            : content,
+        );
+      } else {
+        parts.push(`[Attached: ${getFileName(filePath)}]`);
+      }
+    } catch {
+      parts.push(`[Attached: ${getFileName(filePath)}]`);
+    }
+  }
+
+  return parts.length > 0 ? parts.join("\n\n") : description;
+}
+
 const SYSTEM_PROMPT = `You are a title and summary generator. Output using exactly this format:
 
 TITLE: <title here>

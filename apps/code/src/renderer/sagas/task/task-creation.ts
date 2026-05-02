@@ -18,7 +18,10 @@ import type {
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
-import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
+import {
+  enrichDescriptionWithFileContent,
+  generateTitleAndSummary,
+} from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
 import {
   type ExecutionMode,
@@ -34,11 +37,16 @@ const log = logger.scope("task-creation-saga");
 async function generateTaskTitle(
   taskId: string,
   description: string,
+  filePaths: string[],
   posthogClient: PostHogAPIClient,
 ): Promise<void> {
   if (!description.trim()) return;
 
-  const result = await generateTitleAndSummary(description);
+  const enriched = await enrichDescriptionWithFileContent(
+    description,
+    filePaths,
+  );
+  const result = await generateTitleAndSummary(enriched);
   if (!result?.title) return;
   const { title } = result;
 
@@ -137,6 +145,7 @@ export class TaskCreationSaga extends Saga<
       generateTaskTitle(
         task.id,
         input.taskDescription ?? input.content ?? "",
+        input.filePaths ?? [],
         this.deps.posthogClient,
       );
     }

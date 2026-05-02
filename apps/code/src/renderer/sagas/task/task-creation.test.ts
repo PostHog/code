@@ -54,8 +54,14 @@ vi.mock("@features/sessions/service/service", () => ({
 }));
 
 const mockGenerateTitleAndSummary = vi.hoisted(() => vi.fn());
+const mockEnrichDescriptionWithFileContent = vi.hoisted(() =>
+  vi
+    .fn()
+    .mockImplementation((description: string) => Promise.resolve(description)),
+);
 vi.mock("@renderer/utils/generateTitle", () => ({
   generateTitleAndSummary: mockGenerateTitleAndSummary,
+  enrichDescriptionWithFileContent: mockEnrichDescriptionWithFileContent,
 }));
 
 vi.mock("@utils/queryClient", () => ({

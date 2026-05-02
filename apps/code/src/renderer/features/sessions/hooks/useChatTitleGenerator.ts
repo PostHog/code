@@ -5,7 +5,10 @@ import {
   useSessionStore,
 } from "@features/sessions/stores/sessionStore";
 import type { Task } from "@shared/types";
-import { generateTitleAndSummary } from "@utils/generateTitle";
+import {
+  enrichDescriptionWithFileContent,
+  generateTitleAndSummary,
+} from "@utils/generateTitle";
 import { logger } from "@utils/logger";
 import { getCachedTask, queryClient } from "@utils/queryClient";
 import { extractUserPromptsFromEvents } from "@utils/session";
@@ -61,10 +64,13 @@ export function useChatTitleGenerator(taskId: string): void {
     const promptsForTitle =
       promptCount === 1 ? allPrompts : allPrompts.slice(-REGENERATE_INTERVAL);
 
-    const content = promptsForTitle.map((p, i) => `${i + 1}. ${p}`).join("\n");
+    const rawContent = promptsForTitle
+      .map((p, i) => `${i + 1}. ${p}`)
+      .join("\n");
 
     const run = async () => {
       try {
+        const content = await enrichDescriptionWithFileContent(rawContent);
         const result = await generateTitleAndSummary(content);
         if (result) {
           const { title, summary } = result;
