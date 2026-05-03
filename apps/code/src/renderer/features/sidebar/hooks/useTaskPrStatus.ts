@@ -26,11 +26,6 @@ export function mapPrState(
   return null;
 }
 
-/**
- * Per-task hook for sidebar icon state. Uses worktreePath for git queries
- * (worktree tasks have isolated branches). Local-mode tasks only check PR
- * status since their diff stats reflect the shared repo, not the task.
- */
 export function useTaskPrStatus(
   task: TaskData,
   worktreePath: string | null,
@@ -41,7 +36,6 @@ export function useTaskPrStatus(
   const linkedBranch = task.linkedBranch;
   const hasWorktree = !!worktreePath;
 
-  // Cloud tasks: resolve PR state from the PR URL
   const { data: cloudPrDetails } = useQuery(
     trpc.git.getPrDetailsByUrl.queryOptions(
       { prUrl: cloudPrUrl as string },
@@ -52,7 +46,6 @@ export function useTaskPrStatus(
     ),
   );
 
-  // Local tasks with linked branch: get PR URL first
   const { data: linkedBranchPrUrl } = useQuery(
     trpc.git.getPrUrlForBranch.queryOptions(
       {
@@ -66,7 +59,6 @@ export function useTaskPrStatus(
     ),
   );
 
-  // Local tasks with linked branch: get PR details from that URL
   const { data: linkedPrDetails } = useQuery(
     trpc.git.getPrDetailsByUrl.queryOptions(
       { prUrl: linkedBranchPrUrl as string },
@@ -77,7 +69,6 @@ export function useTaskPrStatus(
     ),
   );
 
-  // Local tasks without linked branch: use getPrStatus (checks current branch)
   const { data: localPrStatus } = useQuery(
     trpc.git.getPrStatus.queryOptions(
       { directoryPath: worktreePath as string },
@@ -88,8 +79,6 @@ export function useTaskPrStatus(
     ),
   );
 
-  // Only query diff stats for worktree tasks (isolated branches).
-  // Skip if we already know there's a PR (icon takes priority over hasDiff).
   const knownPrUrl = !!cloudPrUrl || !!linkedBranchPrUrl;
   const knownLocalPr = localPrStatus?.prExists === true;
   const skipDiff = isCloud || !hasWorktree || knownPrUrl || knownLocalPr;
@@ -115,7 +104,6 @@ export function useTaskPrStatus(
   );
 
   return useMemo(() => {
-    // Derive PR state
     let prState: SidebarPrState = null;
 
     if (isCloud && cloudPrDetails) {
@@ -140,7 +128,6 @@ export function useTaskPrStatus(
       }
     }
 
-    // hasDiff: uncommitted changes OR commits ahead of default branch
     const hasDiff =
       (diffStats?.filesChanged ?? 0) > 0 ||
       (syncStatus?.aheadOfDefault ?? 0) > 0;

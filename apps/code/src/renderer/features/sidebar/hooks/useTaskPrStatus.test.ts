@@ -81,10 +81,18 @@ vi.mock("@renderer/trpc/client", () => ({
   }),
 }));
 
-let mockQueryReturn: { data: unknown } = { data: undefined };
+// useQuery is called 6 times per render in a fixed order:
+// 0: cloudPrDetails, 1: linkedBranchPrUrl, 2: linkedPrDetails,
+// 3: localPrStatus, 4: diffStats, 5: syncStatus
+let queryReturnsByIndex: Array<{ data: unknown }> = [];
+let queryCallIndex = 0;
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => mockQueryReturn,
+  useQuery: () => {
+    const result = queryReturnsByIndex[queryCallIndex] ?? { data: undefined };
+    queryCallIndex++;
+    return result;
+  },
 }));
 
 // --- Helpers ---
@@ -154,7 +162,8 @@ describe("mapPrState", () => {
 describe("useTaskPrStatus", () => {
   beforeEach(() => {
     queryResults.clear();
-    mockQueryReturn = { data: undefined };
+    queryReturnsByIndex = [];
+    queryCallIndex = 0;
   });
 
   it("returns empty status when no data is available", () => {
@@ -185,7 +194,8 @@ describe("useTaskPrStatus", () => {
 describe("useTaskPrStatus query enablement", () => {
   beforeEach(() => {
     queryResults.clear();
-    mockQueryReturn = { data: undefined };
+    queryReturnsByIndex = [];
+    queryCallIndex = 0;
   });
 
   it("enables cloud PR details query only for cloud tasks with a PR URL", () => {
@@ -275,5 +285,167 @@ describe("useTaskPrStatus query enablement", () => {
     for (const [, entry] of entries) {
       expect(entry.enabled).toBe(false);
     }
+  });
+});
+
+// Helper to set per-query return values by index
+function setQueryData(overrides: {
+  cloudPrDetails?: unknown;
+  linkedBranchPrUrl?: unknown;
+  linkedPrDetails?: unknown;
+  localPrStatus?: unknown;
+  diffStats?: unknown;
+  syncStatus?: unknown;
+}) {
+  queryReturnsByIndex = [
+    { data: overrides.cloudPrDetails },
+    { data: overrides.linkedBranchPrUrl },
+    { data: overrides.linkedPrDetails },
+    { data: overrides.localPrStatus },
+    { data: overrides.diffStats },
+    { data: overrides.syncStatus },
+  ];
+}
+
+describe("useTaskPrStatus derivation", () => {
+  beforeEach(() => {
+    queryResults.clear();
+    queryReturnsByIndex = [];
+    queryCallIndex = 0;
+  });
+
+  it("derives open state from cloud PR details", () => {
+    const task = makeTask({
+      taskRunEnvironment: "cloud",
+      cloudPrUrl: "https://github.com/org/repo/pull/1",
+    });
+    setQueryData({
+      cloudPrDetails: { state: "open", merged: false, draft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    expect(result.current.prState).toBe("open");
+  });
+
+  it("derives merged state from cloud PR details", () => {
+    const task = makeTask({
+      taskRunEnvironment: "cloud",
+      cloudPrUrl: "https://github.com/org/repo/pull/1",
+    });
+    setQueryData({
+      cloudPrDetails: { state: "closed", merged: true, draft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    expect(result.current.prState).toBe("merged");
+  });
+
+  it("derives draft state from cloud PR details", () => {
+    const task = makeTask({
+      taskRunEnvironment: "cloud",
+      cloudPrUrl: "https://github.com/org/repo/pull/1",
+    });
+    setQueryData({
+      cloudPrDetails: { state: "open", merged: false, draft: true },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    expect(result.current.prState).toBe("draft");
+  });
+
+  it("derives state from linked branch PR details", () => {
+    const task = makeTask({ linkedBranch: "feat/linked" });
+    setQueryData({
+      linkedPrDetails: { state: "open", merged: false, draft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBe("open");
+  });
+
+  it("derives state from local PR status with uppercase state", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      localPrStatus: { prExists: true, prState: "OPEN", isDraft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBe("open");
+  });
+
+  it("derives merged from local PR status with MERGED state", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      localPrStatus: { prExists: true, prState: "MERGED", isDraft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBe("merged");
+  });
+
+  it("derives draft from local PR status", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      localPrStatus: { prExists: true, prState: "OPEN", isDraft: true },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBe("draft");
+  });
+
+  it("returns null prState when local PR does not exist", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      localPrStatus: { prExists: false, prState: null, isDraft: null },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBeNull();
+  });
+
+  it("hasDiff is true when filesChanged > 0", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      diffStats: { filesChanged: 3, linesAdded: 10, linesRemoved: 2 },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.hasDiff).toBe(true);
+  });
+
+  it("hasDiff is true when aheadOfDefault > 0", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      syncStatus: { aheadOfDefault: 2 },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.hasDiff).toBe(true);
+  });
+
+  it("hasDiff is false when no changes and not ahead", () => {
+    const task = makeTask({ linkedBranch: null });
+    setQueryData({
+      diffStats: { filesChanged: 0, linesAdded: 0, linesRemoved: 0 },
+      syncStatus: { aheadOfDefault: 0 },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.hasDiff).toBe(false);
+  });
+
+  it("cloud PR state takes priority over linked branch data", () => {
+    const task = makeTask({
+      taskRunEnvironment: "cloud",
+      cloudPrUrl: "https://github.com/org/repo/pull/1",
+      linkedBranch: "feat/linked",
+    });
+    setQueryData({
+      cloudPrDetails: { state: "open", merged: false, draft: false },
+      linkedPrDetails: { state: "closed", merged: false, draft: false },
+    });
+
+    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    expect(result.current.prState).toBe("open");
   });
 });
