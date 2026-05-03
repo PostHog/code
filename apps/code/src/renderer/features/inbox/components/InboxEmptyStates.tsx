@@ -84,23 +84,25 @@ export function WarmingUpPane({
       height="100%"
       px="5"
     >
-      <Flex direction="column" align="center" className="max-w-[420px]">
+      <Flex direction="column" align="center" className="max-w-120">
         <img src={explorerHog} alt="" className="mb-[16px] w-[120px]" />
 
         <Text
           align="center"
           className="font-bold text-(--gray-12) text-lg leading-6.5"
         >
-          Inbox is warming up
+          Your Inbox is warming up
           <AnimatedEllipsis />
         </Text>
 
         <Text
           align="center"
           mt="3"
-          className="text-(--gray-11) text-[13px] leading-[1.35]"
+          className="text-balance font-medium text-(--gray-11) text-[13px] leading-[1.35]"
         >
-          Reports will appear here as soon as signals come in.
+          Agents are ready to research product signals.
+          <br />
+          Ready-to-merge fixes and improvements are moments away.
         </Text>
 
         <Flex align="center" gap="3" className="mt-[16px]">
