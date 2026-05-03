@@ -13,6 +13,7 @@ import {
 } from "@posthog/quill";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
+import { isImageFile } from "@shared/constants/image";
 import { useQuery } from "@tanstack/react-query";
 import { getFilePath } from "@utils/getFilePath";
 import { useRef, useState } from "react";
@@ -21,7 +22,6 @@ import {
   type FileAttachment,
   type MentionChip,
 } from "../utils/content";
-import { isImageFile } from "../utils/imageUtils";
 import { persistBrowserFile, persistImageFilePath } from "../utils/persistFile";
 import { IssuePicker } from "./IssuePicker";
 

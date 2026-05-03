@@ -4,7 +4,6 @@ import { trpc } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import type { EditorView } from "@tiptap/pm/view";
 import { useEditor } from "@tiptap/react";
-import { getFilePath } from "@utils/getFilePath";
 import { queryClient } from "@utils/queryClient";
 import { isSendMessageSubmitKey } from "@utils/sendMessageKey";
 import type React from "react";
@@ -20,11 +19,10 @@ import {
   type ParsedGithubIssueUrl,
   parseGithubIssueUrl,
 } from "../utils/githubIssueUrl";
-import { isImageFile } from "../utils/imageUtils";
 import {
   persistImageFile,
-  persistImageFilePath,
   persistTextContent,
+  resolveDroppedFile,
 } from "../utils/persistFile";
 import { getEditorExtensions } from "./extensions";
 import { type DraftContext, useDraftSync } from "./useDraftSync";
@@ -372,46 +370,18 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
           const files = event.dataTransfer?.files;
           if (!files || files.length === 0) return false;
 
-          const entries: { path: string; name: string }[] = [];
-          for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const filePath = getFilePath(file);
-            if (filePath) {
-              entries.push({ path: filePath, name: file.name });
-            }
-          }
-
-          if (entries.length === 0) return false;
-
           event.preventDefault();
 
-          const nonImages = entries.filter((e) => !isImageFile(e.name));
-          if (nonImages.length > 0) {
-            setAttachments((prev) => {
-              const existing = new Set(prev.map((a) => a.id));
-              const unique = nonImages
-                .filter((e) => !existing.has(e.path))
-                .map((e) => ({ id: e.path, label: e.name }));
-              return unique.length > 0 ? [...prev, ...unique] : prev;
-            });
-          }
-
-          const images = entries.filter((e) => isImageFile(e.name));
-          if (images.length > 0) {
-            (async () => {
-              for (const img of images) {
-                try {
-                  const result = await persistImageFilePath(img.path, img.name);
-                  setAttachments((prev) => {
-                    if (prev.some((a) => a.id === result.id)) return prev;
-                    return [...prev, result];
-                  });
-                } catch (_error) {
-                  toast.error("Failed to attach image");
-                }
-              }
-            })();
-          }
+          (async () => {
+            for (let i = 0; i < files.length; i++) {
+              const result = await resolveDroppedFile(files[i]);
+              if (!result) continue;
+              setAttachments((prev) => {
+                if (prev.some((a) => a.id === result.id)) return prev;
+                return [...prev, result];
+              });
+            }
+          })();
 
           return true;
         },

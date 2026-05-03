@@ -25,9 +25,12 @@ vi.mock("@renderer/trpc/client", () => ({
   },
 }));
 
-vi.mock("@features/code-editor/utils/imageUtils", () => ({
-  getImageMimeType: () => "image/png",
-}));
+vi.mock("@shared/constants/image", async () => {
+  const actual = await vi.importActual<
+    typeof import("@shared/constants/image")
+  >("@shared/constants/image");
+  return { ...actual, getImageMimeType: () => "image/png" };
+});
 
 vi.mock("@utils/getFilePath", () => ({
   getFilePath: mockGetFilePath,

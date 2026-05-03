@@ -1,8 +1,7 @@
-import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { trpcClient } from "@renderer/trpc/client";
+import { getImageMimeType, isImageFile } from "@shared/constants/image";
 import { getFilePath } from "@utils/getFilePath";
 import type { FileAttachment } from "./content";
-import { isImageFile } from "./imageUtils";
 
 const CHUNK_SIZE = 8192;
 
