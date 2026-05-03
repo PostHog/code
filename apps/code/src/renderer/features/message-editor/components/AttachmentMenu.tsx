@@ -21,7 +21,8 @@ import {
   type FileAttachment,
   type MentionChip,
 } from "../utils/content";
-import { persistBrowserFile } from "../utils/persistFile";
+import { isImageFile } from "../utils/imageUtils";
+import { persistBrowserFile, persistImageFilePath } from "../utils/persistFile";
 import { IssuePicker } from "./IssuePicker";
 
 interface AttachmentMenuProps {
@@ -115,11 +116,23 @@ export function AttachmentMenu({
     try {
       const results = await trpcClient.os.selectAttachments.query({ mode });
       for (const { path: filePath, kind } of results) {
-        onInsertChip({
-          type: kind === "directory" ? "folder" : "file",
-          id: filePath,
-          label: deriveFileLabel(filePath),
-        });
+        if (kind === "file" && isImageFile(filePath)) {
+          try {
+            const attachment = await persistImageFilePath(
+              filePath,
+              deriveFileLabel(filePath),
+            );
+            onAddAttachment(attachment);
+          } catch {
+            toast.error("Failed to attach image");
+          }
+        } else {
+          onInsertChip({
+            type: kind === "directory" ? "folder" : "file",
+            id: filePath,
+            label: deriveFileLabel(filePath),
+          });
+        }
       }
       return;
     } catch {

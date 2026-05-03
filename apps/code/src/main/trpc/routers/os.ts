@@ -52,6 +52,24 @@ const MAX_IMAGE_DIMENSION = 1568;
 const JPEG_QUALITY = 85;
 const CLIPBOARD_TEMP_DIR = path.join(os.tmpdir(), "posthog-code-clipboard");
 
+async function downscaleAndPersist(
+  raw: Uint8Array,
+  inputMime: string,
+  displayName: string,
+): Promise<{ path: string; name: string; mimeType: string }> {
+  const { buffer, mimeType, extension } = getImageProcessor().downscale(
+    raw,
+    inputMime,
+    { maxDimension: MAX_IMAGE_DIMENSION, jpegQuality: JPEG_QUALITY },
+  );
+
+  const finalName = displayName.replace(/\.[^.]+$/, `.${extension}`);
+  const filePath = await createClipboardTempFilePath(finalName);
+  await fsPromises.writeFile(filePath, Buffer.from(buffer));
+
+  return { path: filePath, name: finalName, mimeType };
+}
+
 async function createClipboardTempFilePath(
   displayName: string,
 ): Promise<string> {
@@ -331,11 +349,6 @@ export const osRouter = router({
     )
     .mutation(async ({ input }) => {
       const raw = new Uint8Array(Buffer.from(input.base64Data, "base64"));
-      const { buffer, mimeType, extension } = getImageProcessor().downscale(
-        raw,
-        input.mimeType,
-        { maxDimension: MAX_IMAGE_DIMENSION, jpegQuality: JPEG_QUALITY },
-      );
 
       const isGenericName =
         !input.originalName ||
@@ -343,16 +356,20 @@ export const osRouter = router({
         input.originalName === "image.jpeg" ||
         input.originalName === "image.jpg";
       const displayName = isGenericName
-        ? `clipboard.${extension}`
-        : (input.originalName ?? "clipboard").replace(
-            /\.[^.]+$/,
-            `.${extension}`,
-          );
-      const filePath = await createClipboardTempFilePath(displayName);
+        ? "clipboard.png"
+        : (input.originalName ?? "clipboard.png");
 
-      await fsPromises.writeFile(filePath, Buffer.from(buffer));
+      return downscaleAndPersist(raw, input.mimeType, displayName);
+    }),
 
-      return { path: filePath, name: displayName, mimeType };
+  downscaleImageFile: publicProcedure
+    .input(z.object({ filePath: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const raw = new Uint8Array(await fsPromises.readFile(input.filePath));
+      const ext = path.extname(input.filePath).replace(".", "").toLowerCase();
+      const inputMime = IMAGE_MIME_MAP[ext] ?? "image/png";
+
+      return downscaleAndPersist(raw, inputMime, path.basename(input.filePath));
     }),
 
   /**

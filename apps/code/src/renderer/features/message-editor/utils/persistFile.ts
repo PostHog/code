@@ -1,5 +1,8 @@
 import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { trpcClient } from "@renderer/trpc/client";
+import { getFilePath } from "@utils/getFilePath";
+import type { FileAttachment } from "./content";
+import { isImageFile } from "./imageUtils";
 
 const CHUNK_SIZE = 8192;
 
@@ -56,6 +59,31 @@ export async function persistGenericFile(file: File): Promise<PersistedFile> {
     name: result.name,
     mimeType: file.type || undefined,
   };
+}
+
+export async function persistImageFilePath(
+  filePath: string,
+  fileName: string,
+): Promise<{ id: string; label: string }> {
+  const result = await trpcClient.os.downscaleImageFile.mutate({ filePath });
+  return { id: result.path, label: fileName };
+}
+
+export async function resolveDroppedFile(
+  file: File,
+): Promise<FileAttachment | null> {
+  const filePath = getFilePath(file);
+  if (!filePath) return null;
+
+  if (isImageFile(file.name)) {
+    try {
+      return await persistImageFilePath(filePath, file.name);
+    } catch {
+      return null;
+    }
+  }
+
+  return { id: filePath, label: file.name };
 }
 
 export async function persistBrowserFile(
