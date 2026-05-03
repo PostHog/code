@@ -13,15 +13,16 @@ export interface TaskPrStatus {
 const SIDEBAR_STALE_TIME = 60_000;
 const EMPTY: TaskPrStatus = { prState: null, hasDiff: false };
 
-function mapPrState(
+export function mapPrState(
   state: string | null,
   merged: boolean,
   draft: boolean,
 ): SidebarPrState {
   if (merged) return "merged";
-  if (state === "closed") return "closed";
+  const lower = state?.toLowerCase() ?? null;
+  if (lower === "closed") return "closed";
   if (draft) return "draft";
-  if (state === "open" || state === "OPEN") return "open";
+  if (lower === "open") return "open";
   return null;
 }
 
@@ -132,8 +133,8 @@ export function useTaskPrStatus(
     } else if (!isCloud && !linkedBranch && localPrStatus) {
       if (localPrStatus.prExists && localPrStatus.prState) {
         prState = mapPrState(
-          localPrStatus.prState.toLowerCase(),
-          localPrStatus.prState === "MERGED",
+          localPrStatus.prState,
+          localPrStatus.prState.toUpperCase() === "MERGED",
           localPrStatus.isDraft ?? false,
         );
       }
