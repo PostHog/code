@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 1,17 * * *"
   workflow_dispatch:
+    inputs:
+      quiet_retries:
+        type: number
+        default: 0
   pull_request:
     types: [closed]
     branches:
@@ -37,7 +41,39 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
+      - name: Check quiet period
+        id: quiet
+        if: github.event_name == 'schedule' || github.event.inputs.quiet_retries > 0
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          RETRIES=${{ github.event.inputs.quiet_retries || 0 }}
+          MAX_RETRIES=3
+          LAST_COMMIT_EPOCH=$(git log -1 --format=%ct HEAD)
+          NOW_EPOCH=$(date +%s)
+          AGE_MINUTES=$(( (NOW_EPOCH - LAST_COMMIT_EPOCH) / 60 ))
+
+          if [ "$AGE_MINUTES" -ge 15 ]; then
+            echo "Last commit to main was ${AGE_MINUTES}m ago. Quiet period met."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$RETRIES" -ge "$MAX_RETRIES" ]; then
+            echo "Retried ${MAX_RETRIES} times and commits are still landing. Proceeding anyway."
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEXT=$((RETRIES + 1))
+          WAIT=$((15 - AGE_MINUTES))
+          echo "Last commit was ${AGE_MINUTES}m ago (< 15m). Waiting ${WAIT}m then retrying (${NEXT}/${MAX_RETRIES})..."
+          sleep "${WAIT}m"
+          gh workflow run code-tag.yml -f quiet_retries="$NEXT"
+          echo "proceed=false" >> "$GITHUB_OUTPUT"
+
       - name: Compute version and create tag
+        if: steps.quiet.outputs.proceed != 'false'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
