@@ -72,26 +72,31 @@ describe("enrichDescriptionWithFileContent", () => {
     });
   });
 
-  it("returns filename hint for binary files", async () => {
-    const description = '1. <file path="/tmp/screenshot.png" />';
-    const result = await enrichDescriptionWithFileContent(description);
-    expect(result).toBe("[Attached: screenshot.png]");
-    expect(mockReadAbsoluteFile).not.toHaveBeenCalled();
-  });
-
-  it("falls back to filename hint when read fails", async () => {
-    mockReadAbsoluteFile.mockRejectedValue(new Error("ENOENT"));
-    const description = '1. <file path="/tmp/missing.ts" />';
-    const result = await enrichDescriptionWithFileContent(description);
-    expect(result).toBe("[Attached: missing.ts]");
-  });
-
-  it("falls back to filename hint when read returns null", async () => {
-    mockReadAbsoluteFile.mockResolvedValue(null);
-    const description = '1. <file path="/tmp/empty.ts" />';
-    const result = await enrichDescriptionWithFileContent(description);
-    expect(result).toBe("[Attached: empty.ts]");
-  });
+  it.each([
+    {
+      label: "binary file",
+      description: '1. <file path="/tmp/screenshot.png" />',
+      setup: () => {},
+    },
+    {
+      label: "read throws",
+      description: '1. <file path="/tmp/missing.ts" />',
+      setup: () => mockReadAbsoluteFile.mockRejectedValue(new Error("ENOENT")),
+    },
+    {
+      label: "read returns null",
+      description: '1. <file path="/tmp/empty.ts" />',
+      setup: () => mockReadAbsoluteFile.mockResolvedValue(null),
+    },
+  ])(
+    "falls back to filename hint -- $label",
+    async ({ description, setup }) => {
+      setup();
+      const result = await enrichDescriptionWithFileContent(description);
+      const filename = description.match(/path="[^"]*\/([^"]+)"/)?.[1];
+      expect(result).toBe(`[Attached: ${filename}]`);
+    },
+  );
 
   it("truncates content longer than 500 chars", async () => {
     const longContent = "x".repeat(600);
