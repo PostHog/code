@@ -31,6 +31,10 @@ export interface TaskData {
   folderId?: string;
   taskRunStatus?: TaskRunStatus;
   taskRunEnvironment?: "local" | "cloud";
+  folderPath: string | null;
+  cloudPrUrl: string | null;
+  branchName: string | null;
+  linkedBranch: string | null;
 }
 
 export type TaskGroup = GenericTaskGroup<TaskData>;
@@ -158,6 +162,11 @@ export function useSidebarData({
       const isUnread =
         taskLastViewedAt != null && lastActivityAt > taskLastViewedAt;
 
+      const cloudPrUrl =
+        typeof task.latest_run?.output?.pr_url === "string"
+          ? task.latest_run.output.pr_url
+          : ((session?.cloudOutput?.pr_url as string | undefined) ?? null);
+
       return {
         id: task.id,
         title: task.title,
@@ -172,6 +181,10 @@ export function useSidebarData({
         folderId: workspace?.folderId || undefined,
         taskRunStatus: session?.cloudStatus ?? task.latest_run?.status,
         taskRunEnvironment: task.latest_run?.environment,
+        folderPath: workspace?.folderPath ?? null,
+        cloudPrUrl,
+        branchName: workspace?.branchName ?? null,
+        linkedBranch: workspace?.linkedBranch ?? null,
       };
     });
   }, [
