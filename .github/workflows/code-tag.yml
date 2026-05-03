@@ -46,8 +46,9 @@ jobs:
         if: github.event_name == 'schedule' || github.event.inputs.quiet_retries > 0
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          QUIET_RETRIES: ${{ github.event.inputs.quiet_retries || 0 }}
         run: |
-          RETRIES=${{ github.event.inputs.quiet_retries || 0 }}
+          RETRIES="${QUIET_RETRIES}"
           MAX_RETRIES=3
           LAST_COMMIT_EPOCH=$(git log -1 --format=%ct HEAD)
           NOW_EPOCH=$(date +%s)
@@ -66,9 +67,7 @@ jobs:
           fi
 
           NEXT=$((RETRIES + 1))
-          WAIT=$((15 - AGE_MINUTES))
-          echo "Last commit was ${AGE_MINUTES}m ago (< 15m). Waiting ${WAIT}m then retrying (${NEXT}/${MAX_RETRIES})..."
-          sleep "${WAIT}m"
+          echo "Last commit was ${AGE_MINUTES}m ago (< 15m). Re-dispatching retry ${NEXT}/${MAX_RETRIES}..."
           gh workflow run code-tag.yml -f quiet_retries="$NEXT"
           echo "proceed=false" >> "$GITHUB_OUTPUT"
 
@@ -78,37 +77,14 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          # Find the latest base version tag (vX.Y or vX.Y.0 format)
-          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+(\.0)?$' | head -1)
+          RESULT=$(.github/scripts/compute-release-tag.sh)
 
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No version tag found. Create one with: git tag v0.15 && git push origin v0.15"
-            exit 1
-          fi
-
-          # Extract major.minor from tag
-          VERSION_PART=${LATEST_TAG#v}
-          MAJOR=$(echo "$VERSION_PART" | cut -d. -f1)
-          MINOR=$(echo "$VERSION_PART" | cut -d. -f2)
-
-          # Count commits since the base tag
-          PATCH=$(git rev-list "$LATEST_TAG"..HEAD --count)
-
-          if [ "$PATCH" -eq 0 ]; then
-            echo "No commits since $LATEST_TAG. Nothing to release."
+          if [ -z "$RESULT" ]; then
             exit 0
           fi
 
-          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          TAG="v$NEW_VERSION"
-
-          # Skip if this tag already exists (no new commits since last release)
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists. Nothing new to release."
-            exit 0
-          fi
-
-          echo "Creating tag: $TAG (from base tag $LATEST_TAG + $PATCH commits)"
+          TAG=$(echo "$RESULT" | grep '^tag=' | cut -d= -f2)
+          echo "Creating tag: $TAG"
 
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
