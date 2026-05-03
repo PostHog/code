@@ -6,6 +6,9 @@ SCRIPT="$SCRIPT_DIR/compute-release-tag.sh"
 ORIGINAL_DIR="$PWD"
 PASS=0
 FAIL=0
+TEST_DIR=""
+
+trap 'cd "$ORIGINAL_DIR"; [ -n "$TEST_DIR" ] && rm -rf "$TEST_DIR"' EXIT
 
 setup_repo() {
   TEST_DIR=$(mktemp -d)
@@ -19,15 +22,17 @@ setup_repo() {
 teardown_repo() {
   cd "$ORIGINAL_DIR"
   rm -rf "$TEST_DIR"
+  TEST_DIR=""
 }
 
 run_script() {
+  local tmpdir="${TMPDIR:-/tmp}"
   set +e
-  bash "$SCRIPT" >"$TMPDIR/crt-stdout" 2>"$TMPDIR/crt-stderr"
+  bash "$SCRIPT" >"$tmpdir/crt-stdout" 2>"$tmpdir/crt-stderr"
   LAST_EXIT=$?
   set -e
-  LAST_STDOUT=$(cat "$TMPDIR/crt-stdout")
-  LAST_STDERR=$(cat "$TMPDIR/crt-stderr")
+  LAST_STDOUT=$(cat "$tmpdir/crt-stdout")
+  LAST_STDERR=$(cat "$tmpdir/crt-stderr")
 }
 
 assert_eq() {
