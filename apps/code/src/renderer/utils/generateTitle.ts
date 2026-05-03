@@ -51,12 +51,6 @@ function getFileName(filePath: string): string {
   return slash >= 0 ? filePath.slice(slash + 1) : filePath;
 }
 
-/**
- * When the description only contains file references (e.g. pasted text or
- * image attachments saved to temp files), read text file contents so the LLM
- * has something meaningful to derive a title from. For binary files (images,
- * PDFs, etc.) the filename is used as a hint instead.
- */
 export async function enrichDescriptionWithFileContent(
   description: string,
   filePaths: string[] = [],
