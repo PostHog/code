@@ -275,6 +275,14 @@ describe("useTaskPrStatus query enablement", () => {
     expect(entry?.enabled).toBe(false);
   });
 
+  it("disables diff stats when task has a linked branch", () => {
+    const task = makeTask({ linkedBranch: "feat/linked" });
+    renderHook(() => useTaskPrStatus(task, "/worktree"));
+
+    const entry = queryResults.get("getDiffStats:/worktree");
+    expect(entry?.enabled).toBe(false);
+  });
+
   it("disables diff stats when no worktree path", () => {
     const task = makeTask();
     renderHook(() => useTaskPrStatus(task, null));

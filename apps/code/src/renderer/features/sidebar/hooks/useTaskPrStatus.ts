@@ -81,7 +81,8 @@ export function useTaskPrStatus(
 
   const knownPrUrl = !!cloudPrUrl || !!linkedBranchPrUrl;
   const knownLocalPr = localPrStatus?.prExists === true;
-  const skipDiff = isCloud || !hasWorktree || knownPrUrl || knownLocalPr;
+  const skipDiff =
+    isCloud || !hasWorktree || knownPrUrl || knownLocalPr || !!linkedBranch;
 
   const { data: diffStats } = useQuery(
     trpc.git.getDiffStats.queryOptions(
