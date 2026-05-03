@@ -92,7 +92,6 @@ git commit --allow-empty -m "feat 2" -q
 run_script
 assert_eq "$LAST_EXIT" "0" "exits 0"
 assert_contains "$LAST_STDOUT" "tag=v1.0.2" "computes v1.0.2"
-assert_contains "$LAST_STDOUT" "base_tag=v1.0" "reports base tag"
 teardown_repo
 
 # ── Single commit ─────────────────────────────────────
@@ -137,7 +136,6 @@ git commit --allow-empty -m "b" -q
 run_script
 assert_eq "$LAST_EXIT" "0" "exits 0"
 assert_contains "$LAST_STDOUT" "tag=v1.1.1" "uses latest base for version"
-assert_contains "$LAST_STDOUT" "base_tag=v1.1" "reports v1.1 as base"
 teardown_repo
 
 # ── Ignores non-base patch tags ──────────────────────
@@ -151,7 +149,6 @@ git commit --allow-empty -m "c" -q
 run_script
 assert_eq "$LAST_EXIT" "0" "exits 0"
 assert_contains "$LAST_STDOUT" "tag=v1.0.3" "counts all commits since base, not since patch"
-assert_contains "$LAST_STDOUT" "base_tag=v1.0" "base is v1.0 not v1.0.1"
 teardown_repo
 
 echo ""

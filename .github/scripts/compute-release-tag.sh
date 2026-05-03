@@ -5,7 +5,6 @@ set -euo pipefail
 #
 # Stdout (KEY=VALUE lines when a new tag should be created):
 #   tag=vX.Y.Z
-#   base_tag=vX.Y
 #
 # Exit codes:
 #   0 - success (empty stdout means nothing to release)
@@ -38,4 +37,3 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
 fi
 
 echo "tag=$TAG"
-echo "base_tag=$LATEST_TAG"
