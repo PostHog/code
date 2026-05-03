@@ -79,7 +79,7 @@ export async function resolveDroppedFile(
     try {
       return await persistImageFilePath(filePath, file.name);
     } catch {
-      return null;
+      return { id: filePath, label: file.name };
     }
   }
 

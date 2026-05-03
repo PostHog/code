@@ -236,11 +236,14 @@ describe("resolveDroppedFile", () => {
     });
   });
 
-  it("returns null when image downscaling fails", async () => {
+  it("falls back to original path when image downscaling fails", async () => {
     mockGetFilePath.mockReturnValue("/Users/me/corrupt.png");
     mockDownscaleImageFile.mockRejectedValue(new Error("decode failed"));
 
     const file = { name: "corrupt.png" } as File;
-    expect(await resolveDroppedFile(file)).toBeNull();
+    expect(await resolveDroppedFile(file)).toEqual({
+      id: "/Users/me/corrupt.png",
+      label: "corrupt.png",
+    });
   });
 });

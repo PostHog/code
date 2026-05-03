@@ -50,7 +50,19 @@ const expandHomePath = (searchPath: string): string =>
 
 const MAX_IMAGE_DIMENSION = 1568;
 const JPEG_QUALITY = 85;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const CLIPBOARD_TEMP_DIR = path.join(os.tmpdir(), "posthog-code-clipboard");
+
+async function createClipboardTempFilePath(
+  displayName: string,
+): Promise<string> {
+  const safeName = path.basename(displayName) || "attachment";
+  await fsPromises.mkdir(CLIPBOARD_TEMP_DIR, { recursive: true });
+  const tempDir = await fsPromises.mkdtemp(
+    path.join(CLIPBOARD_TEMP_DIR, "attachment-"),
+  );
+  return path.join(tempDir, safeName);
+}
 
 async function downscaleAndPersist(
   raw: Uint8Array,
@@ -68,17 +80,6 @@ async function downscaleAndPersist(
   await fsPromises.writeFile(filePath, Buffer.from(buffer));
 
   return { path: filePath, name: finalName, mimeType };
-}
-
-async function createClipboardTempFilePath(
-  displayName: string,
-): Promise<string> {
-  const safeName = path.basename(displayName) || "attachment";
-  await fsPromises.mkdir(CLIPBOARD_TEMP_DIR, { recursive: true });
-  const tempDir = await fsPromises.mkdtemp(
-    path.join(CLIPBOARD_TEMP_DIR, "attachment-"),
-  );
-  return path.join(tempDir, safeName);
 }
 
 const claudeSettingsPath = path.join(os.homedir(), ".claude", "settings.json");
@@ -370,7 +371,6 @@ export const osRouter = router({
       }
 
       const stat = await fsPromises.stat(input.filePath);
-      const MAX_FILE_SIZE = 50 * 1024 * 1024;
       if (stat.size > MAX_FILE_SIZE) {
         throw new Error(
           `Image too large (${Math.round(stat.size / 1024 / 1024)}MB). Max is 50MB.`,
