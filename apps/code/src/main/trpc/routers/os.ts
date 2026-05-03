@@ -349,7 +349,6 @@ export const osRouter = router({
     )
     .mutation(async ({ input }) => {
       const raw = new Uint8Array(Buffer.from(input.base64Data, "base64"));
-
       const isGenericName =
         !input.originalName ||
         input.originalName === "image.png" ||
@@ -365,9 +364,21 @@ export const osRouter = router({
   downscaleImageFile: publicProcedure
     .input(z.object({ filePath: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      const raw = new Uint8Array(await fsPromises.readFile(input.filePath));
       const ext = path.extname(input.filePath).replace(".", "").toLowerCase();
-      const inputMime = IMAGE_MIME_MAP[ext] ?? "image/png";
+      if (!IMAGE_MIME_MAP[ext]) {
+        throw new Error(`Unsupported image type: .${ext}`);
+      }
+
+      const stat = await fsPromises.stat(input.filePath);
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      if (stat.size > MAX_FILE_SIZE) {
+        throw new Error(
+          `Image too large (${Math.round(stat.size / 1024 / 1024)}MB). Max is 50MB.`,
+        );
+      }
+
+      const raw = new Uint8Array(await fsPromises.readFile(input.filePath));
+      const inputMime = IMAGE_MIME_MAP[ext];
 
       return downscaleAndPersist(raw, inputMime, path.basename(input.filePath));
     }),

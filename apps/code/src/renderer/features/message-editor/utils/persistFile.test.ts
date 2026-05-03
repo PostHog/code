@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockSaveClipboardImage = vi.hoisted(() => vi.fn());
 const mockSaveClipboardText = vi.hoisted(() => vi.fn());
 const mockSaveClipboardFile = vi.hoisted(() => vi.fn());
+const mockDownscaleImageFile = vi.hoisted(() => vi.fn());
+const mockGetFilePath = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
@@ -16,6 +18,9 @@ vi.mock("@renderer/trpc/client", () => ({
       saveClipboardFile: {
         mutate: mockSaveClipboardFile,
       },
+      downscaleImageFile: {
+        mutate: mockDownscaleImageFile,
+      },
     },
   },
 }));
@@ -24,10 +29,16 @@ vi.mock("@features/code-editor/utils/imageUtils", () => ({
   getImageMimeType: () => "image/png",
 }));
 
+vi.mock("@utils/getFilePath", () => ({
+  getFilePath: mockGetFilePath,
+}));
+
 import {
   persistBrowserFile,
   persistImageFile,
+  persistImageFilePath,
   persistTextContent,
+  resolveDroppedFile,
 } from "./persistFile";
 
 describe("persistFile", () => {
@@ -145,5 +156,91 @@ describe("persistFile", () => {
       base64Data: expect.any(String),
       originalName: "config.json",
     });
+  });
+});
+
+describe("persistImageFilePath", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls downscaleImageFile and returns { id, label }", async () => {
+    mockDownscaleImageFile.mockResolvedValue({
+      path: "/tmp/posthog-code-clipboard/attachment-aaa/photo.jpg",
+      name: "photo.jpg",
+      mimeType: "image/jpeg",
+    });
+
+    const result = await persistImageFilePath(
+      "/Users/me/Desktop/photo.png",
+      "photo.png",
+    );
+
+    expect(mockDownscaleImageFile).toHaveBeenCalledWith({
+      filePath: "/Users/me/Desktop/photo.png",
+    });
+    expect(result).toEqual({
+      id: "/tmp/posthog-code-clipboard/attachment-aaa/photo.jpg",
+      label: "photo.png",
+    });
+  });
+
+  it("propagates errors from downscaleImageFile", async () => {
+    mockDownscaleImageFile.mockRejectedValue(new Error("Image too large"));
+
+    await expect(
+      persistImageFilePath("/big/image.png", "image.png"),
+    ).rejects.toThrow("Image too large");
+  });
+});
+
+describe("resolveDroppedFile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns null when getFilePath returns empty string", async () => {
+    mockGetFilePath.mockReturnValue("");
+
+    const file = { name: "test.txt" } as File;
+    expect(await resolveDroppedFile(file)).toBeNull();
+  });
+
+  it("returns file attachment directly for non-image files", async () => {
+    mockGetFilePath.mockReturnValue("/Users/me/doc.pdf");
+
+    const file = { name: "doc.pdf" } as File;
+    const result = await resolveDroppedFile(file);
+
+    expect(result).toEqual({ id: "/Users/me/doc.pdf", label: "doc.pdf" });
+    expect(mockDownscaleImageFile).not.toHaveBeenCalled();
+  });
+
+  it("routes image files through downscaleImageFile", async () => {
+    mockGetFilePath.mockReturnValue("/Users/me/photo.png");
+    mockDownscaleImageFile.mockResolvedValue({
+      path: "/tmp/posthog-code-clipboard/attachment-bbb/photo.jpg",
+      name: "photo.jpg",
+      mimeType: "image/jpeg",
+    });
+
+    const file = { name: "photo.png" } as File;
+    const result = await resolveDroppedFile(file);
+
+    expect(mockDownscaleImageFile).toHaveBeenCalledWith({
+      filePath: "/Users/me/photo.png",
+    });
+    expect(result).toEqual({
+      id: "/tmp/posthog-code-clipboard/attachment-bbb/photo.jpg",
+      label: "photo.png",
+    });
+  });
+
+  it("returns null when image downscaling fails", async () => {
+    mockGetFilePath.mockReturnValue("/Users/me/corrupt.png");
+    mockDownscaleImageFile.mockRejectedValue(new Error("decode failed"));
+
+    const file = { name: "corrupt.png" } as File;
+    expect(await resolveDroppedFile(file)).toBeNull();
   });
 });
