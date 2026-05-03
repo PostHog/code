@@ -1,4 +1,5 @@
 import { trpcClient } from "@renderer/trpc/client";
+import { toast } from "@renderer/utils/toast";
 import { getImageMimeType, isImageFile } from "@shared/constants/image";
 import { getFilePath } from "@utils/getFilePath";
 import type { FileAttachment } from "./content";
@@ -78,11 +79,24 @@ export async function resolveDroppedFile(
     try {
       return await persistImageFilePath(filePath, file.name);
     } catch {
+      toast.warning("Image could not be downscaled", {
+        description: "Attaching original file instead",
+      });
       return { id: filePath, label: file.name };
     }
   }
 
   return { id: filePath, label: file.name };
+}
+
+export async function resolveAndAttachDroppedFiles(
+  files: FileList,
+  addAttachment: (attachment: FileAttachment) => void,
+): Promise<void> {
+  for (let i = 0; i < files.length; i++) {
+    const attachment = await resolveDroppedFile(files[i]);
+    if (attachment) addAttachment(attachment);
+  }
 }
 
 export async function persistBrowserFile(

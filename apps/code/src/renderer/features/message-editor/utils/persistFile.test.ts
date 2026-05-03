@@ -36,11 +36,17 @@ vi.mock("@utils/getFilePath", () => ({
   getFilePath: mockGetFilePath,
 }));
 
+const mockToastWarning = vi.hoisted(() => vi.fn());
+vi.mock("@renderer/utils/toast", () => ({
+  toast: { warning: mockToastWarning },
+}));
+
 import {
   persistBrowserFile,
   persistImageFile,
   persistImageFilePath,
   persistTextContent,
+  resolveAndAttachDroppedFiles,
   resolveDroppedFile,
 } from "./persistFile";
 
@@ -239,7 +245,7 @@ describe("resolveDroppedFile", () => {
     });
   });
 
-  it("falls back to original path when image downscaling fails", async () => {
+  it("falls back to original path and shows warning toast when image downscaling fails", async () => {
     mockGetFilePath.mockReturnValue("/Users/me/corrupt.png");
     mockDownscaleImageFile.mockRejectedValue(new Error("decode failed"));
 
@@ -247,6 +253,43 @@ describe("resolveDroppedFile", () => {
     expect(await resolveDroppedFile(file)).toEqual({
       id: "/Users/me/corrupt.png",
       label: "corrupt.png",
+    });
+    expect(mockToastWarning).toHaveBeenCalledWith(
+      "Image could not be downscaled",
+      { description: "Attaching original file instead" },
+    );
+  });
+});
+
+describe("resolveAndAttachDroppedFiles", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls addAttachment for each resolved file", async () => {
+    mockGetFilePath
+      .mockReturnValueOnce("/Users/me/a.txt")
+      .mockReturnValueOnce("")
+      .mockReturnValueOnce("/Users/me/b.txt");
+
+    const files = [
+      { name: "a.txt" },
+      { name: "skip.txt" },
+      { name: "b.txt" },
+    ] as unknown as FileList;
+    Object.defineProperty(files, "length", { value: 3 });
+
+    const addAttachment = vi.fn();
+    await resolveAndAttachDroppedFiles(files, addAttachment);
+
+    expect(addAttachment).toHaveBeenCalledTimes(2);
+    expect(addAttachment).toHaveBeenCalledWith({
+      id: "/Users/me/a.txt",
+      label: "a.txt",
+    });
+    expect(addAttachment).toHaveBeenCalledWith({
+      id: "/Users/me/b.txt",
+      label: "b.txt",
     });
   });
 });

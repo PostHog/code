@@ -5,7 +5,7 @@ import {
   type EditorHandle as PromptInputHandle,
 } from "@features/message-editor/components/PromptInput";
 import { useDraftStore } from "@features/message-editor/stores/draftStore";
-import { resolveDroppedFile } from "@features/message-editor/utils/persistFile";
+import { resolveAndAttachDroppedFiles } from "@features/message-editor/utils/persistFile";
 import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import { useSessionForTask } from "@features/sessions/hooks/useSession";
 import {
@@ -372,13 +372,9 @@ export function SessionView({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    (async () => {
-      for (let i = 0; i < files.length; i++) {
-        const attachment = await resolveDroppedFile(files[i]);
-        if (attachment) editorRef.current?.addAttachment(attachment);
-      }
-      editorRef.current?.focus();
-    })();
+    resolveAndAttachDroppedFiles(files, (a) =>
+      editorRef.current?.addAttachment(a),
+    ).then(() => editorRef.current?.focus());
   }, []);
 
   const handlePaneClick = useCallback((e: React.MouseEvent) => {

@@ -15,7 +15,7 @@ import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReport
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
-import { resolveDroppedFile } from "@features/message-editor/utils/persistFile";
+import { resolveAndAttachDroppedFiles } from "@features/message-editor/utils/persistFile";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -545,13 +545,9 @@ export function TaskInput({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    (async () => {
-      for (let i = 0; i < files.length; i++) {
-        const attachment = await resolveDroppedFile(files[i]);
-        if (attachment) editorRef.current?.addAttachment(attachment);
-      }
-      editorRef.current?.focus();
-    })();
+    resolveAndAttachDroppedFiles(files, (a) =>
+      editorRef.current?.addAttachment(a),
+    ).then(() => editorRef.current?.focus());
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
