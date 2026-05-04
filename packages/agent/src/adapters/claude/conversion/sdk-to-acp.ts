@@ -521,7 +521,6 @@ function streamEventToAcpNotifications(
       if (block.type === "tool_use" || block.type === "mcp_tool_use") {
         toolUseStreamCache.set(event.index, {
           toolUseId: block.id,
-          toolName: block.name,
           partialJson: "",
         });
       }

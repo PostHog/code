@@ -10,7 +10,7 @@
  * Returns `null` when no completion parses — callers should silently skip
  * that delta and wait for more input.
  */
-export function tryParsePartialJson(s: string): unknown | null {
+export function tryParsePartialJson(s: string): unknown {
   const trimmed = s.trim();
   if (!trimmed) return null;
 

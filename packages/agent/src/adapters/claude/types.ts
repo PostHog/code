@@ -83,7 +83,7 @@ export type ToolUseCache = {
  */
 export type ToolUseStreamCache = Map<
   number,
-  { toolUseId: string; toolName: string; partialJson: string }
+  { toolUseId: string; partialJson: string }
 >;
 
 export type TerminalInfo = {
