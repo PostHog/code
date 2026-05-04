@@ -21,8 +21,14 @@ import { POSTHOG_NOTIFICATIONS } from "@/acp-extensions";
 import { image, text } from "../../../utils/acp-content";
 import { unreachable } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
+import { tryParsePartialJson } from "../../../utils/partial-json";
 import { type EnrichedReadCache, registerHookCallback } from "../hooks";
-import type { Session, ToolUpdateMeta, ToolUseCache } from "../types";
+import type {
+  Session,
+  ToolUpdateMeta,
+  ToolUseCache,
+  ToolUseStreamCache,
+} from "../types";
 import {
   type ClaudePlanEntry,
   planEntries,
@@ -67,6 +73,8 @@ export interface MessageHandlerContext {
   sessionId: string;
   client: AgentSideConnection;
   toolUseCache: ToolUseCache;
+  /** Buffers `input_json_delta` partial JSON per content-block index. */
+  toolUseStreamCache: ToolUseStreamCache;
   fileContentCache: { [key: string]: string };
   enrichedReadCache?: EnrichedReadCache;
   logger: Logger;
@@ -496,6 +504,7 @@ function streamEventToAcpNotifications(
   message: SDKPartialAssistantMessage,
   sessionId: string,
   toolUseCache: ToolUseCache,
+  toolUseStreamCache: ToolUseStreamCache,
   fileContentCache: { [key: string]: string },
   client: AgentSideConnection,
   logger: Logger,
@@ -507,9 +516,17 @@ function streamEventToAcpNotifications(
 ): SessionNotification[] {
   const event = message.event;
   switch (event.type) {
-    case "content_block_start":
+    case "content_block_start": {
+      const block = event.content_block;
+      if (block.type === "tool_use" || block.type === "mcp_tool_use") {
+        toolUseStreamCache.set(event.index, {
+          toolUseId: block.id,
+          toolName: block.name,
+          partialJson: "",
+        });
+      }
       return toAcpNotifications(
-        [event.content_block],
+        [block],
         "assistant",
         sessionId,
         toolUseCache,
@@ -523,7 +540,16 @@ function streamEventToAcpNotifications(
         undefined,
         enrichedReadCache,
       );
-    case "content_block_delta":
+    }
+    case "content_block_delta": {
+      if (event.delta.type === "input_json_delta") {
+        return inputJsonDeltaToAcpNotifications(
+          event.index,
+          event.delta.partial_json,
+          sessionId,
+          toolUseStreamCache,
+        );
+      }
       return toAcpNotifications(
         [event.delta],
         "assistant",
@@ -539,16 +565,44 @@ function streamEventToAcpNotifications(
         undefined,
         enrichedReadCache,
       );
+    }
+    case "content_block_stop":
+      toolUseStreamCache.delete(event.index);
+      return [];
     case "message_start":
     case "message_delta":
     case "message_stop":
-    case "content_block_stop":
       return [];
 
     default:
       unreachable(event as never, logger);
       return [];
   }
+}
+
+function inputJsonDeltaToAcpNotifications(
+  index: number,
+  partialJson: string,
+  sessionId: string,
+  toolUseStreamCache: ToolUseStreamCache,
+): SessionNotification[] {
+  const entry = toolUseStreamCache.get(index);
+  if (!entry) return [];
+  entry.partialJson += partialJson;
+
+  const parsed = tryParsePartialJson(entry.partialJson);
+  if (!parsed || typeof parsed !== "object") return [];
+
+  return [
+    {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update" as const,
+        toolCallId: entry.toolUseId,
+        rawInput: parsed as Record<string, unknown>,
+      },
+    },
+  ];
 }
 
 export async function handleSystemMessage(
@@ -743,13 +797,21 @@ export async function handleStreamEvent(
   message: SDKPartialAssistantMessage,
   context: MessageHandlerContext,
 ): Promise<void> {
-  const { sessionId, client, toolUseCache, fileContentCache, logger } = context;
+  const {
+    sessionId,
+    client,
+    toolUseCache,
+    toolUseStreamCache,
+    fileContentCache,
+    logger,
+  } = context;
   const parentToolCallId = message.parent_tool_use_id ?? undefined;
 
   for (const notification of streamEventToAcpNotifications(
     message,
     sessionId,
     toolUseCache,
+    toolUseStreamCache,
     fileContentCache,
     client,
     logger,
