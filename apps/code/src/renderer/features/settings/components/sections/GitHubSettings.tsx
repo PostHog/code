@@ -1,11 +1,16 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useGitHubIntegrationCallback } from "@features/integrations/hooks/useGitHubIntegrationCallback";
+import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
 import { useConnectUserGithub } from "@hooks/useConnectUserGithub";
-import { useUserGithubIntegrations } from "@hooks/useIntegrations";
+import {
+  useRepositoryIntegration,
+  useUserGithubIntegrations,
+} from "@hooks/useIntegrations";
 import {
   ArrowSquareOutIcon,
   CheckCircleIcon,
   GithubLogoIcon,
+  InfoIcon,
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
@@ -14,6 +19,7 @@ import {
   Flex,
   Spinner,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import { toast } from "@renderer/utils/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +33,15 @@ export function GitHubSettings() {
 
   const { connect, isConnecting, canConnect } = useConnectUserGithub();
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+
+  const setSettingsCategory = useSettingsDialogStore(
+    (state) => state.setCategory,
+  );
+  const {
+    repositories: teamRepositories,
+    hasGithubIntegration: hasTeamIntegration,
+    isLoadingRepos: isLoadingTeam,
+  } = useRepositoryIntegration();
 
   useGitHubIntegrationCallback({
     onSuccess: () => {
@@ -151,6 +166,81 @@ export function GitHubSettings() {
               <ArrowSquareOutIcon size={12} />
             </Button>
           )}
+        </Flex>
+      </Flex>
+
+      <Flex
+        align="center"
+        justify="between"
+        gap="4"
+        py="4"
+        style={{ borderBottom: "1px solid var(--gray-5)" }}
+      >
+        <Flex align="center" gap="3" className="min-w-0">
+          <Box className="shrink-0 text-(--gray-11)">
+            <GithubLogoIcon size={20} />
+          </Box>
+          <Flex direction="column" className="min-w-0">
+            <Text className="font-medium text-(--gray-12) text-sm">
+              Project GitHub
+            </Text>
+            {isLoadingTeam ? (
+              <Text className="text-(--gray-11) text-[13px]">Loading…</Text>
+            ) : hasTeamIntegration ? (
+              teamRepositories.length > 0 ? (
+                <Tooltip
+                  content={
+                    <Flex direction="column" gap="1">
+                      {teamRepositories.map((repo) => (
+                        <Text key={repo} className="text-[13px]">
+                          {repo}
+                        </Text>
+                      ))}
+                    </Flex>
+                  }
+                  side="bottom"
+                >
+                  <Flex align="center" gap="1" className="cursor-help">
+                    <CheckCircleIcon
+                      size={13}
+                      weight="fill"
+                      className="shrink-0 text-(--green-9)"
+                    />
+                    <Text className="text-(--gray-11) text-[13px]">
+                      Connected · {teamRepositories.length}{" "}
+                      {teamRepositories.length === 1 ? "repo" : "repos"}
+                    </Text>
+                    <InfoIcon size={13} className="shrink-0 text-(--gray-9)" />
+                  </Flex>
+                </Tooltip>
+              ) : (
+                <Flex align="center" gap="1">
+                  <CheckCircleIcon
+                    size={13}
+                    weight="fill"
+                    className="shrink-0 text-(--green-9)"
+                  />
+                  <Text className="text-(--gray-11) text-[13px]">
+                    Connected
+                  </Text>
+                </Flex>
+              )
+            ) : (
+              <Text className="text-(--gray-11) text-[13px]">
+                No project-level GitHub integration on this team.
+              </Text>
+            )}
+          </Flex>
+        </Flex>
+
+        <Flex align="center" gap="2" className="shrink-0">
+          <Button
+            size="1"
+            variant="soft"
+            onClick={() => setSettingsCategory("signals")}
+          >
+            Manage in Signals
+          </Button>
         </Flex>
       </Flex>
 
