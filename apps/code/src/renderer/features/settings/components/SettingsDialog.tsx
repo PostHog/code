@@ -53,7 +53,7 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
-  { id: "plan-usage", label: "Plan & Usage", icon: <CreditCard size={16} /> },
+  { id: "plan-usage", label: "Plan & usage", icon: <CreditCard size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
@@ -85,7 +85,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 
 const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   general: "General",
-  "plan-usage": "Plan & Usage",
+  "plan-usage": "Plan & usage",
   workspaces: "Workspaces",
   worktrees: "Worktrees",
   environments: "Environments",
