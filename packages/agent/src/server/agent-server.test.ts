@@ -382,6 +382,124 @@ describe("AgentServer HTTP Mode", () => {
     }, 20000);
   });
 
+  describe("set_token command", () => {
+    // Build an AgentServer that is NOT stored in the outer `server` ref so the
+    // afterEach hook doesn't try to clean up its (fake) session and cascade
+    // cleanup failures into the test output.
+    const buildBareServer = () => {
+      const bare = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+      }) as unknown as {
+        session: unknown;
+        executeCommand(
+          method: string,
+          params: Record<string, unknown>,
+        ): Promise<unknown>;
+      };
+      // Pass executeCommand's "no active session" guard.
+      bare.session = {};
+      return bare;
+    };
+
+    it("updates GH_TOKEN and GITHUB_TOKEN on process.env", async () => {
+      const previousGh = process.env.GH_TOKEN;
+      const previousGithub = process.env.GITHUB_TOKEN;
+      delete process.env.GH_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+
+      try {
+        const result = await buildBareServer().executeCommand("set_token", {
+          token: "ghp_refreshed",
+        });
+
+        expect(result).toEqual({ updated: true });
+        expect(process.env.GH_TOKEN).toBe("ghp_refreshed");
+        expect(process.env.GITHUB_TOKEN).toBe("ghp_refreshed");
+      } finally {
+        if (previousGh === undefined) delete process.env.GH_TOKEN;
+        else process.env.GH_TOKEN = previousGh;
+        if (previousGithub === undefined) delete process.env.GITHUB_TOKEN;
+        else process.env.GITHUB_TOKEN = previousGithub;
+      }
+    });
+
+    it("accepts the posthog/-prefixed alias", async () => {
+      const previousGh = process.env.GH_TOKEN;
+      delete process.env.GH_TOKEN;
+      try {
+        await buildBareServer().executeCommand("posthog/set_token", {
+          token: "ghp_aliased",
+        });
+
+        expect(process.env.GH_TOKEN).toBe("ghp_aliased");
+      } finally {
+        if (previousGh === undefined) delete process.env.GH_TOKEN;
+        else process.env.GH_TOKEN = previousGh;
+      }
+    });
+  });
+
+  describe("POST /gh", () => {
+    it("rejects malformed JSON bodies with 400", async () => {
+      await createServer().start();
+
+      const response = await fetch(`http://localhost:${port}/gh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "not-json",
+      });
+
+      expect(response.status).toBe(400);
+    }, 20000);
+
+    it("rejects bodies missing args with 400", async () => {
+      await createServer().start();
+
+      const response = await fetch(`http://localhost:${port}/gh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cwd: "/tmp" }),
+      });
+
+      expect(response.status).toBe(400);
+    }, 20000);
+
+    it("rejects empty args arrays with 400", async () => {
+      await createServer().start();
+
+      const response = await fetch(`http://localhost:${port}/gh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ args: [] }),
+      });
+
+      expect(response.status).toBe(400);
+    }, 20000);
+
+    it("does not require a JWT", async () => {
+      await createServer().start();
+
+      // Even with no Authorization header, validation runs (and rejects on
+      // missing args). A 401 here would mean the route is gated by JWT, which
+      // would defeat the wrapper-script use case.
+      const response = await fetch(`http://localhost:${port}/gh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      expect(response.status).toBe(400);
+    }, 20000);
+  });
+
   describe("session lifecycle", () => {
     it("emits _posthog/run_started after session initialization", async () => {
       await createServer().start();

@@ -96,6 +96,18 @@ export const refreshSessionParamsSchema = z.object({
   mcpServers: mcpServersSchema,
 });
 
+export const setTokenParamsSchema = z.object({
+  token: z.string().min(1, "token is required"),
+});
+
+export const ghRequestSchema = z.object({
+  args: z.array(z.string()).min(1, "args is required"),
+  cwd: z.string().optional(),
+  timeoutMs: z.number().int().positive().max(600_000).optional(),
+});
+
+export type GhRequest = z.infer<typeof ghRequestSchema>;
+
 export const closeParamsSchema = z
   .object({
     localGitState: handoffLocalGitStateSchema.optional(),
@@ -116,6 +128,8 @@ export const commandParamsSchemas = {
   refresh_session: refreshSessionParamsSchema,
   "posthog/refresh_session": refreshSessionParamsSchema,
   "_posthog/refresh_session": refreshSessionParamsSchema,
+  set_token: setTokenParamsSchema,
+  "posthog/set_token": setTokenParamsSchema,
 } as const;
 
 export type CommandMethod = keyof typeof commandParamsSchemas;

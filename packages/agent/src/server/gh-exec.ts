@@ -1,0 +1,103 @@
+import { spawn } from "node:child_process";
+import type { Logger } from "../utils/logger";
+
+export interface GhExecOptions {
+  cwd: string;
+  timeoutMs: number;
+  logger?: Logger;
+  binary?: string;
+}
+
+export interface GhExecResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  timedOut: boolean;
+}
+
+const KILL_GRACE_MS = 2_000;
+
+export async function runGh(
+  args: string[],
+  options: GhExecOptions,
+): Promise<GhExecResult> {
+  const binary = options.binary ?? "gh";
+  const logger = options.logger;
+
+  logger?.debug("Running gh", {
+    binary,
+    args,
+    cwd: options.cwd,
+    timeoutMs: options.timeoutMs,
+  });
+
+  return new Promise<GhExecResult>((resolve, reject) => {
+    const child = spawn(binary, args, {
+      cwd: options.cwd,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let killTimer: NodeJS.Timeout | null = null;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      logger?.warn("gh command timed out, sending SIGTERM", {
+        pid: child.pid,
+        timeoutMs: options.timeoutMs,
+      });
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => {
+        if (!child.killed) {
+          logger?.warn("gh command did not exit, sending SIGKILL", {
+            pid: child.pid,
+          });
+          child.kill("SIGKILL");
+        }
+      }, KILL_GRACE_MS);
+    }, options.timeoutMs);
+
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr?.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+
+    child.on("error", (err) => {
+      clearTimeout(timeout);
+      if (killTimer) clearTimeout(killTimer);
+      reject(err);
+    });
+
+    child.on("close", (code, signal) => {
+      clearTimeout(timeout);
+      if (killTimer) clearTimeout(killTimer);
+      resolve({
+        stdout,
+        stderr,
+        exitCode: code,
+        signal,
+        timedOut,
+      });
+    });
+  });
+}
+
+const LOOPBACK_ADDRESSES = new Set([
+  "127.0.0.1",
+  "::1",
+  "::ffff:127.0.0.1",
+  "localhost",
+]);
+
+export function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  return LOOPBACK_ADDRESSES.has(address);
+}
