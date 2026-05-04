@@ -1,17 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockReadAbsoluteFile = vi.hoisted(() => vi.fn());
+const mockLlmPrompt = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc", () => ({
   trpcClient: {
     fs: {
       readAbsoluteFile: { query: mockReadAbsoluteFile },
     },
+    llmGateway: {
+      prompt: { mutate: mockLlmPrompt },
+    },
   },
 }));
 
+const mockFetchAuthState = vi.hoisted(() => vi.fn());
 vi.mock("@features/auth/hooks/authQueries", () => ({
-  fetchAuthState: vi.fn(),
+  fetchAuthState: mockFetchAuthState,
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -25,7 +30,10 @@ vi.mock("@utils/logger", () => ({
   },
 }));
 
-import { enrichDescriptionWithFileContent } from "./generateTitle";
+import {
+  enrichDescriptionWithFileContent,
+  generateTitleAndSummary,
+} from "./generateTitle";
 
 describe("enrichDescriptionWithFileContent", () => {
   beforeEach(() => {
@@ -126,5 +134,45 @@ describe("enrichDescriptionWithFileContent", () => {
       "/tmp/code.ts",
     ]);
     expect(result).toBe("[Attached: image.jpg]\n\ntext content");
+  });
+});
+
+describe("generateTitleAndSummary", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetchAuthState.mockResolvedValue({ status: "authenticated" });
+  });
+
+  it("truncates title to 255 chars", async () => {
+    const longTitle = "A".repeat(300);
+    mockLlmPrompt.mockResolvedValue({
+      content: `TITLE: ${longTitle}\nSUMMARY: A summary`,
+    });
+
+    const result = await generateTitleAndSummary("some content");
+    expect(result?.title).toHaveLength(255);
+    expect(result?.summary).toBe("A summary");
+  });
+
+  it("returns null when not authenticated", async () => {
+    mockFetchAuthState.mockResolvedValue({ status: "unauthenticated" });
+    const result = await generateTitleAndSummary("some content");
+    expect(result).toBeNull();
+    expect(mockLlmPrompt).not.toHaveBeenCalled();
+  });
+
+  it("strips surrounding quotes from title", async () => {
+    mockLlmPrompt.mockResolvedValue({
+      content: 'TITLE: "Fix login bug"\nSUMMARY: Fixing auth',
+    });
+
+    const result = await generateTitleAndSummary("fix the login bug");
+    expect(result?.title).toBe("Fix login bug");
+  });
+
+  it("returns null on error", async () => {
+    mockLlmPrompt.mockRejectedValue(new Error("network error"));
+    const result = await generateTitleAndSummary("some content");
+    expect(result).toBeNull();
   });
 });

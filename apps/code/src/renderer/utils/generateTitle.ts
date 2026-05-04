@@ -4,7 +4,7 @@ import { logger } from "@utils/logger";
 
 const log = logger.scope("title-generator");
 
-const FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
+export const FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
 const ATTACHED_FILES_REGEX = /^\[?Attached files:.*]?$/gm;
 const PASTED_TEXT_SNIPPET_LIMIT = 500;
 
@@ -70,27 +70,26 @@ export async function enrichDescriptionWithFileContent(
 
   if (paths.length === 0) return description;
 
-  const parts: string[] = [];
-  for (const filePath of paths) {
-    if (BINARY_EXTENSIONS.has(getExtension(filePath))) {
-      parts.push(`[Attached: ${getFileName(filePath)}]`);
-      continue;
-    }
-    try {
-      const content = await trpcClient.fs.readAbsoluteFile.query({ filePath });
-      if (content) {
-        parts.push(
-          content.length > PASTED_TEXT_SNIPPET_LIMIT
-            ? content.slice(0, PASTED_TEXT_SNIPPET_LIMIT)
-            : content,
-        );
-      } else {
-        parts.push(`[Attached: ${getFileName(filePath)}]`);
+  const parts = await Promise.all(
+    paths.map(async (filePath) => {
+      if (BINARY_EXTENSIONS.has(getExtension(filePath))) {
+        return `[Attached: ${getFileName(filePath)}]`;
       }
-    } catch {
-      parts.push(`[Attached: ${getFileName(filePath)}]`);
-    }
-  }
+      try {
+        const content = await trpcClient.fs.readAbsoluteFile.query({
+          filePath,
+        });
+        if (content) {
+          return content.length > PASTED_TEXT_SNIPPET_LIMIT
+            ? content.slice(0, PASTED_TEXT_SNIPPET_LIMIT)
+            : content;
+        }
+        return `[Attached: ${getFileName(filePath)}]`;
+      } catch {
+        return `[Attached: ${getFileName(filePath)}]`;
+      }
+    }),
+  );
 
   return parts.length > 0 ? parts.join("\n\n") : description;
 }
