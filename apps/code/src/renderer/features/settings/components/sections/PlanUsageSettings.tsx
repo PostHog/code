@@ -67,14 +67,8 @@ export function PlanUsageSettings() {
     billingOrgId,
     hasBetterPlanElsewhere,
   } = useSeat();
-  const {
-    fetchSeat,
-    fetchOrgSeat,
-    upgradeToPro,
-    cancelSeat,
-    reactivateSeat,
-    clearError,
-  } = useSeatStore();
+  const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
+    useSeatStore();
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const billingUrl = getPostHogUrl("/organization/billing", cloudRegion);
   const redirectFullUrl = redirectUrl
@@ -92,10 +86,9 @@ export function PlanUsageSettings() {
   });
 
   useEffect(() => {
-    void fetchSeat();
-    void fetchOrgSeat();
+    void fetchSeat({ autoProvision: true });
     void refetchUsage();
-  }, [fetchSeat, fetchOrgSeat, refetchUsage]);
+  }, [fetchSeat, refetchUsage]);
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
