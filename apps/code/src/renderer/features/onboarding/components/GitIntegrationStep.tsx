@@ -22,6 +22,7 @@ import {
   FolderOpen,
   GearSix,
   GitBranch,
+  Plus,
 } from "@phosphor-icons/react";
 import {
   AlertDialog,
@@ -110,12 +111,11 @@ export function GitIntegrationStep({
     isLoading: githubUserIntegrationsLoading,
   } = useUserGithubIntegrations();
   const hasGitIntegration = githubUserIntegrations.length > 0;
-  const { repositories, isLoadingRepos, failedInstallationIds } =
+  const { repositories, failedInstallationIds, reposByInstallationId } =
     useUserRepositoryIntegration();
-  const githubIntegration = githubUserIntegrations[0] ?? null;
-  const integrationIsStale =
-    !!githubIntegration &&
-    failedInstallationIds.includes(githubIntegration.installation_id);
+  const anyIntegrationStale = githubUserIntegrations.some((i) =>
+    failedInstallationIds.includes(i.installation_id),
+  );
 
   const alternativeConnectedProjects = useMemo(() => {
     if (hasGitIntegration) return [];
@@ -136,13 +136,6 @@ export function GitIntegrationStep({
     );
   }, [alternativeConnectedProjects, selectedAlternativeId]);
 
-  const repoSummary = useMemo(() => {
-    if (repositories.length === 0) return null;
-    const names = repositories.map((r) => r.split("/").pop() ?? r);
-    if (names.length <= 2) return names.join(" and ");
-    return `${names[0]}, ${names[1]} and ${names.length - 2} more`;
-  }, [repositories]);
-
   const repoMatchesGitHub = useMemo(() => {
     if (!detectedRepo || repositories.length === 0) return false;
     return repositories.some(
@@ -151,18 +144,23 @@ export function GitIntegrationStep({
   }, [detectedRepo, repositories]);
 
   const apiClient = useOptionalAuthenticatedClient();
-  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    installationId: string;
+    accountName: string;
+  } | null>(null);
+  const [reconnectingInstallationId, setReconnectingInstallationId] = useState<
+    string | null
+  >(null);
   const disconnectMutation = useMutation({
-    mutationFn: async (opts: { silent?: boolean } = {}) => {
-      const installationId = githubIntegration?.installation_id;
-      if (!apiClient || !installationId) {
-        throw new Error("No GitHub integration to disconnect");
+    mutationFn: async (opts: { installationId: string; silent?: boolean }) => {
+      if (!apiClient) {
+        throw new Error("Not authenticated");
       }
-      await apiClient.disconnectGithubUserIntegration(installationId);
+      await apiClient.disconnectGithubUserIntegration(opts.installationId);
       return { silent: opts.silent ?? false };
     },
     onSuccess: ({ silent }) => {
-      setDisconnectConfirmOpen(false);
+      setDisconnectTarget(null);
       invalidateGithubQueries(queryClient, selectedProjectId);
       if (!silent) toast.success("GitHub disconnected.");
     },
@@ -344,7 +342,7 @@ export function GitIntegrationStep({
                       {isLoading || githubUserIntegrationsLoading ? (
                         <Skeleton className="h-[16px] w-[80px]" />
                       ) : hasGitIntegration ? (
-                        integrationIsStale ? (
+                        anyIntegrationStale ? (
                           <Text className="text-(--amber-11) text-[13px]">
                             Reconnect needed
                           </Text>
@@ -356,7 +354,9 @@ export function GitIntegrationStep({
                               className="text-(--green-9)"
                             />
                             <Text className="text-(--green-11) text-[13px]">
-                              Connected
+                              {githubUserIntegrations.length > 1
+                                ? `Connected (${githubUserIntegrations.length})`
+                                : "Connected"}
                             </Text>
                           </Flex>
                         )
@@ -364,64 +364,126 @@ export function GitIntegrationStep({
                     </Flex>
                     {hasGitIntegration ? (
                       <Flex direction="column" gap="3">
-                        <Text
-                          className={
-                            integrationIsStale
-                              ? "text-(--amber-11) text-sm"
-                              : "text-(--gray-11) text-sm"
-                          }
-                        >
-                          {integrationIsStale
-                            ? "We can't reach GitHub with your saved authorization. The app may have been uninstalled or the token revoked. Reconnect to restore access."
-                            : isLoadingRepos
-                              ? "Loading repositories..."
-                              : repoSummary
-                                ? `Access to ${repoSummary}`
-                                : "No repositories found. Check your GitHub app settings."}
-                        </Text>
-                        <Flex align="center" gap="3" wrap="wrap">
-                          {integrationIsStale && (
-                            <Button
-                              size="1"
-                              variant="solid"
-                              loading={
-                                disconnectMutation.isPending || isConnecting
-                              }
-                              onClick={async () => {
-                                if (!githubIntegration?.installation_id) return;
-                                try {
-                                  await disconnectMutation.mutateAsync({
-                                    silent: true,
-                                  });
-                                } catch {
-                                  return;
-                                }
-                                void handleConnectGitHub();
-                              }}
+                        {githubUserIntegrations.map((integration) => {
+                          const installationId = integration.installation_id;
+                          const accountName =
+                            integration.account?.name ?? "GitHub";
+                          const installRepos =
+                            reposByInstallationId[installationId];
+                          const isLoadingInstallRepos =
+                            installRepos === undefined;
+                          const isStale =
+                            failedInstallationIds.includes(installationId);
+                          const isReconnecting =
+                            reconnectingInstallationId === installationId;
+                          return (
+                            <Flex
+                              key={integration.id}
+                              direction="column"
+                              gap="2"
+                              p="3"
+                              className="rounded-[8px] border border-(--gray-a3)"
                             >
-                              Reconnect
-                              <ArrowSquareOut size={12} />
-                            </Button>
-                          )}
-                          <Button
-                            size="1"
-                            variant="soft"
-                            color="gray"
-                            onClick={() => {
-                              const id = githubIntegration?.installation_id;
-                              const account = githubIntegration?.account;
-                              const url = id
-                                ? account?.type === "Organization" &&
-                                  account.name
-                                  ? `https://github.com/organizations/${account.name}/settings/installations/${id}`
-                                  : `https://github.com/settings/installations/${id}`
-                                : "https://github.com/settings/installations";
-                              trpcClient.os.openExternal.mutate({ url });
-                            }}
-                          >
-                            <GearSix size={12} />
-                            Settings
-                          </Button>
+                              <Flex
+                                align="center"
+                                justify="between"
+                                gap="2"
+                                wrap="wrap"
+                              >
+                                <Flex align="center" gap="2">
+                                  <Text className="font-bold text-(--gray-12) text-sm">
+                                    {accountName}
+                                  </Text>
+                                  <Text className="text-(--gray-10) text-[12px]">
+                                    {integration.account?.type ===
+                                    "Organization"
+                                      ? "org"
+                                      : "personal"}
+                                  </Text>
+                                </Flex>
+                                {isStale ? (
+                                  <Text className="text-(--amber-11) text-[12px]">
+                                    Reconnect needed
+                                  </Text>
+                                ) : (
+                                  <Text className="text-(--gray-10) text-[12px]">
+                                    {isLoadingInstallRepos
+                                      ? "Loading…"
+                                      : installRepos.length === 1
+                                        ? "1 repo"
+                                        : `${installRepos.length} repos`}
+                                  </Text>
+                                )}
+                              </Flex>
+                              <Flex align="center" gap="3" wrap="wrap">
+                                {isStale && (
+                                  <Button
+                                    size="1"
+                                    variant="solid"
+                                    loading={isReconnecting}
+                                    disabled={
+                                      reconnectingInstallationId !== null &&
+                                      !isReconnecting
+                                    }
+                                    onClick={async () => {
+                                      setReconnectingInstallationId(
+                                        installationId,
+                                      );
+                                      try {
+                                        await disconnectMutation.mutateAsync({
+                                          installationId,
+                                          silent: true,
+                                        });
+                                      } catch {
+                                        setReconnectingInstallationId(null);
+                                        return;
+                                      }
+                                      try {
+                                        await handleConnectGitHub();
+                                      } finally {
+                                        setReconnectingInstallationId(null);
+                                      }
+                                    }}
+                                  >
+                                    Reconnect
+                                    <ArrowSquareOut size={12} />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="1"
+                                  variant="soft"
+                                  color="gray"
+                                  onClick={() => {
+                                    const account = integration.account;
+                                    const url =
+                                      account?.type === "Organization" &&
+                                      account.name
+                                        ? `https://github.com/organizations/${account.name}/settings/installations/${installationId}`
+                                        : `https://github.com/settings/installations/${installationId}`;
+                                    trpcClient.os.openExternal.mutate({ url });
+                                  }}
+                                >
+                                  <GearSix size={12} />
+                                  Settings
+                                </Button>
+                                <Button
+                                  size="1"
+                                  variant="soft"
+                                  color="red"
+                                  onClick={() =>
+                                    setDisconnectTarget({
+                                      installationId,
+                                      accountName,
+                                    })
+                                  }
+                                >
+                                  Disconnect
+                                </Button>
+                              </Flex>
+                            </Flex>
+                          );
+                        })}
+                        <Flex align="center" gap="3" wrap="wrap">
                           <Button
                             size="1"
                             variant="soft"
@@ -441,11 +503,12 @@ export function GitIntegrationStep({
                           <Button
                             size="1"
                             variant="ghost"
-                            color="red"
-                            disabled={!githubIntegration?.installation_id}
-                            onClick={() => setDisconnectConfirmOpen(true)}
+                            color="gray"
+                            onClick={() => void handleConnectGitHub()}
+                            loading={isConnecting}
                           >
-                            Disconnect
+                            <Plus size={12} />
+                            Add another GitHub org
                           </Button>
                         </Flex>
                       </Flex>
@@ -609,15 +672,18 @@ export function GitIntegrationStep({
         </StepActions>
 
         <AlertDialog.Root
-          open={disconnectConfirmOpen}
+          open={disconnectTarget !== null}
           onOpenChange={(next) => {
             if (!next && !disconnectMutation.isPending) {
-              setDisconnectConfirmOpen(false);
+              setDisconnectTarget(null);
             }
           }}
         >
           <AlertDialog.Content maxWidth="450px">
-            <AlertDialog.Title>Disconnect GitHub</AlertDialog.Title>
+            <AlertDialog.Title>
+              Disconnect{" "}
+              {disconnectTarget ? disconnectTarget.accountName : "GitHub"}
+            </AlertDialog.Title>
             <AlertDialog.Description className="text-sm">
               This removes your personal GitHub authorization from PostHog. You
               can reconnect at any time. The GitHub App itself stays installed
@@ -637,7 +703,12 @@ export function GitIntegrationStep({
               <Button
                 variant="solid"
                 color="red"
-                onClick={() => disconnectMutation.mutate({})}
+                onClick={() => {
+                  if (!disconnectTarget) return;
+                  disconnectMutation.mutate({
+                    installationId: disconnectTarget.installationId,
+                  });
+                }}
                 disabled={disconnectMutation.isPending}
               >
                 {disconnectMutation.isPending ? <Spinner size="1" /> : null}

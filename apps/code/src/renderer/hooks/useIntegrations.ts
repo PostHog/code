@@ -148,6 +148,7 @@ function useAllUserGithubRepositories(
     })),
     combine: (results) => {
       const map: Record<string, UserRepositoryIntegrationRef> = {};
+      const reposByInstallationId: Record<string, string[]> = {};
       const failedInstallationIds: string[] = [];
       let pending = false;
       results.forEach((result, index) => {
@@ -158,7 +159,9 @@ function useAllUserGithubRepositories(
           if (installationId) failedInstallationIds.push(installationId);
         }
         if (!result.data) return;
-        for (const repo of result.data.repos ?? []) {
+        const installationRepos = result.data.repos ?? [];
+        reposByInstallationId[result.data.installationId] = installationRepos;
+        for (const repo of installationRepos) {
           if (!(repo in map)) {
             map[repo] = {
               userIntegrationId: result.data.userIntegrationId,
@@ -169,6 +172,7 @@ function useAllUserGithubRepositories(
       });
       return {
         repositoryMap: map,
+        reposByInstallationId,
         isPending: pending,
         failedInstallationIds,
       };
@@ -501,6 +505,7 @@ export function useUserRepositoryIntegration() {
 
   const {
     repositoryMap,
+    reposByInstallationId,
     isPending: reposPending,
     failedInstallationIds,
   } = useAllUserGithubRepositories(githubIntegrations);
@@ -569,6 +574,7 @@ export function useUserRepositoryIntegration() {
     refreshRepositories,
     hasGithubIntegration: githubIntegrations.length > 0,
     failedInstallationIds,
+    reposByInstallationId,
   };
 }
 
