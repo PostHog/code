@@ -117,12 +117,15 @@ async function chmodTreeWritable(target: string): Promise<void> {
   if (stat.isSymbolicLink()) return;
   try {
     await fs.chmod(target, stat.isDirectory() ? 0o700 : 0o600);
-  } catch {}
+  } catch (error) {
+    console.warn(`forceRemove: chmod failed on ${target}`, error);
+  }
   if (!stat.isDirectory()) return;
   let entries: string[];
   try {
     entries = await fs.readdir(target);
-  } catch {
+  } catch (error) {
+    console.warn(`forceRemove: readdir failed on ${target}`, error);
     return;
   }
   await Promise.all(
