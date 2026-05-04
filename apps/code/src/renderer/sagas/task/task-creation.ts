@@ -454,8 +454,10 @@ export class TaskCreationSaga extends Saga<
     return this.step({
       name: "task_creation",
       execute: async () => {
+        const description = input.taskDescription ?? input.content ?? "";
         const result = await this.deps.posthogClient.createTask({
-          description: input.taskDescription ?? input.content ?? "",
+          title: description,
+          description,
           repository: repository ?? undefined,
           github_integration:
             input.workspaceMode === "cloud" &&
