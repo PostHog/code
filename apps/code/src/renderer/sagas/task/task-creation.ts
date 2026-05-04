@@ -65,7 +65,7 @@ async function expandClipboardTextTags(description: string): Promise<string> {
     if (text === null) continue;
     const trimmed = text.length > remaining ? text.slice(0, remaining) : text;
     remaining -= trimmed.length;
-    result = result.replace(tag, trimmed);
+    result = result.replace(tag, () => trimmed);
     if (remaining <= 0) break;
   }
   return result;

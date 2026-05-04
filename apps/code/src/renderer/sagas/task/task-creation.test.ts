@@ -272,6 +272,46 @@ describe("TaskCreationSaga", () => {
     });
   });
 
+  it("preserves $-tokens in pasted clipboard text", async () => {
+    const createdTask = createTask();
+    const startedTask = createTask({ latest_run: createRun() });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
+    const updateTaskMock = vi.fn().mockResolvedValue(undefined);
+
+    // `$&` is a String.replace replacement token — it would otherwise be
+    // expanded to the full match, leaking the file tag back into the title.
+    const pasted = "Refactor cost($&) helper and price($1) lookups";
+    mockReadClipboardText.mockResolvedValue(pasted);
+    mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
+    mockGetCachedTask.mockReturnValue(undefined);
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
+        sendRunCommand: vi.fn(),
+        updateTask: updateTaskMock,
+      } as never,
+    });
+
+    await saga.run({
+      content:
+        '<file path="/tmp/posthog-code-clipboard/attachment-x/pasted-text.txt" />',
+      repository: "posthog/posthog",
+      workspaceMode: "cloud",
+      branch: "main",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockGenerateTitleAndSummary).toHaveBeenCalledWith(pasted);
+    });
+  });
+
   it("applies auto-title when task has not been manually renamed", async () => {
     const createdTask = createTask();
     const startedTask = createTask({ latest_run: createRun() });
