@@ -8,6 +8,7 @@ import {
   ArrowSquareOut,
   Check,
   CreditCard,
+  Info,
   WarningCircle,
 } from "@phosphor-icons/react";
 import {
@@ -56,16 +57,24 @@ function formatResetTime(seconds: number): string {
 export function PlanUsageSettings() {
   const {
     seat,
-    isPro,
+    orgSeat,
+    isOrgPro,
     isCanceling,
     activeUntil,
     isLoading,
     error,
     redirectUrl,
     billingOrgId,
+    hasBetterPlanElsewhere,
   } = useSeat();
-  const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
-    useSeatStore();
+  const {
+    fetchSeat,
+    fetchOrgSeat,
+    upgradeToPro,
+    cancelSeat,
+    reactivateSeat,
+    clearError,
+  } = useSeatStore();
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const billingUrl = getPostHogUrl("/organization/billing", cloudRegion);
   const redirectFullUrl = redirectUrl
@@ -73,7 +82,7 @@ export function PlanUsageSettings() {
     : null;
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
-  const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
+  const isAlpha = orgSeat?.plan_key === PLAN_PRO_ALPHA;
   const {
     usage,
     isLoading: usageLoading,
@@ -84,8 +93,9 @@ export function PlanUsageSettings() {
 
   useEffect(() => {
     void fetchSeat();
+    void fetchOrgSeat();
     void refetchUsage();
-  }, [fetchSeat, refetchUsage]);
+  }, [fetchSeat, fetchOrgSeat, refetchUsage]);
 
   const formattedActiveUntil = activeUntil
     ? activeUntil.toLocaleDateString(undefined, {
@@ -142,8 +152,21 @@ export function PlanUsageSettings() {
         </Callout.Root>
       )}
 
+      {hasBetterPlanElsewhere && seat?.organization_name && (
+        <Callout.Root color="blue" size="1">
+          <Callout.Icon>
+            <Info size={16} />
+          </Callout.Icon>
+          <Callout.Text className="text-sm">
+            You have a Pro plan on{" "}
+            <Text weight="medium">{seat.organization_name}</Text>. Usage on this
+            page reflects your current organization.
+          </Callout.Text>
+        </Callout.Root>
+      )}
+
       <Flex gap="3">
-        {seat ? (
+        {orgSeat ? (
           <>
             <PlanCard
               name="Free"
@@ -154,7 +177,7 @@ export function PlanUsageSettings() {
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={!isPro}
+              isCurrent={!isOrgPro}
             />
             <PlanCard
               name="Pro"
@@ -165,11 +188,11 @@ export function PlanUsageSettings() {
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={isPro && !isAlpha}
+              isCurrent={isOrgPro && !isAlpha}
               resetLabel={
-                isPro && !isAlpha && isCanceling && formattedActiveUntil
+                isOrgPro && !isAlpha && isCanceling && formattedActiveUntil
                   ? `Cancels ${formattedActiveUntil}`
-                  : isPro &&
+                  : isOrgPro &&
                       !isAlpha &&
                       formattedActiveUntil &&
                       daysUntilReset !== null
@@ -177,7 +200,7 @@ export function PlanUsageSettings() {
                     : undefined
               }
               action={
-                isPro && !isAlpha ? (
+                isOrgPro && !isAlpha ? (
                   isCanceling ? (
                     <Button
                       size="1"
@@ -285,7 +308,7 @@ export function PlanUsageSettings() {
         )}
       </Flex>
 
-      {isPro && (
+      {isOrgPro && (
         <Flex direction="column" gap="3">
           <Text className="font-medium text-(--gray-9) text-sm">Billing</Text>
           <Flex

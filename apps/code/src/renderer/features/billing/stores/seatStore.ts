@@ -14,6 +14,7 @@ const log = logger.scope("seat-store");
 
 interface SeatStoreState {
   seat: SeatData | null;
+  orgSeat: SeatData | null;
   isLoading: boolean;
   error: string | null;
   redirectUrl: string | null;
@@ -22,6 +23,7 @@ interface SeatStoreState {
 
 interface SeatStoreActions {
   fetchSeat: (options?: { autoProvision?: boolean }) => Promise<void>;
+  fetchOrgSeat: () => Promise<void>;
   provisionFreeSeat: () => Promise<void>;
   upgradeToPro: () => Promise<void>;
   cancelSeat: () => Promise<void>;
@@ -77,6 +79,7 @@ function invalidatePlanCache(): void {
 
 const initialState: SeatStoreState = {
   seat: null,
+  orgSeat: null,
   isLoading: false,
   error: null,
   redirectUrl: null,
@@ -113,6 +116,17 @@ export const useSeatStore = create<SeatStore>()((set, get) => ({
         return;
       }
       handleSeatError(error, set);
+    }
+  },
+
+  fetchOrgSeat: async () => {
+    try {
+      const client = await getClient();
+      const orgSeat = await client.getMySeat({ best: false });
+      set({ orgSeat });
+    } catch (error) {
+      log.warn("fetchOrgSeat failed", error);
+      set({ orgSeat: null });
     }
   },
 
