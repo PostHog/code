@@ -5,9 +5,10 @@
  * with the dispatched action buried inside a JSON wrapper.
  *
  * These helpers pull the action out of the `command` string so the row can
- * read `posthog - execute-sql {…}` (call), `posthog - info execute-sql`,
- * `posthog - schema query-trends series`, `posthog - search query-`, or
- * `posthog - tools` instead.
+ * read `posthog - execute-sql {…}` (call), `posthog - Read execute-sql`
+ * (info), `posthog - Inspect query-trends.series` (schema),
+ * `posthog - Search tools query-` (search), or `posthog - List tools`
+ * (tools) instead.
  *
  * Supported verbs (per the `exec` tool description):
  *   tools                                  — list every tool
@@ -25,7 +26,7 @@ const POSTHOG_CALL_BODY_RE = /^(?:--json\s+)?([a-zA-Z0-9_-]+)\s*([\s\S]*)$/;
 const POSTHOG_TOOL_NAME_RE = /^([a-zA-Z0-9_-]+)\s*([\s\S]*)$/;
 
 export interface PostHogExecDisplay {
-  /** Replaces the tool name in the title — e.g. "execute-sql", "info execute-sql". */
+  /** Replaces the tool name in the title — e.g. "execute-sql", "Read execute-sql". */
   label: string;
   /** Args to show as the input preview, undefined when there is none to display. */
   input?: string;
@@ -51,29 +52,35 @@ export function getPostHogExecDisplay(
 
   switch (verb) {
     case "tools":
-      return { label: "tools", input: undefined };
+      // `tools` returns names only, not full schemas — "List", not "Read".
+      return { label: "List tools", input: undefined };
 
     case "search":
       return {
-        label: "search",
+        label: "Search tools",
         input: explicitInput ?? (rest.length > 0 ? rest : undefined),
       };
 
     case "info":
-      // `info <tool>` — name the tool, no args portion.
+      // `info <tool>` — fold the tool name into the label so the args slot stays clean.
       return rest.length > 0
-        ? { label: `info ${rest}`, input: undefined }
-        : { label: "info", input: undefined };
+        ? { label: `Read ${rest}`, input: undefined }
+        : { label: "Read tool", input: undefined };
 
     case "schema": {
-      // `schema <tool> [field_path]` — surface the tool, treat the path as args.
+      // `schema <tool> [field_path]` is the drill-down verb. Fold the
+      // tool + path into a dotted locator so it reads as one path.
       const m = rest.match(POSTHOG_TOOL_NAME_RE);
-      if (!m) return { label: "schema", input: undefined };
+      if (!m) return { label: "Inspect schema", input: undefined };
       const subTool = m[1];
       const fieldPath = (m[2] ?? "").trim();
+      const path =
+        explicitInput ?? (fieldPath.length > 0 ? fieldPath : undefined);
       return {
-        label: `schema ${subTool}`,
-        input: explicitInput ?? (fieldPath.length > 0 ? fieldPath : undefined),
+        label: path
+          ? `Inspect ${subTool}.${path}`
+          : `Inspect ${subTool} fields`,
+        input: undefined,
       };
     }
 

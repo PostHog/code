@@ -59,37 +59,37 @@ describe("getPostHogExecDisplay", () => {
   describe("info verb", () => {
     it("formats `info <tool>` with no args", () => {
       expect(getPostHogExecDisplay({ command: "info execute-sql" })).toEqual({
-        label: "info execute-sql",
+        label: "Read execute-sql",
         input: undefined,
       });
     });
 
-    it("falls back to bare `info` when no tool given", () => {
+    it("falls back to a generic label when no tool given", () => {
       expect(getPostHogExecDisplay({ command: "info" })).toEqual({
-        label: "info",
+        label: "Read tool",
         input: undefined,
       });
     });
   });
 
   describe("schema verb", () => {
-    it("formats `schema <tool>` (no field path)", () => {
+    it("formats `schema <tool>` (no field path) as field summary", () => {
       expect(getPostHogExecDisplay({ command: "schema query-trends" })).toEqual(
         {
-          label: "schema query-trends",
+          label: "Inspect query-trends fields",
           input: undefined,
         },
       );
     });
 
-    it("formats `schema <tool> <field_path>` with the path as input", () => {
+    it("formats `schema <tool> <field_path>` as a dotted locator", () => {
       expect(
         getPostHogExecDisplay({
           command: "schema query-trends series",
         }),
       ).toEqual({
-        label: "schema query-trends",
-        input: "series",
+        label: "Inspect query-trends.series",
+        input: undefined,
       });
     });
 
@@ -99,8 +99,8 @@ describe("getPostHogExecDisplay", () => {
           command: "schema query-trends breakdownFilter.breakdowns",
         }),
       ).toEqual({
-        label: "schema query-trends",
-        input: "breakdownFilter.breakdowns",
+        label: "Inspect query-trends.breakdownFilter.breakdowns",
+        input: undefined,
       });
     });
   });
@@ -108,14 +108,14 @@ describe("getPostHogExecDisplay", () => {
   describe("search verb", () => {
     it("uses the regex pattern as input", () => {
       expect(getPostHogExecDisplay({ command: "search query-" })).toEqual({
-        label: "search",
+        label: "Search tools",
         input: "query-",
       });
     });
 
-    it("falls back to bare `search` when no pattern given", () => {
+    it("falls back to bare `Search tools` when no pattern given", () => {
       expect(getPostHogExecDisplay({ command: "search" })).toEqual({
-        label: "search",
+        label: "Search tools",
         input: undefined,
       });
     });
@@ -124,7 +124,7 @@ describe("getPostHogExecDisplay", () => {
   describe("tools verb", () => {
     it("formats bare `tools`", () => {
       expect(getPostHogExecDisplay({ command: "tools" })).toEqual({
-        label: "tools",
+        label: "List tools",
         input: undefined,
       });
     });
@@ -149,13 +149,13 @@ describe("getPostHogExecDisplay", () => {
       ).toEqual({ label: "execute-sql", input: '{"query":"SELECT 1"}' });
     });
 
-    it("prefers explicit `input` over field path for schema", () => {
+    it("folds explicit `input` into the schema dotted locator", () => {
       expect(
         getPostHogExecDisplay({
           command: "schema query-trends",
           input: "series.0",
         }),
-      ).toEqual({ label: "schema query-trends", input: "series.0" });
+      ).toEqual({ label: "Inspect query-trends.series.0", input: undefined });
     });
 
     it("ignores empty-string explicit input and falls back to command args", () => {
@@ -190,7 +190,7 @@ describe("getPostHogExecDisplay", () => {
 
     it("tolerates leading/trailing whitespace around the verb", () => {
       expect(getPostHogExecDisplay({ command: "  tools  " })).toEqual({
-        label: "tools",
+        label: "List tools",
         input: undefined,
       });
       expect(
