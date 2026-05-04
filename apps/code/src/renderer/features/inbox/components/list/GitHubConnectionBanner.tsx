@@ -1,6 +1,9 @@
 import { Button } from "@components/ui/Button";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { useGithubUserConnect } from "@features/integrations/hooks/useGithubUserConnect";
+import {
+  describeGithubConnectError,
+  useGithubUserConnect,
+} from "@features/integrations/hooks/useGithubUserConnect";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useUserRepositoryIntegration } from "@hooks/useIntegrations";
 import {
@@ -21,8 +24,9 @@ export function GitHubConnectionBanner() {
   const projectId = useAuthStateValue((s) => s.projectId);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
 
-  const { state, connect } = useGithubUserConnect({ projectId });
+  const { state, error, connect, reset } = useGithubUserConnect({ projectId });
   const connecting = state === "connecting";
+  const hasConnectError = state === "error";
   const canConnectCloud = projectId != null && cloudRegion != null;
 
   if (loginLoading) {
@@ -37,11 +41,13 @@ export function GitHubConnectionBanner() {
     return null;
   }
 
-  const label = connecting
-    ? "Waiting for GitHub connection to complete in browser…"
-    : hasGithubForProject
-      ? "Connect your GitHub profile to highlight what's relevant to you"
-      : "Connect your GitHub repo(s) to highlight what's relevant to you";
+  const label = hasConnectError
+    ? describeGithubConnectError(error)
+    : connecting
+      ? "Waiting for GitHub connection to complete in browser…"
+      : hasGithubForProject
+        ? "Connect your GitHub profile to highlight what's relevant to you"
+        : "Connect your GitHub repo(s) to highlight what's relevant to you";
 
   return (
     <div className="pointer-events-auto absolute inset-x-2 bottom-2 z-60">
@@ -77,6 +83,7 @@ export function GitHubConnectionBanner() {
         }
         onClick={() => {
           if (!canConnectCloud) return;
+          if (hasConnectError) reset();
           void connect();
         }}
       >

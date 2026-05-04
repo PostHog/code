@@ -1,7 +1,10 @@
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
-import { useGithubUserConnect } from "@features/integrations/hooks/useGithubUserConnect";
+import {
+  describeGithubConnectError,
+  useGithubUserConnect,
+} from "@features/integrations/hooks/useGithubUserConnect";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import {
   useUserGithubIntegrations,
@@ -74,11 +77,23 @@ export function GitIntegrationStep({
     return currentProjectId ?? projects[0]?.id ?? null;
   }, [manuallySelectedProjectId, currentProjectId, projects]);
 
-  const { state: connectState, connect: handleConnectGitHub } =
-    useGithubUserConnect({ projectId: selectedProjectId });
+  const {
+    state: connectState,
+    error: connectError,
+    connect: handleConnectGitHub,
+    reset: resetConnect,
+  } = useGithubUserConnect({ projectId: selectedProjectId });
   const isConnecting = connectState === "connecting";
   const timedOut = connectState === "timed-out";
-  const canTakeAction = !isConnecting && !timedOut;
+  const hasConnectError = connectState === "error";
+  const canTakeAction = !isConnecting && !timedOut && !hasConnectError;
+  const defaultPanelMessage = hasConnectError
+    ? describeGithubConnectError(connectError)
+    : timedOut
+      ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
+      : isConnecting
+        ? "Waiting for GitHub..."
+        : "Optional. Unlocks cloud agents and pull request workflows.";
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -446,25 +461,43 @@ export function GitIntegrationStep({
                         </Flex>
                       ) : (
                         <Flex direction="column" gap="3">
-                          <Text className="text-(--gray-11) text-sm">
-                            {timedOut
-                              ? "We didn't hear back from GitHub. If the browser tab was closed, click Connect again."
-                              : isConnecting
-                                ? "Waiting for GitHub..."
-                                : "Optional. Unlocks cloud agents and pull request workflows."}
-                          </Text>
-                          <Button
-                            size="1"
-                            variant="soft"
-                            onClick={() => void handleConnectGitHub()}
-                            loading={isConnecting}
-                            className="self-start"
+                          <Text
+                            className={
+                              hasConnectError
+                                ? "text-(--red-11) text-sm"
+                                : "text-(--gray-11) text-sm"
+                            }
                           >
-                            {isConnecting
-                              ? "Retry connection"
-                              : "Connect GitHub"}
-                            <ArrowSquareOut size={12} />
-                          </Button>
+                            {defaultPanelMessage}
+                          </Text>
+                          <Flex gap="2">
+                            <Button
+                              size="1"
+                              variant="soft"
+                              onClick={() => {
+                                if (hasConnectError) resetConnect();
+                                void handleConnectGitHub();
+                              }}
+                              loading={isConnecting}
+                            >
+                              {isConnecting
+                                ? "Retry connection"
+                                : hasConnectError || timedOut
+                                  ? "Try again"
+                                  : "Connect GitHub"}
+                              <ArrowSquareOut size={12} />
+                            </Button>
+                            {hasConnectError && (
+                              <Button
+                                size="1"
+                                variant="ghost"
+                                color="gray"
+                                onClick={resetConnect}
+                              >
+                                Dismiss
+                              </Button>
+                            )}
+                          </Flex>
                         </Flex>
                       )
                     ) : null}

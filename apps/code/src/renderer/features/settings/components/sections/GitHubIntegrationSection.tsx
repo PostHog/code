@@ -74,7 +74,7 @@ export function GitHubIntegrationSection({
       setConnecting(false);
       invalidateIntegrations();
     },
-    onError: (message) => {
+    onError: ({ message }) => {
       stopPolling();
       setConnecting(false);
       toast.error(message);
