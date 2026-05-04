@@ -784,6 +784,61 @@ export class WorkspaceService extends TypedEventEmitter<WorkspaceServiceEvents> 
     return { exists: false };
   }
 
+  async getWorkspace(taskId: string): Promise<Workspace | null> {
+    const assoc = this.findTaskAssociation(taskId);
+    if (!assoc) return null;
+
+    const dbRow = this.workspaceRepo.findByTaskId(taskId);
+    const linkedBranch = dbRow?.linkedBranch ?? null;
+
+    if (assoc.mode === "cloud") {
+      return {
+        taskId,
+        folderId: assoc.folderId ?? "",
+        folderPath: "",
+        mode: "cloud",
+        worktreePath: null,
+        worktreeName: null,
+        branchName: null,
+        baseBranch: null,
+        linkedBranch,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    const folderPath = this.getFolderPath(assoc.folderId);
+    if (!folderPath) return null;
+
+    let worktreePath: string | null = null;
+    let worktreeName: string | null = null;
+    let branchName: string | null = null;
+
+    if (assoc.mode === "worktree") {
+      worktreeName = assoc.worktree;
+      worktreePath = deriveWorktreePath(folderPath, worktreeName);
+      const gitBranch = await getBranchFromPath(worktreePath);
+      branchName = gitBranch ?? assoc.branchName;
+    } else if (assoc.mode === "local") {
+      const localWorktreePath =
+        await this.getLocalWorktreePathIfExists(folderPath);
+      const branchPath = localWorktreePath ?? folderPath;
+      branchName = await getBranchFromPath(branchPath);
+    }
+
+    return {
+      taskId,
+      folderId: assoc.folderId,
+      folderPath,
+      mode: assoc.mode,
+      worktreePath,
+      worktreeName,
+      branchName,
+      baseBranch: null,
+      linkedBranch,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   async getWorkspaceInfo(taskId: string): Promise<WorkspaceInfo | null> {
     const association = this.findTaskAssociation(taskId);
     if (!association) {
