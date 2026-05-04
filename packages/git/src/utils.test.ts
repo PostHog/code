@@ -18,22 +18,9 @@ describe("forceRemove", () => {
 
   afterEach(async () => {
     if (workDir) {
-      // Restore writability so cleanup never fails the run.
-      await chmod(workDir, 0o700).catch(() => {});
-      await rm(workDir, { recursive: true, force: true }).catch(() => {});
+      await forceRemove(workDir).catch(() => {});
       workDir = undefined;
     }
-  });
-
-  it("removes a writable tree", async () => {
-    workDir = await mkdtemp(path.join(tmpdir(), "posthog-force-remove-"));
-    const target = path.join(workDir, "tree");
-    await mkdir(path.join(target, "nested"), { recursive: true });
-    await writeFile(path.join(target, "nested", "file.txt"), "x");
-
-    await forceRemove(target);
-
-    expect(await fileExists(target)).toBe(false);
   });
 
   it("is a no-op for a missing path", async () => {
@@ -43,23 +30,36 @@ describe("forceRemove", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("removes a tree with read-only directories (Go module cache shape)", async () => {
+  it.each([
+    {
+      name: "writable tree",
+      setup: async (target: string) => {
+        await mkdir(path.join(target, "nested"), { recursive: true });
+        await writeFile(path.join(target, "nested", "file.txt"), "x");
+      },
+    },
+    {
+      name: "read-only directories (Go module cache shape)",
+      setup: async (target: string) => {
+        const inner = path.join(target, "yaml.v3@v3.0.1", ".github");
+        await mkdir(inner, { recursive: true });
+        await writeFile(path.join(inner, "workflow.yml"), "on: push\n");
+        await chmod(path.join(target, "yaml.v3@v3.0.1", ".github"), 0o555);
+        await chmod(path.join(target, "yaml.v3@v3.0.1"), 0o555);
+        // Confirm plain fs.rm cannot remove it.
+        await expect(
+          rm(target, { recursive: true, force: true }),
+        ).rejects.toMatchObject({ code: "EACCES" });
+        // Restore read-only state so forceRemove starts clean.
+        await chmod(path.join(target, "yaml.v3@v3.0.1"), 0o555);
+        await chmod(path.join(target, "yaml.v3@v3.0.1", ".github"), 0o555);
+      },
+    },
+  ])("removes a $name", async ({ setup }) => {
     workDir = await mkdtemp(path.join(tmpdir(), "posthog-force-remove-"));
     const target = path.join(workDir, "tree");
-    const inner = path.join(target, "yaml.v3@v3.0.1", ".github");
-    await mkdir(inner, { recursive: true });
-    await writeFile(path.join(inner, "workflow.yml"), "on: push\n");
-
-    // Mimic Go's modcache lockdown: every directory inside loses its write bit.
-    await chmod(path.join(target, "yaml.v3@v3.0.1", ".github"), 0o555);
-    await chmod(path.join(target, "yaml.v3@v3.0.1"), 0o555);
-
-    await expect(
-      rm(target, { recursive: true, force: true }),
-    ).rejects.toMatchObject({ code: "EACCES" });
-    // Restore the dir so forceRemove starts from the same state every run.
-    await chmod(path.join(target, "yaml.v3@v3.0.1"), 0o555);
-    await chmod(path.join(target, "yaml.v3@v3.0.1", ".github"), 0o555);
+    await mkdir(target);
+    await setup(target);
 
     await forceRemove(target);
 
