@@ -111,7 +111,27 @@ export function PlanUsageSettings() {
           <Callout.Icon>
             <WarningCircle size={16} />
           </Callout.Icon>
-          <Callout.Text>{error}</Callout.Text>
+          <Callout.Text>
+            <Flex direction="column" gap="2">
+              <Text className="text-sm">{error}</Text>
+              <Text className="text-(--red-9) text-sm">
+                Update your payment method in PostHog to continue.
+              </Text>
+              <Button
+                size="1"
+                variant="outline"
+                color="red"
+                disabled={!billingUrl}
+                onClick={() => {
+                  void openBillingPage(billingOrgId);
+                }}
+                className="self-start"
+              >
+                Manage billing
+                <ArrowSquareOut size={12} />
+              </Button>
+            </Flex>
+          </Callout.Text>
         </Callout.Root>
       )}
 
