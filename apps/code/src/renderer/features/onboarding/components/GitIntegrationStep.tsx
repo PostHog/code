@@ -78,6 +78,7 @@ export function GitIntegrationStep({
     useGithubUserConnect({ projectId: selectedProjectId });
   const isConnecting = connectState === "connecting";
   const timedOut = connectState === "timed-out";
+  const canTakeAction = !isConnecting && !timedOut;
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -356,10 +357,29 @@ export function GitIntegrationStep({
                         </Flex>
                       </Flex>
                     ) : !isLoading && !githubUserIntegrationsLoading ? (
-                      selectedAlternative &&
-                      selectedProject &&
-                      !isConnecting &&
-                      !timedOut ? (
+                      selectedProject?.hasGithubIntegration && canTakeAction ? (
+                        <Flex direction="column" gap="3">
+                          <Text className="text-(--gray-11) text-sm">
+                            GitHub is already set up on{" "}
+                            <Text className="font-bold">
+                              {selectedProject.name}
+                            </Text>
+                            . Sign in with one click to link your account — no
+                            admin approval needed.
+                          </Text>
+                          <Button
+                            size="1"
+                            variant="solid"
+                            onClick={() => void handleConnectGitHub()}
+                            className="self-start"
+                          >
+                            Sign in with GitHub
+                            <ArrowSquareOut size={12} />
+                          </Button>
+                        </Flex>
+                      ) : selectedAlternative &&
+                        selectedProject &&
+                        canTakeAction ? (
                         <Flex direction="column" gap="3">
                           <Text className="text-(--gray-11) text-sm">
                             GitHub is already connected on{" "}
