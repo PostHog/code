@@ -445,17 +445,29 @@ export class TaskCreationSaga extends Saga<
     return this.step({
       name: "task_creation",
       execute: async () => {
+        log.info("Creating task", {
+          repository,
+          workspaceMode: input.workspaceMode,
+          signalReportId: input.signalReportId ?? null,
+          cloudRunSource: input.cloudRunSource ?? null,
+          githubIntegrationId:
+            input.workspaceMode === "cloud"
+              ? (input.githubIntegrationId ?? null)
+              : null,
+          githubUserIntegrationId:
+            input.workspaceMode === "cloud"
+              ? (input.githubUserIntegrationId ?? null)
+              : null,
+        });
         const result = await this.deps.posthogClient.createTask({
           description: input.taskDescription ?? input.content ?? "",
           repository: repository ?? undefined,
           github_integration:
-            input.workspaceMode === "cloud" &&
-            input.cloudRunSource === "signal_report"
+            input.workspaceMode === "cloud"
               ? input.githubIntegrationId
               : undefined,
           github_user_integration:
-            input.workspaceMode === "cloud" &&
-            input.cloudRunSource !== "signal_report"
+            input.workspaceMode === "cloud"
               ? input.githubUserIntegrationId
               : undefined,
           origin_product: input.signalReportId

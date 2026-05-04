@@ -7,6 +7,7 @@ import {
 } from "@features/integrations/stores/integrationStore";
 import type { UserGitHubIntegration } from "@renderer/api/posthogClient";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import {
   useCallback,
   useDeferredValue,
@@ -291,6 +292,7 @@ export function useUserGithubRepositories(
       },
       enabled: queryEnabled,
       staleTime: 5 * 60 * 1000,
+      placeholderData: (prev: unknown) => prev,
       meta: AUTH_SCOPED_QUERY_META,
     })),
     combine: (results) => {
@@ -624,4 +626,105 @@ export function useRepositoryIntegration() {
     refreshRepositories,
     hasGithubIntegration,
   };
+}
+
+const cloudRepoLog = logger.scope("cloud-repo-integration");
+
+type CloudRepoSource = "user" | "team";
+
+/**
+ * Unified accessor for the GitHub integration that backs cloud task creation.
+ * Prefers the user-level personal integration so cloud-run PRs are authored
+ * as the acting user; falls back to the org/team integration only when the
+ * user has not connected (or has an invalid) personal GitHub link.
+ */
+export function useCloudRepositoryIntegration(selectedRepo: string | null) {
+  const user = useUserRepositoryIntegration();
+  const team = useRepositoryIntegration();
+  const useTeamFallback = !user.isLoadingRepos && !user.hasGithubIntegration;
+
+  useEffect(() => {
+    if (user.isLoadingRepos) return;
+    cloudRepoLog.info("Using cloud GitHub integration source", {
+      source: useTeamFallback ? "team" : "user",
+      hasUserIntegration: user.hasGithubIntegration,
+      hasTeamIntegration: team.hasGithubIntegration,
+    });
+  }, [
+    useTeamFallback,
+    user.isLoadingRepos,
+    user.hasGithubIntegration,
+    team.hasGithubIntegration,
+  ]);
+
+  if (useTeamFallback) {
+    return {
+      source: "team" as CloudRepoSource,
+      repositories: team.repositories,
+      isLoadingRepos: user.isLoadingRepos || team.isLoadingRepos,
+      isRefreshingRepos: team.isRefreshingRepos,
+      refreshRepositories: team.refreshRepositories,
+      githubIntegrationId: selectedRepo
+        ? team.getIntegrationIdForRepo(selectedRepo)
+        : undefined,
+      githubUserIntegrationId: undefined as string | undefined,
+      installationId: undefined as string | undefined,
+    };
+  }
+
+  return {
+    source: "user" as CloudRepoSource,
+    repositories: user.repositories,
+    isLoadingRepos: user.isLoadingRepos,
+    isRefreshingRepos: user.isRefreshingRepos,
+    refreshRepositories: user.refreshRepositories,
+    githubIntegrationId: undefined as number | undefined,
+    githubUserIntegrationId: selectedRepo
+      ? user.getUserIntegrationIdForRepo(selectedRepo)
+      : undefined,
+    installationId: selectedRepo
+      ? user.getInstallationIdForRepo(selectedRepo)
+      : undefined,
+  };
+}
+
+/**
+ * Paginated repo picker that delegates to the user-level or team-level
+ * source. Both underlying hooks are always mounted so React's hook order
+ * stays stable; the inactive one is gated to `enabled: false` and never fires.
+ */
+export function useCloudGithubRepositories(
+  source: CloudRepoSource,
+  search: string | undefined,
+  enabled: boolean,
+) {
+  const user = useUserGithubRepositories(search, enabled && source === "user");
+  const team = useGithubRepositories(search, enabled && source === "team");
+  return source === "team" ? team : user;
+}
+
+/**
+ * Branches query for cloud tasks that delegates to the user-level or
+ * team-level source based on which integration produced the selected repo.
+ */
+export function useCloudGithubBranches(
+  source: CloudRepoSource,
+  ids: { githubIntegrationId?: number; installationId?: string },
+  repo: string | null | undefined,
+  search: string | undefined,
+  enabled: boolean,
+) {
+  const user = useUserGithubBranches(
+    ids.installationId,
+    repo,
+    search,
+    enabled && source === "user",
+  );
+  const team = useGithubBranches(
+    ids.githubIntegrationId,
+    repo,
+    search,
+    enabled && source === "team",
+  );
+  return source === "team" ? team : user;
 }

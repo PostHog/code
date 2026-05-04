@@ -24,9 +24,9 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useConnectivity } from "@hooks/useConnectivity";
 import {
-  useUserGithubBranches,
-  useUserGithubRepositories,
-  useUserRepositoryIntegration,
+  useCloudGithubBranches,
+  useCloudGithubRepositories,
+  useCloudRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { X } from "@phosphor-icons/react";
 import { ButtonGroup } from "@posthog/quill";
@@ -175,26 +175,36 @@ export function TaskInput({
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
-  const {
-    repositories,
-    getInstallationIdForRepo,
-    getUserIntegrationIdForRepo,
-    isLoadingRepos,
-    isRefreshingRepos,
-    refreshRepositories,
-  } = useUserRepositoryIntegration();
-  const {
-    repositories: visibleCloudRepositories,
-    isPending: cloudRepositoriesLoading,
-    hasMore: cloudRepositoriesHasMore,
-    loadMore: loadMoreCloudRepositories,
-  } = useUserGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () =>
       initialCloudRepository?.toLowerCase() ??
       lastUsedCloudRepository?.toLowerCase() ??
       null,
   );
+
+  const cloudRepoIntegration =
+    useCloudRepositoryIntegration(selectedRepository);
+  const {
+    source: cloudRepoSource,
+    repositories,
+    isLoadingRepos,
+    isRefreshingRepos,
+    refreshRepositories,
+    githubIntegrationId: selectedGithubIntegrationId,
+    githubUserIntegrationId: selectedGithubUserIntegrationId,
+  } = cloudRepoIntegration;
+
+  const {
+    repositories: visibleCloudRepositories,
+    isPending: cloudRepositoriesLoading,
+    hasMore: cloudRepositoriesHasMore,
+    loadMore: loadMoreCloudRepositories,
+  } = useCloudGithubRepositories(
+    cloudRepoSource,
+    cloudRepoSearchQuery,
+    isCloudRepoPickerOpen,
+  );
+
   const selectedCloudRepository = useMemo(() => {
     if (!selectedRepository) return null;
     const lower = selectedRepository.toLowerCase();
@@ -202,13 +212,6 @@ export function TaskInput({
   }, [selectedRepository, repositories]);
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
-
-  const selectedGithubUserIntegrationId = selectedCloudRepository
-    ? getUserIntegrationIdForRepo(selectedCloudRepository)
-    : undefined;
-  const selectedInstallationId = selectedCloudRepository
-    ? getInstallationIdForRepo(selectedCloudRepository)
-    : undefined;
 
   const {
     data: cloudBranchData,
@@ -218,8 +221,9 @@ export function TaskInput({
     hasMore: cloudBranchesHasMore,
     loadMore: loadMoreCloudBranches,
     refresh: refreshCloudBranches,
-  } = useUserGithubBranches(
-    selectedInstallationId,
+  } = useCloudGithubBranches(
+    cloudRepoSource,
+    cloudRepoIntegration,
     selectedCloudRepository,
     cloudBranchSearchQuery,
     isCloudBranchPickerOpen,
@@ -432,6 +436,7 @@ export function TaskInput({
     editorRef,
     selectedDirectory,
     selectedRepository: selectedCloudRepository,
+    githubIntegrationId: selectedGithubIntegrationId,
     githubUserIntegrationId: selectedGithubUserIntegrationId,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
