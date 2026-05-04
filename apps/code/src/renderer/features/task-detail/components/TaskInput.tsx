@@ -547,7 +547,9 @@ export function TaskInput({
 
     resolveAndAttachDroppedFiles(files, (a) =>
       editorRef.current?.addAttachment(a),
-    ).then(() => editorRef.current?.focus());
+    )
+      .then(() => editorRef.current?.focus())
+      .catch(() => toast.error("Failed to attach files"));
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {

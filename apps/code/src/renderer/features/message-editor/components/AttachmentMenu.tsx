@@ -15,14 +15,17 @@ import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { toast } from "@renderer/utils/toast";
 import { isImageFile } from "@shared/constants/image";
 import { useQuery } from "@tanstack/react-query";
-import { getFilePath } from "@utils/getFilePath";
 import { useRef, useState } from "react";
 import {
   deriveFileLabel,
   type FileAttachment,
   type MentionChip,
 } from "../utils/content";
-import { persistBrowserFile, persistImageFilePath } from "../utils/persistFile";
+import {
+  persistBrowserFile,
+  persistImageFilePath,
+  resolveDroppedFile,
+} from "../utils/persistFile";
 import { IssuePicker } from "./IssuePicker";
 
 interface AttachmentMenuProps {
@@ -83,10 +86,8 @@ export function AttachmentMenu({
     try {
       const attachments = await Promise.all(
         files.map(async (file) => {
-          const filePath = getFilePath(file);
-          if (filePath) {
-            return { id: filePath, label: file.name } satisfies FileAttachment;
-          }
+          const resolved = await resolveDroppedFile(file);
+          if (resolved) return resolved;
 
           return await persistBrowserFile(file);
         }),

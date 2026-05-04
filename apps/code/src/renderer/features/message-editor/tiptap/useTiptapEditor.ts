@@ -22,7 +22,7 @@ import {
 import {
   persistImageFile,
   persistTextContent,
-  resolveDroppedFile,
+  resolveAndAttachDroppedFiles,
 } from "../utils/persistFile";
 import { getEditorExtensions } from "./extensions";
 import { type DraftContext, useDraftSync } from "./useDraftSync";
@@ -372,16 +372,12 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
 
           event.preventDefault();
 
-          (async () => {
-            for (let i = 0; i < files.length; i++) {
-              const result = await resolveDroppedFile(files[i]);
-              if (!result) continue;
-              setAttachments((prev) => {
-                if (prev.some((a) => a.id === result.id)) return prev;
-                return [...prev, result];
-              });
-            }
-          })();
+          resolveAndAttachDroppedFiles(files, (a) => {
+            setAttachments((prev) => {
+              if (prev.some((existing) => existing.id === a.id)) return prev;
+              return [...prev, a];
+            });
+          }).catch(() => toast.error("Failed to attach files"));
 
           return true;
         },

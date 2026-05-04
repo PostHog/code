@@ -20,6 +20,7 @@ import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
+import { toast } from "@renderer/utils/toast";
 import type { TaskRunStatus } from "@shared/types";
 import {
   type AcpMessage,
@@ -374,7 +375,9 @@ export function SessionView({
 
     resolveAndAttachDroppedFiles(files, (a) =>
       editorRef.current?.addAttachment(a),
-    ).then(() => editorRef.current?.focus());
+    )
+      .then(() => editorRef.current?.focus())
+      .catch(() => toast.error("Failed to attach files"));
   }, []);
 
   const handlePaneClick = useCallback((e: React.MouseEvent) => {
