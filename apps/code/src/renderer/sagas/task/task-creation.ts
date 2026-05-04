@@ -408,7 +408,7 @@ export class TaskCreationSaga extends Saga<
           .replace(/<file\s+path="[^"]*"\s*\/>/g, "")
           .trim();
         const result = await this.deps.posthogClient.createTask({
-          title: plainText || "Reading attachment\u2026",
+          title: (plainText || "Reading attachment\u2026").slice(0, 255),
           description,
           repository: repository ?? undefined,
           github_integration:

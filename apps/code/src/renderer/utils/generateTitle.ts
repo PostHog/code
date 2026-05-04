@@ -169,7 +169,11 @@ export async function generateTitleAndSummary(
     const titleMatch = text.match(/^TITLE:\s*(.+?)(?:\n|$)/m);
     const summaryMatch = text.match(/SUMMARY:\s*([\s\S]+)$/m);
 
-    const title = titleMatch?.[1]?.trim().replace(/^["']|["']$/g, "") ?? "";
+    const title =
+      titleMatch?.[1]
+        ?.trim()
+        .replace(/^["']|["']$/g, "")
+        .slice(0, 255) ?? "";
     const summary = summaryMatch?.[1]?.trim() ?? "";
 
     if (!title && !summary) return null;

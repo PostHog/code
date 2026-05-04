@@ -74,7 +74,11 @@ export function useChatTitleGenerator(taskId: string): void {
         if (result) {
           const { title, summary } = result;
           if (title) {
-            if (getCachedTask(taskId)?.title_manually_set) {
+            const isFirstGeneration = lastGeneratedAtCount.current === 0;
+            if (
+              !isFirstGeneration &&
+              getCachedTask(taskId)?.title_manually_set
+            ) {
               log.debug("Skipping auto-title, user renamed task", { taskId });
               return;
             }
