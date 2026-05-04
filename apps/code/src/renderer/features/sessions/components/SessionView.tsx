@@ -563,10 +563,14 @@ export function SessionView({
                     </Flex>
                   </Flex>
                 ) : hideInput ? null : firstPendingPermission ? (
-                  <Box className="border-gray-4 border-t">
+                  <Box className="max-h-1/2 min-h-0 overflow-y-auto border-gray-4 border-t">
                     <Box
-                      className="mx-auto p-2"
-                      style={{ maxWidth: CHAT_CONTENT_MAX_WIDTH }}
+                      className={compact ? "p-1" : "mx-auto p-2"}
+                      style={
+                        compact
+                          ? undefined
+                          : { maxWidth: CHAT_CONTENT_MAX_WIDTH }
+                      }
                     >
                       <PermissionSelector
                         toolCall={firstPendingPermission.toolCall}
