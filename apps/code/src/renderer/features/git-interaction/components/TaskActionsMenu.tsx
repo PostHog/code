@@ -95,15 +95,24 @@ export function TaskActionsMenu({ taskId, isCloud }: TaskActionsMenuProps) {
   if (isCloud && !pr) return null;
 
   // When a PR exists the badge handles "view PR" and "create PR" is moot.
-  // Disabled commit/push entries (no changes, branch up to date) just clutter
-  // the dropdown next to the badge — drop them so the menu only surfaces
-  // actions the user can actually take.
+  // The work-shipping slots (commit and the push/sync/publish trio) only get
+  // disabled to signal "nothing to do" (no changes, branch up to date, no
+  // commits to publish) — that's noise next to a PR badge, so drop them.
+  // Other disabled actions stay so their `disabledReason` tooltip can still
+  // explain why they're unavailable.
+  const noWorkSlots = new Set<GitMenuActionId>([
+    "commit",
+    "push",
+    "sync",
+    "publish",
+  ]);
   const gitItems = isCloud
     ? []
     : gitState.actions.filter((a) => {
         if (!pr) return true;
         if (a.id === "view-pr" || a.id === "create-pr") return false;
-        return a.enabled;
+        if (!a.enabled && noWorkSlots.has(a.id)) return false;
+        return true;
       });
 
   return (
