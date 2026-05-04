@@ -10,8 +10,9 @@ import {
   QuestionIcon,
   TagIcon,
 } from "@phosphor-icons/react";
-import { Badge, Box, Flex, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Flex, Text } from "@radix-ui/themes";
 import type { Signal, SignalFindingContent } from "@shared/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 const COLLAPSE_THRESHOLD = 300;
@@ -542,11 +543,8 @@ function SessionProblemSignalCard({
       )}
       <CollapsibleBody body={signal.content} />
 
-      {extra.session_id && (
-        <SessionRecordingVideo
-          exportedAssetId={extra.exported_asset_id}
-          sessionId={extra.session_id}
-        />
+      {extra.exported_asset_id != null && (
+        <SessionRecordingVideo exportedAssetId={extra.exported_asset_id} />
       )}
 
       <Flex
@@ -607,33 +605,62 @@ function SessionProblemSignalCard({
 
 function SessionRecordingVideo({
   exportedAssetId,
-  sessionId,
 }: {
-  exportedAssetId?: number;
-  sessionId: string;
+  exportedAssetId: number;
 }) {
   const projectId = useAuthStateValue((state) => state.projectId);
+  const queryClient = useQueryClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoQuery = useAuthenticatedQuery<string | null>(
-    ["export-video", projectId, exportedAssetId, sessionId],
+    ["export-video", projectId, exportedAssetId],
     async (client) => {
       if (!projectId) return null;
-      let assetId: number | null = exportedAssetId ?? null;
-      // If no asset ID in the signal, look up the export by session_id
-      if (assetId == null) {
-        assetId = await client.findExportBySessionRecordingId(
-          projectId,
-          sessionId,
-        );
-        if (assetId == null) return null;
-      }
-      return client.getExportContentUrl(projectId, assetId);
+      return client.getExportContentUrl(projectId, exportedAssetId);
     },
     { enabled: !!projectId, staleTime: Infinity },
   );
 
-  if (videoQuery.isError || videoQuery.data === null) return null;
-  if (videoQuery.isLoading || videoQuery.data === undefined) {
+  const retryExportVideo = () => {
+    void queryClient.invalidateQueries({
+      queryKey: ["export-video", projectId, exportedAssetId],
+    });
+  };
+
+  if (videoQuery.isError) {
+    return (
+      <Flex
+        mt="2"
+        direction="column"
+        gap="2"
+        className="rounded border border-gray-6 bg-gray-2 p-3 text-[11px] text-gray-11"
+      >
+        <Text>Could not load recording.</Text>
+        <Box>
+          <Button
+            size="1"
+            variant="soft"
+            color="gray"
+            onClick={retryExportVideo}
+          >
+            Retry
+          </Button>
+        </Box>
+      </Flex>
+    );
+  }
+
+  if (videoQuery.data === null) {
+    return (
+      <Box
+        mt="2"
+        className="flex h-16 items-center justify-center rounded bg-gray-3 text-[11px] text-gray-9"
+      >
+        No playable export for this session yet.
+      </Box>
+    );
+  }
+
+  if (videoQuery.isPending || videoQuery.data === undefined) {
     return (
       <Box
         mt="2"
