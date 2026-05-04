@@ -83,6 +83,18 @@ async function emitToolDenial(
   });
 }
 
+async function buildDenialResult(
+  context: ToolHandlerContext,
+  response: RequestPermissionResponse,
+): Promise<ToolPermissionResult> {
+  const feedback = (response._meta?.customInput as string | undefined)?.trim();
+  const message = feedback
+    ? `User refused permission to run tool with feedback: ${feedback}`
+    : "User refused permission to run tool";
+  await emitToolDenial(context, message);
+  return { behavior: "deny", message, interrupt: !feedback };
+}
+
 function getPlanFromFile(
   session: Session,
   fileContentCache: { [key: string]: string },
@@ -394,16 +406,9 @@ async function handleDefaultPermissionFlow(
       behavior: "allow",
       updatedInput: toolInput as Record<string, unknown>,
     };
-  } else {
-    const feedback = (
-      response._meta?.customInput as string | undefined
-    )?.trim();
-    const message = feedback
-      ? `User refused permission to run tool with feedback: ${feedback}`
-      : "User refused permission to run tool";
-    await emitToolDenial(context, message);
-    return { behavior: "deny", message, interrupt: !feedback };
   }
+
+  return buildDenialResult(context, response);
 }
 
 function parseMcpToolName(toolName: string): {
@@ -484,12 +489,7 @@ async function handleMcpApprovalFlow(
     };
   }
 
-  const feedback = (response._meta?.customInput as string | undefined)?.trim();
-  const message = feedback
-    ? `User refused permission to run tool with feedback: ${feedback}`
-    : "User refused permission to run tool";
-  await emitToolDenial(context, message);
-  return { behavior: "deny", message, interrupt: !feedback };
+  return buildDenialResult(context, response);
 }
 
 async function handlePostHogExecApprovalFlow(
@@ -556,12 +556,7 @@ async function handlePostHogExecApprovalFlow(
     };
   }
 
-  const feedback = (response._meta?.customInput as string | undefined)?.trim();
-  const message = feedback
-    ? `User refused permission to run tool with feedback: ${feedback}`
-    : "User refused permission to run tool";
-  await emitToolDenial(context, message);
-  return { behavior: "deny", message, interrupt: !feedback };
+  return buildDenialResult(context, response);
 }
 
 function handlePlanFileException(
