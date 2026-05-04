@@ -70,6 +70,19 @@ export type McpInstallationTool = Schemas.MCPServerInstallationTool;
 
 export type Evaluation = Schemas.Evaluation;
 
+export interface UserGitHubIntegration {
+  id: string;
+  kind: "github";
+  installation_id: string;
+  repository_selection?: string | null;
+  account?: {
+    type?: string | null;
+    name?: string | null;
+  } | null;
+  uses_shared_installation?: boolean;
+  created_at?: string;
+}
+
 export interface SignalSourceConfig {
   id: string;
   source_product:
@@ -153,7 +166,6 @@ interface CloudRunOptions {
   prAuthorshipMode?: PrAuthorshipMode;
   runSource?: CloudRunSource;
   signalReportId?: string;
-  githubUserToken?: string;
   initialPermissionMode?: PermissionMode;
 }
 
@@ -229,9 +241,6 @@ function buildCloudRunRequestBody(
   }
   if (options?.signalReportId) {
     body.signal_report_id = options.signalReportId;
-  }
-  if (options?.githubUserToken) {
-    body.github_user_token = options.githubUserToken;
   }
   if (options?.initialPermissionMode) {
     body.initial_permission_mode = options.initialPermissionMode;
@@ -563,7 +572,7 @@ export class PostHogAPIClient {
    */
   async startGithubUserIntegrationConnect(teamId?: number): Promise<{
     install_url: string;
-    connect_flow?: "oauth_authorize" | "app_install";
+    connect_flow?: "oauth_authorize" | "oauth_discover" | "app_install";
   }> {
     const id = teamId ?? (await this.getTeamId());
     const urlPath = `/api/users/@me/integrations/github/start/`;
@@ -588,8 +597,29 @@ export class PostHogAPIClient {
     }
     return (await response.json()) as {
       install_url: string;
-      connect_flow?: "oauth_authorize" | "app_install";
+      connect_flow?: "oauth_authorize" | "oauth_discover" | "app_install";
     };
+  }
+
+  async getGithubUserIntegrations(): Promise<UserGitHubIntegration[]> {
+    const urlPath = `/api/users/@me/integrations/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch personal GitHub integrations: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      results?: UserGitHubIntegration[];
+    };
+    return data.results ?? [];
   }
 
   async switchOrganization(orgId: string): Promise<void> {
@@ -837,17 +867,19 @@ export class PostHogAPIClient {
         >
       > & {
         github_integration?: number | null;
+        github_user_integration?: string | null;
         /** POST-only: `SignalReportTask.relationship` to create when linking to `signal_report`. */
         signal_report_task_relationship?: SignalReportTaskRelationship;
       },
   ) {
     const teamId = await this.getTeamId();
+    const { origin_product: originProduct, ...taskOptions } = options;
 
     const data = await this.api.post(`/api/projects/{project_id}/tasks/`, {
       path: { project_id: teamId.toString() },
       body: {
-        origin_product: "user_created",
-        ...options,
+        ...taskOptions,
+        origin_product: originProduct ?? "user_created",
       } as unknown as Schemas.Task,
     });
 
@@ -883,6 +915,7 @@ export class PostHogAPIClient {
       json_schema: task.json_schema,
       origin_product: task.origin_product,
       github_integration: task.github_integration,
+      github_user_integration: task.github_user_integration,
     });
   }
 
@@ -1438,6 +1471,45 @@ export class PostHogAPIClient {
     };
   }
 
+  async getGithubUserBranchesPage(
+    installationId: string | number,
+    repo: string,
+    offset: number,
+    limit: number,
+    search?: string,
+  ): Promise<{
+    branches: string[];
+    defaultBranch: string | null;
+    hasMore: boolean;
+  }> {
+    const urlPath = `/api/users/@me/integrations/github/${installationId}/branches/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("repo", repo);
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch personal GitHub branches: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      branches: data.branches ?? data.results ?? data ?? [],
+      defaultBranch: data.default_branch ?? null,
+      hasMore: data.has_more ?? false,
+    };
+  }
+
   async getGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
@@ -1497,6 +1569,63 @@ export class PostHogAPIClient {
     };
   }
 
+  async getGithubUserRepositories(
+    installationId: string | number,
+  ): Promise<string[]> {
+    const repositories: string[] = [];
+    let offset = 0;
+
+    while (true) {
+      const page = await this.getGithubUserRepositoriesPage(
+        installationId,
+        offset,
+        500,
+      );
+      repositories.push(...page.repositories);
+
+      if (!page.hasMore) {
+        return repositories;
+      }
+
+      offset += page.repositories.length;
+    }
+  }
+
+  async getGithubUserRepositoriesPage(
+    installationId: string | number,
+    offset: number,
+    limit: number,
+    search?: string,
+  ): Promise<{
+    repositories: string[];
+    hasMore: boolean;
+  }> {
+    const urlPath = `/api/users/@me/integrations/github/${installationId}/repos/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("limit", String(limit));
+    if (search?.trim()) {
+      url.searchParams.set("search", search.trim());
+    }
+    const response = await this.api.fetcher.fetch({
+      method: "get",
+      url,
+      path: urlPath,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch personal GitHub repositories: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return {
+      repositories: this.normalizeGithubRepositories(data),
+      hasMore: data.has_more ?? false,
+    };
+  }
+
   async refreshGithubRepositories(
     integrationId: string | number,
   ): Promise<string[]> {
@@ -1513,6 +1642,27 @@ export class PostHogAPIClient {
     if (!response.ok) {
       throw new Error(
         `Failed to refresh GitHub repositories: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    return this.normalizeGithubRepositories(data);
+  }
+
+  async refreshGithubUserRepositories(
+    installationId: string | number,
+  ): Promise<string[]> {
+    const urlPath = `/api/users/@me/integrations/github/${installationId}/repos/refresh/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "post",
+      url,
+      path: urlPath,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to refresh personal GitHub repositories: ${response.statusText}`,
       );
     }
 
@@ -2299,6 +2449,7 @@ export class PostHogAPIClient {
     try {
       const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
+      url.searchParams.set("best", "true");
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,

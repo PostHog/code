@@ -39,15 +39,23 @@ process.env.POSTHOG_CODE_DATA_DIR = userDataPath;
 process.env.POSTHOG_CODE_IS_DEV = String(isDev);
 process.env.POSTHOG_CODE_VERSION = app.getVersion();
 
-const logDir = path.join(
+// Enable Chromium internal logging to a dedicated file. Without this, Chromium
+// crashes (black screens, render-process-gone, GPU process death) leave no
+// trail because Electron silently swallows the underlying logs. Must run
+// before app.whenReady() so the switches take effect on the GPU/renderer
+// child processes.
+const chromiumLogDir = path.join(
   os.homedir(),
   ".posthog-code",
   isDev ? "logs-dev" : "logs",
 );
-mkdirSync(logDir, { recursive: true });
-app.commandLine.appendSwitch("enable-logging");
-app.commandLine.appendSwitch("log-file", path.join(logDir, "chromium.log"));
-app.commandLine.appendSwitch("log-level", isDev ? "0" : "1");
+mkdirSync(chromiumLogDir, { recursive: true });
+const chromiumLogPath = path.join(chromiumLogDir, "chromium.log");
+process.env.ELECTRON_ENABLE_LOGGING = "1";
+process.env.POSTHOG_CODE_CHROMIUM_LOG_PATH = chromiumLogPath;
+app.commandLine.appendSwitch("enable-logging", "file");
+app.commandLine.appendSwitch("log-file", chromiumLogPath);
+app.commandLine.appendSwitch("log-level", "0");
 
 crashReporter.start({ uploadToServer: false });
 

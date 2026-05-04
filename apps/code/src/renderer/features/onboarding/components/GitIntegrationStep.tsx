@@ -2,9 +2,11 @@ import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient"
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
-import { useIntegrationSelectors } from "@features/integrations/stores/integrationStore";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import {
+  useUserGithubIntegrations,
+  useUserRepositoryIntegration,
+} from "@hooks/useIntegrations";
 import {
   ArrowLeft,
   ArrowRight,
@@ -85,10 +87,13 @@ export function GitIntegrationStep({
     [projects, selectedProjectId],
   );
 
-  const hasGitIntegration = selectedProject?.hasGithubIntegration ?? false;
-  const { repositories, isLoadingRepos } = useRepositoryIntegration();
-  const { githubIntegrations } = useIntegrationSelectors();
-  const githubIntegration = githubIntegrations[0] ?? null;
+  const {
+    data: githubUserIntegrations = [],
+    isLoading: githubUserIntegrationsLoading,
+  } = useUserGithubIntegrations();
+  const hasGitIntegration = githubUserIntegrations.length > 0;
+  const { repositories, isLoadingRepos } = useUserRepositoryIntegration();
+  const githubIntegration = githubUserIntegrations[0] ?? null;
 
   const alternativeConnectedProject = useMemo(() => {
     if (hasGitIntegration) return null;
@@ -135,10 +140,16 @@ export function GitIntegrationStep({
     (projectId: number | null) => {
       if (projectId === null) {
         void queryClient.invalidateQueries({ queryKey: ["integrations"] });
+        void queryClient.invalidateQueries({
+          queryKey: ["user-github-integrations"],
+        });
         return;
       }
       void queryClient.invalidateQueries({
         queryKey: ["integrations", projectId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["user-github-integrations"],
       });
     },
     [queryClient],
@@ -170,10 +181,13 @@ export function GitIntegrationStep({
     setTimedOut(false);
     setConnectingGithub(true);
     try {
-      await trpcClient.githubIntegration.startFlow.mutate({
-        region: cloudRegion,
-        projectId: selectedProjectId,
-      });
+      const res =
+        await client.startGithubUserIntegrationConnect(selectedProjectId);
+      const installUrl = res.install_url?.trim() ?? "";
+      if (!installUrl) {
+        throw new Error("GitHub connection did not return a URL");
+      }
+      await trpcClient.os.openExternal.mutate({ url: installUrl });
 
       // Dev-only fallback: GitHub returns via posthog-code-dev:// while the
       // browser flow may not always surface the same path; poll integrations.
@@ -181,6 +195,9 @@ export function GitIntegrationStep({
         pollTimerRef.current = setInterval(() => {
           void queryClient.invalidateQueries({
             queryKey: ["integrations", selectedProjectId],
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["user-github-integrations"],
           });
         }, POLL_INTERVAL_MS);
       }
@@ -191,8 +208,13 @@ export function GitIntegrationStep({
         setConnectingGithub(false);
         setTimedOut(true);
       }, POLL_TIMEOUT_MS);
-    } catch {
+    } catch (error) {
       setConnectingGithub(false);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to start GitHub connection",
+      );
     }
   };
 
@@ -391,7 +413,7 @@ export function GitIntegrationStep({
                           Connect GitHub
                         </Text>
                       </Flex>
-                      {isLoading ? (
+                      {isLoading || githubUserIntegrationsLoading ? (
                         <Skeleton className="h-[16px] w-[80px]" />
                       ) : hasGitIntegration ? (
                         <Flex align="center" gap="1">
@@ -421,17 +443,8 @@ export function GitIntegrationStep({
                             variant="soft"
                             color="gray"
                             onClick={() => {
-                              const config = githubIntegration?.config as
-                                | {
-                                    installation_id?: number;
-                                    account?: {
-                                      name?: string;
-                                      type?: string;
-                                    };
-                                  }
-                                | undefined;
-                              const id = config?.installation_id;
-                              const account = config?.account;
+                              const id = githubIntegration?.installation_id;
+                              const account = githubIntegration?.account;
                               const url = id
                                 ? account?.type === "Organization" &&
                                   account.name
@@ -452,6 +465,9 @@ export function GitIntegrationStep({
                               queryClient.invalidateQueries({
                                 queryKey: ["integrations"],
                               });
+                              queryClient.invalidateQueries({
+                                queryKey: ["user-github-integrations"],
+                              });
                             }}
                           >
                             <ArrowsClockwise size={12} />
@@ -459,7 +475,7 @@ export function GitIntegrationStep({
                           </Button>
                         </Flex>
                       </Flex>
-                    ) : !isLoading ? (
+                    ) : !isLoading && !githubUserIntegrationsLoading ? (
                       <Flex direction="column" gap="3">
                         <Text className="text-(--gray-11) text-sm">
                           {timedOut

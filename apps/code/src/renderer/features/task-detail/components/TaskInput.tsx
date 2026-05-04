@@ -24,9 +24,9 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useConnectivity } from "@hooks/useConnectivity";
 import {
-  useGithubBranches,
-  useGithubRepositories,
-  useRepositoryIntegration,
+  useUserGithubBranches,
+  useUserGithubRepositories,
+  useUserRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { X } from "@phosphor-icons/react";
 import { ButtonGroup } from "@posthog/quill";
@@ -177,17 +177,18 @@ export function TaskInput({
 
   const {
     repositories,
-    getIntegrationIdForRepo,
+    getInstallationIdForRepo,
+    getUserIntegrationIdForRepo,
     isLoadingRepos,
     isRefreshingRepos,
     refreshRepositories,
-  } = useRepositoryIntegration();
+  } = useUserRepositoryIntegration();
   const {
     repositories: visibleCloudRepositories,
     isPending: cloudRepositoriesLoading,
     hasMore: cloudRepositoriesHasMore,
     loadMore: loadMoreCloudRepositories,
-  } = useGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
+  } = useUserGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () =>
       initialCloudRepository?.toLowerCase() ??
@@ -202,8 +203,11 @@ export function TaskInput({
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
-  const selectedIntegrationId = selectedCloudRepository
-    ? getIntegrationIdForRepo(selectedCloudRepository)
+  const selectedGithubUserIntegrationId = selectedCloudRepository
+    ? getUserIntegrationIdForRepo(selectedCloudRepository)
+    : undefined;
+  const selectedInstallationId = selectedCloudRepository
+    ? getInstallationIdForRepo(selectedCloudRepository)
     : undefined;
 
   const {
@@ -214,8 +218,8 @@ export function TaskInput({
     hasMore: cloudBranchesHasMore,
     loadMore: loadMoreCloudBranches,
     refresh: refreshCloudBranches,
-  } = useGithubBranches(
-    selectedIntegrationId,
+  } = useUserGithubBranches(
+    selectedInstallationId,
     selectedCloudRepository,
     cloudBranchSearchQuery,
     isCloudBranchPickerOpen,
@@ -428,7 +432,7 @@ export function TaskInput({
     editorRef,
     selectedDirectory,
     selectedRepository: selectedCloudRepository,
-    githubIntegrationId: selectedIntegrationId,
+    githubUserIntegrationId: selectedGithubUserIntegrationId,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
     editorIsEmpty,

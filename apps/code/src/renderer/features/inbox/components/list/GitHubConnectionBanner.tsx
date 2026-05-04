@@ -2,7 +2,7 @@ import { Button } from "@components/ui/Button";
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
-import { useRepositoryIntegration } from "@hooks/useIntegrations";
+import { useUserRepositoryIntegration } from "@hooks/useIntegrations";
 import {
   ArrowSquareOutIcon,
   GithubLogoIcon,
@@ -22,7 +22,6 @@ async function openUrlInBrowser(url: string): Promise<void> {
   }
 }
 
-/** Uses project-scoped integrations (see useRepositoryIntegration), not session `current_team`. */
 export function GitHubConnectionBanner() {
   const { data: githubLogin, isLoading: loginLoading } = useAuthenticatedQuery(
     ["github_login"],
@@ -30,7 +29,7 @@ export function GitHubConnectionBanner() {
     { staleTime: 5 * 60 * 1000 },
   );
   const { hasGithubIntegration: hasGithubForProject } =
-    useRepositoryIntegration();
+    useUserRepositoryIntegration();
   const apiClient = useOptionalAuthenticatedClient();
   const projectId = useAuthStateValue((s) => s.projectId);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
@@ -49,6 +48,9 @@ export function GitHubConnectionBanner() {
         void queryClient.invalidateQueries({ queryKey: ["github_login"] });
         void queryClient.invalidateQueries({
           queryKey: ["integrations", "list"],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["user-github-integrations"],
         });
       }
     };

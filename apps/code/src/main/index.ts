@@ -29,6 +29,11 @@ import type { TaskLinkService } from "./services/task-link/service";
 import type { UpdatesService } from "./services/updates/service";
 import type { WorkspaceService } from "./services/workspace/service";
 import { ensureClaudeConfigDir } from "./utils/env";
+import {
+  getChromiumLogFilePath,
+  getLogFilePath,
+  readChromiumLogTail,
+} from "./utils/logger";
 import { createWindow } from "./window";
 
 // Single instance lock must be acquired FIRST before any other app setup
@@ -37,6 +42,30 @@ const gotTheLock = app.requestSingleInstanceLock(additionalData);
 if (!gotTheLock) {
   app.quit();
   process.exit(0);
+}
+
+const RECOVERABLE_RENDER_REASONS = new Set([
+  "abnormal-exit",
+  "killed",
+  "crashed",
+  "oom",
+  "integrity-failure",
+  "memory-eviction",
+]);
+const CRASH_LOOP_WINDOW_MS = 30_000;
+const CRASH_LOOP_THRESHOLD = 3;
+const recentCrashTimestamps: number[] = [];
+
+function isCrashLoop(): boolean {
+  const now = Date.now();
+  while (
+    recentCrashTimestamps.length > 0 &&
+    now - recentCrashTimestamps[0] > CRASH_LOOP_WINDOW_MS
+  ) {
+    recentCrashTimestamps.shift();
+  }
+  recentCrashTimestamps.push(now);
+  return recentCrashTimestamps.length >= CRASH_LOOP_THRESHOLD;
 }
 
 app.on("render-process-gone", (_event, webContents, details) => {
@@ -49,7 +78,10 @@ app.on("render-process-gone", (_event, webContents, details) => {
     title: webContents.getTitle(),
     webContentsId: String(webContents.id),
   };
-  log.error("Renderer process gone", props);
+  log.error("Renderer process gone", {
+    ...props,
+    chromiumLogTail: readChromiumLogTail(),
+  });
   captureException(
     new Error(`Renderer process gone: ${details.reason}`),
     props,
@@ -58,15 +90,14 @@ app.on("render-process-gone", (_event, webContents, details) => {
     ?.flush()
     .catch(() => {});
 
-  const recoverableReasons = new Set([
-    "abnormal-exit",
-    "killed",
-    "crashed",
-    "oom",
-    "integrity-failure",
-    "memory-eviction",
-  ]);
-  if (recoverableReasons.has(details.reason)) {
+  if (RECOVERABLE_RENDER_REASONS.has(details.reason)) {
+    if (isCrashLoop()) {
+      log.error("Crash loop detected, stopping auto-recovery", {
+        crashesInWindow: recentCrashTimestamps.length,
+        windowMs: CRASH_LOOP_WINDOW_MS,
+      });
+      return;
+    }
     log.info("Recovering from renderer crash", { reason: details.reason });
     const win = BrowserWindow.fromWebContents(webContents);
     if (!win || win.isDestroyed()) {
@@ -96,7 +127,10 @@ app.on("child-process-gone", (_event, details) => {
     serviceName: details.serviceName ?? "",
     name: details.name ?? "",
   };
-  log.error("Child process gone", props);
+  log.error("Child process gone", {
+    ...props,
+    chromiumLogTail: readChromiumLogTail(),
+  });
   captureException(
     new Error(`Child process gone (${details.type}): ${details.reason}`),
     props,
@@ -159,6 +193,9 @@ app.whenReady().then(async () => {
       `V8: ${process.versions.v8}`,
       `OS: ${process.platform} ${process.arch} ${os.release()}`,
     ].join(" | "),
+  );
+  log.info(
+    `Logs: main=${getLogFilePath()} chromium=${getChromiumLogFilePath() ?? "(disabled)"}`,
   );
   ensureClaudeConfigDir();
   registerMcpSandboxProtocol();

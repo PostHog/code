@@ -166,7 +166,6 @@ describe("TaskCreationSaga", () => {
       prAuthorshipMode: "bot",
       runSource: "manual",
       signalReportId: undefined,
-      githubUserToken: undefined,
       initialPermissionMode: "auto",
     });
     expect(startTaskRunMock).toHaveBeenCalledWith("task-123", "run-123", {
@@ -351,7 +350,6 @@ describe("TaskCreationSaga", () => {
       prAuthorshipMode: "bot",
       runSource: "manual",
       signalReportId: undefined,
-      githubUserToken: undefined,
       initialPermissionMode: "auto",
     });
     expect(startTaskRunMock).toHaveBeenCalledWith("task-123", "run-123", {
@@ -367,6 +365,101 @@ describe("TaskCreationSaga", () => {
     ).toBeLessThan(startTaskRunMock.mock.invocationCallOrder[0]);
     expect(startTaskRunMock.mock.invocationCallOrder[0]).toBeLessThan(
       onTaskReady.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("uses the selected user GitHub integration for cloud task creation", async () => {
+    const createdTask = createTask({
+      github_user_integration: "user-integration-123",
+    });
+    const startedTask = createTask({ latest_run: createRun() });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
+        sendRunCommand: vi.fn(),
+        updateTask: vi.fn(),
+      } as never,
+    });
+
+    const result = await saga.run({
+      content: "Ship the fix",
+      repository: "posthog/posthog",
+      workspaceMode: "cloud",
+      branch: "main",
+      githubUserIntegrationId: "user-integration-123",
+    });
+
+    expect(result.success).toBe(true);
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repository: "posthog/posthog",
+        github_user_integration: "user-integration-123",
+        github_integration: undefined,
+      }),
+    );
+    expect(createTaskRunMock).toHaveBeenCalledWith(
+      "task-123",
+      expect.objectContaining({
+        prAuthorshipMode: "user",
+        runSource: "manual",
+      }),
+    );
+  });
+
+  it("uses user authorship for repo-less cloud tasks with a selected user GitHub integration", async () => {
+    const createdTask = createTask({
+      repository: null,
+      github_user_integration: "user-integration-123",
+    });
+    const startedTask = createTask({
+      repository: null,
+      latest_run: createRun(),
+    });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
+        sendRunCommand: vi.fn(),
+        updateTask: vi.fn(),
+      } as never,
+    });
+
+    const result = await saga.run({
+      content: "Clone the private repo",
+      workspaceMode: "cloud",
+      branch: "main",
+      githubUserIntegrationId: "user-integration-123",
+    });
+
+    expect(result.success).toBe(true);
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repository: undefined,
+        github_user_integration: "user-integration-123",
+        github_integration: undefined,
+      }),
+    );
+    expect(createTaskRunMock).toHaveBeenCalledWith(
+      "task-123",
+      expect.objectContaining({
+        prAuthorshipMode: "user",
+        runSource: "manual",
+      }),
     );
   });
 });

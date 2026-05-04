@@ -15,7 +15,7 @@ import { buildApplicationMenu } from "./menu";
 import type { ElectronMainWindow } from "./platform-adapters/electron-main-window";
 import { trpcRouter } from "./trpc/router";
 import { isDevBuild } from "./utils/env";
-import { logger } from "./utils/logger";
+import { logger, readChromiumLogTail } from "./utils/logger";
 import { type WindowStateSchema, windowStateStore } from "./utils/store";
 
 const log = logger.scope("window");
@@ -104,6 +104,28 @@ function setupExternalLinkHandlers(window: BrowserWindow): void {
   });
 }
 
+function setupCrashLogging(window: BrowserWindow): void {
+  window.webContents.on("render-process-gone", (_event, details) => {
+    log.error("Renderer process gone", {
+      reason: details.reason,
+      exitCode: details.exitCode,
+      url: window.webContents.getURL(),
+      chromiumLogTail: readChromiumLogTail(),
+    });
+  });
+
+  window.on("unresponsive", () => {
+    log.warn("Window unresponsive", {
+      url: window.webContents.getURL(),
+      chromiumLogTail: readChromiumLogTail(),
+    });
+  });
+
+  window.on("responsive", () => {
+    log.info("Window responsive again");
+  });
+}
+
 function setupEditableContextMenu(window: BrowserWindow): void {
   window.webContents.on("context-menu", (_event, params) => {
     if (!params.isEditable) return;
@@ -171,6 +193,7 @@ export function createWindow(): void {
       preload: path.join(__dirname, "preload.js"),
       enableBlinkFeatures: "GetDisplayMedia",
       partition: "persist:main",
+      additionalArguments: isDev ? ["--posthog-code-dev"] : [],
       ...(isDev && { webSecurity: false }),
     },
   });
@@ -216,6 +239,7 @@ export function createWindow(): void {
 
   setupExternalLinkHandlers(mainWindow);
   setupEditableContextMenu(mainWindow);
+  setupCrashLogging(mainWindow);
   buildApplicationMenu();
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
