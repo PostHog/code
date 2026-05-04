@@ -11,6 +11,7 @@ export type SettingsCategory =
   | "claude-code"
   | "shortcuts"
   | "mcp-servers"
+  | "github"
   | "signals"
   | "updates"
   | "advanced";

@@ -622,6 +622,26 @@ export class PostHogAPIClient {
     return data.results ?? [];
   }
 
+  async disconnectGithubUserIntegration(installationId: string): Promise<void> {
+    const urlPath = `/api/users/@me/integrations/github/${installationId}/`;
+    const url = new URL(`${this.api.baseUrl}${urlPath}`);
+    const response = await this.api.fetcher.fetch({
+      method: "delete",
+      url,
+      path: urlPath,
+    });
+    if (!response.ok && response.status !== 204) {
+      const err = (await response.json().catch(() => ({}))) as {
+        detail?: unknown;
+      };
+      const detail =
+        typeof err.detail === "string"
+          ? err.detail
+          : "Failed to disconnect GitHub";
+      throw new Error(detail);
+    }
+  }
+
   async switchOrganization(orgId: string): Promise<void> {
     await this.api.patch("/api/users/{uuid}/", {
       path: { uuid: "@me" },
