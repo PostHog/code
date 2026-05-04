@@ -643,6 +643,31 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     [editor, draft, attachments],
   );
 
+  const removeChipById = useCallback(
+    (chipId: string) => {
+      if (!editor) return;
+      editor.commands.removeMentionChipById(chipId);
+      draft.saveDraft(editor, attachments);
+    },
+    [editor, draft, attachments],
+  );
+
+  const replaceChipAttrs = useCallback(
+    (
+      chipId: string,
+      attrs: Partial<{
+        id: string;
+        label: string;
+        type: MentionChip["type"];
+      }>,
+    ) => {
+      if (!editor) return;
+      editor.commands.replaceMentionChipById(chipId, attrs);
+      draft.saveDraft(editor, attachments);
+    },
+    [editor, draft, attachments],
+  );
+
   const addAttachment = useCallback((attachment: FileAttachment) => {
     setAttachments((prev) => {
       if (prev.some((a) => a.id === attachment.id)) return prev;
@@ -671,6 +696,8 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     getContent: draft.getContent,
     setContent,
     insertChip,
+    removeChipById,
+    replaceChipAttrs,
     attachments,
     addAttachment,
     removeAttachment,
