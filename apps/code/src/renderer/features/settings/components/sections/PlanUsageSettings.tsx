@@ -8,6 +8,7 @@ import {
   ArrowSquareOut,
   Check,
   CreditCard,
+  Info,
   WarningCircle,
 } from "@phosphor-icons/react";
 import {
@@ -56,13 +57,15 @@ function formatResetTime(seconds: number): string {
 export function PlanUsageSettings() {
   const {
     seat,
-    isPro,
+    orgSeat,
+    isOrgPro,
     isCanceling,
     activeUntil,
     isLoading,
     error,
     redirectUrl,
     billingOrgId,
+    hasBetterPlanElsewhere,
   } = useSeat();
   const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
@@ -73,7 +76,7 @@ export function PlanUsageSettings() {
     : null;
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
-  const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;
+  const isAlpha = orgSeat?.plan_key === PLAN_PRO_ALPHA;
   const {
     usage,
     isLoading: usageLoading,
@@ -83,7 +86,7 @@ export function PlanUsageSettings() {
   });
 
   useEffect(() => {
-    void fetchSeat();
+    void fetchSeat({ autoProvision: true });
     void refetchUsage();
   }, [fetchSeat, refetchUsage]);
 
@@ -108,7 +111,27 @@ export function PlanUsageSettings() {
           <Callout.Icon>
             <WarningCircle size={16} />
           </Callout.Icon>
-          <Callout.Text>{error}</Callout.Text>
+          <Callout.Text>
+            <Flex direction="column" gap="2">
+              <Text className="text-sm">{error}</Text>
+              <Text className="text-(--red-9) text-sm">
+                Update your payment method in PostHog to continue.
+              </Text>
+              <Button
+                size="1"
+                variant="outline"
+                color="red"
+                disabled={!billingUrl}
+                onClick={() => {
+                  void openBillingPage(billingOrgId);
+                }}
+                className="self-start"
+              >
+                Manage billing
+                <ArrowSquareOut size={12} />
+              </Button>
+            </Flex>
+          </Callout.Text>
         </Callout.Root>
       )}
 
@@ -142,8 +165,21 @@ export function PlanUsageSettings() {
         </Callout.Root>
       )}
 
+      {hasBetterPlanElsewhere && seat?.organization_name && (
+        <Callout.Root color="blue" size="1">
+          <Callout.Icon>
+            <Info size={16} />
+          </Callout.Icon>
+          <Callout.Text className="text-sm">
+            You have a Pro plan on{" "}
+            <Text weight="medium">{seat.organization_name}</Text>. Usage on this
+            page reflects your current organization.
+          </Callout.Text>
+        </Callout.Root>
+      )}
+
       <Flex gap="3">
-        {seat ? (
+        {orgSeat ? (
           <>
             <PlanCard
               name="Free"
@@ -154,7 +190,7 @@ export function PlanUsageSettings() {
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={!isPro}
+              isCurrent={!isOrgPro}
             />
             <PlanCard
               name="Pro"
@@ -165,11 +201,11 @@ export function PlanUsageSettings() {
                 "Local and cloud execution",
                 "All Claude and Codex models",
               ]}
-              isCurrent={isPro && !isAlpha}
+              isCurrent={isOrgPro && !isAlpha}
               resetLabel={
-                isPro && !isAlpha && isCanceling && formattedActiveUntil
+                isOrgPro && !isAlpha && isCanceling && formattedActiveUntil
                   ? `Cancels ${formattedActiveUntil}`
-                  : isPro &&
+                  : isOrgPro &&
                       !isAlpha &&
                       formattedActiveUntil &&
                       daysUntilReset !== null
@@ -177,7 +213,7 @@ export function PlanUsageSettings() {
                     : undefined
               }
               action={
-                isPro && !isAlpha ? (
+                isOrgPro && !isAlpha ? (
                   isCanceling ? (
                     <Button
                       size="1"
@@ -238,10 +274,10 @@ export function PlanUsageSettings() {
           className="rounded-(--radius-3) border border-(--accent-7) bg-(--accent-2)"
         >
           <Flex direction="column" gap="2">
-            <Text className="font-medium text-sm">Alpha plan</Text>
+            <Text className="font-medium text-sm">Extended Alpha Plan</Text>
             <Text className="text-(--gray-11) text-sm">
-              You're on the free alpha Pro plan with full Pro features. You can
-              upgrade to the paid Pro plan anytime for higher usage limits.
+              You're on the free Pro plan with full Pro features until June 4,
+              2026.
             </Text>
           </Flex>
         </Flex>
@@ -285,7 +321,7 @@ export function PlanUsageSettings() {
         )}
       </Flex>
 
-      {isPro && (
+      {isOrgPro && (
         <Flex direction="column" gap="3">
           <Text className="font-medium text-(--gray-9) text-sm">Billing</Text>
           <Flex

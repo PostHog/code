@@ -2460,11 +2460,15 @@ export class PostHogAPIClient {
     return data.results ?? data ?? [];
   }
 
-  async getMySeat(): Promise<SeatData | null> {
+  async getMySeat(
+    options: { best?: boolean } = { best: true },
+  ): Promise<SeatData | null> {
     try {
       const url = new URL(`${this.api.baseUrl}/api/seats/me/`);
       url.searchParams.set("product_key", SEAT_PRODUCT_KEY);
-      url.searchParams.set("best", "true");
+      if (options.best) {
+        url.searchParams.set("best", "true");
+      }
       const response = await this.api.fetcher.fetch({
         method: "get",
         url,
