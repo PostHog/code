@@ -156,6 +156,73 @@ function CloudStatusIcon({
   );
 }
 
+function PrStatusIcon({
+  prState,
+  hasDiff,
+}: {
+  prState?: SidebarPrState;
+  hasDiff?: boolean;
+}) {
+  if (prState === "merged") {
+    return (
+      <Tooltip content="PR merged" side="right">
+        <span className="flex items-center justify-center">
+          <GitMerge size={ICON_SIZE} weight="bold" className="text-purple-11" />
+        </span>
+      </Tooltip>
+    );
+  }
+  if (prState === "open") {
+    return (
+      <Tooltip content="PR open" side="right">
+        <span className="flex items-center justify-center">
+          <GitPullRequest
+            size={ICON_SIZE}
+            weight="bold"
+            className="text-green-11"
+          />
+        </span>
+      </Tooltip>
+    );
+  }
+  if (prState === "draft") {
+    return (
+      <Tooltip content="Draft PR" side="right">
+        <span className="flex items-center justify-center">
+          <GitPullRequest
+            size={ICON_SIZE}
+            weight="bold"
+            className="text-gray-9"
+          />
+        </span>
+      </Tooltip>
+    );
+  }
+  if (prState === "closed") {
+    return (
+      <Tooltip content="PR closed" side="right">
+        <span className="flex items-center justify-center">
+          <GitPullRequest
+            size={ICON_SIZE}
+            weight="bold"
+            className="text-red-11"
+          />
+        </span>
+      </Tooltip>
+    );
+  }
+  if (hasDiff) {
+    return (
+      <Tooltip content="Has changes" side="right">
+        <span className="flex items-center justify-center">
+          <GitBranch size={ICON_SIZE} weight="bold" className="text-amber-11" />
+        </span>
+      </Tooltip>
+    );
+  }
+  return null;
+}
+
 export function TaskItem({
   depth = 0,
   taskId,
@@ -205,48 +272,8 @@ export function TaskItem({
     <span className="flex items-center justify-center">
       <Circle size={8} weight="fill" className="text-green-11" />
     </span>
-  ) : prState === "merged" ? (
-    <Tooltip content="PR merged" side="right">
-      <span className="flex items-center justify-center">
-        <GitMerge size={ICON_SIZE} weight="bold" className="text-purple-11" />
-      </span>
-    </Tooltip>
-  ) : prState === "open" ? (
-    <Tooltip content="PR open" side="right">
-      <span className="flex items-center justify-center">
-        <GitPullRequest
-          size={ICON_SIZE}
-          weight="bold"
-          className="text-green-11"
-        />
-      </span>
-    </Tooltip>
-  ) : prState === "draft" ? (
-    <Tooltip content="Draft PR" side="right">
-      <span className="flex items-center justify-center">
-        <GitPullRequest
-          size={ICON_SIZE}
-          weight="bold"
-          className="text-gray-9"
-        />
-      </span>
-    </Tooltip>
-  ) : prState === "closed" ? (
-    <Tooltip content="PR closed" side="right">
-      <span className="flex items-center justify-center">
-        <GitPullRequest
-          size={ICON_SIZE}
-          weight="bold"
-          className="text-red-11"
-        />
-      </span>
-    </Tooltip>
-  ) : hasDiff ? (
-    <Tooltip content="Has changes" side="right">
-      <span className="flex items-center justify-center">
-        <GitBranch size={ICON_SIZE} weight="bold" className="text-amber-11" />
-      </span>
-    </Tooltip>
+  ) : prState || hasDiff ? (
+    <PrStatusIcon prState={prState} hasDiff={hasDiff} />
   ) : isPinned ? (
     <PushPin size={ICON_SIZE} className="text-accent-11" />
   ) : (
