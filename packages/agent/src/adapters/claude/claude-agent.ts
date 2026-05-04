@@ -317,6 +317,14 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
   }
 
   async prompt(params: PromptRequest): Promise<PromptResponse> {
+    // Block the first prompt until the SDK has finished its initial command
+    // / plugin registration. Submitting a slash skill (e.g. `/review-code`)
+    // before this resolves can leave the SDK waiting on a command it hasn't
+    // indexed yet, and the prompt hangs with no LLM output until ESC.
+    if (this.session.commandsReadyPromise) {
+      await this.session.commandsReadyPromise;
+    }
+
     const userMessage = promptToClaude(params);
     const promptUuid = randomUUID();
     userMessage.uuid = promptUuid;
@@ -1565,10 +1573,23 @@ export class ClaudeAcpAgent extends BaseAcpAgent {
    * Both populate caches used later — neither is needed to return configOptions.
    */
   private deferBackgroundFetches(q: Query): void {
+    const commandsPromise = new Promise<void>((resolve) =>
+      setTimeout(resolve, 10),
+    )
+      .then(() => this.sendAvailableCommandsUpdate())
+      .catch((err) => {
+        this.logger.warn("Available commands fetch failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    // Stash on the session so prompt() can gate the first turn on plugin
+    // registration completing. Capture the session at scheduling time so a
+    // later refreshSession() that swaps `this.session` doesn't overwrite the
+    // promise on the wrong instance.
+    const session = this.session;
+    session.commandsReadyPromise = commandsPromise;
     Promise.all([
-      new Promise<void>((resolve) => setTimeout(resolve, 10)).then(() =>
-        this.sendAvailableCommandsUpdate(),
-      ),
+      commandsPromise,
       fetchMcpToolMetadata(q, this.logger).then(() => {
         const serverNames = getConnectedMcpServerNames();
         if (serverNames.length > 0) {

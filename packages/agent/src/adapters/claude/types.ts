@@ -65,6 +65,13 @@ export type Session = BaseSession & {
   pendingMessages: Map<string, PendingMessage>;
   nextPendingOrder: number;
   emitRawSDKMessages: boolean | SDKMessageFilter[];
+  /**
+   * Resolves once the SDK has reported its slash-command list, which doubles
+   * as a readiness signal that plugin (skill) registration has completed.
+   * The first prompt awaits this so a skill submitted as the very first
+   * action doesn't race plugin loading and hang.
+   */
+  commandsReadyPromise?: Promise<void>;
 };
 
 export type ToolUseCache = {

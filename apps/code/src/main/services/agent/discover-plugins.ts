@@ -9,6 +9,28 @@ import type { SkillInfo, SkillSource } from "./skill-schemas";
 
 const log = logger.scope("discover-plugins");
 
+// Two sessions starting at the same time would otherwise race each other
+// while wiping and re-creating skill symlinks under the same plugin dir
+// (e.g. `<userData>/plugins/user-skills`), leaving the directory in a
+// half-built state and the SDK seeing missing skills. Serialise rebuilds
+// per pluginDir with an in-process chain.
+const pluginDirRebuilds = new Map<string, Promise<unknown>>();
+
+function withPluginDirLock<T>(
+  pluginDir: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = pluginDirRebuilds.get(pluginDir) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  pluginDirRebuilds.set(pluginDir, next);
+  next.finally(() => {
+    if (pluginDirRebuilds.get(pluginDir) === next) {
+      pluginDirRebuilds.delete(pluginDir);
+    }
+  });
+  return next;
+}
+
 interface DiscoverPluginsOptions {
   userDataDir: string;
   repoPath?: string;
@@ -131,58 +153,65 @@ async function buildSyntheticPlugin(
   name: string,
   description: string,
 ): Promise<SdkPluginConfig[]> {
-  try {
-    const skillDirs = await findSkillDirs(sourceSkillsDir);
-    if (skillDirs.length === 0) {
+  return withPluginDirLock(pluginDir, async () => {
+    try {
+      const skillDirs = await findSkillDirs(sourceSkillsDir);
+      if (skillDirs.length === 0) {
+        return [];
+      }
+
+      const syntheticSkillsDir = path.join(pluginDir, "skills");
+      await fs.promises.mkdir(syntheticSkillsDir, { recursive: true });
+
+      await fs.promises.writeFile(
+        path.join(pluginDir, "plugin.json"),
+        JSON.stringify({ name, description, version: "1.0.0" }),
+      );
+
+      try {
+        const existing = await fs.promises.readdir(syntheticSkillsDir);
+        await Promise.all(
+          existing.map((e) =>
+            fs.promises.rm(path.join(syntheticSkillsDir, e), {
+              recursive: true,
+              force: true,
+            }),
+          ),
+        );
+      } catch {
+        // ignore
+      }
+
+      await Promise.all(
+        skillDirs.map(async (skillName) => {
+          const src = path.join(sourceSkillsDir, skillName);
+          const dest = path.join(syntheticSkillsDir, skillName);
+          try {
+            const realSrc = await fs.promises.realpath(src);
+            // Symlink creation is not idempotent in fs — if the destination
+            // already exists (e.g. a stale entry that survived cleanup),
+            // symlink() throws EEXIST. Force-remove first so the rebuild
+            // doesn't lose this skill.
+            await fs.promises.rm(dest, { force: true, recursive: true });
+            await fs.promises.symlink(realSrc, dest);
+          } catch (err) {
+            log.warn("Failed to symlink skill", {
+              skillName,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }),
+      );
+
+      return [{ type: "local", path: pluginDir }];
+    } catch (err) {
+      log.warn("Failed to discover skills", {
+        source: sourceSkillsDir,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return [];
     }
-
-    const syntheticSkillsDir = path.join(pluginDir, "skills");
-    await fs.promises.mkdir(syntheticSkillsDir, { recursive: true });
-
-    await fs.promises.writeFile(
-      path.join(pluginDir, "plugin.json"),
-      JSON.stringify({ name, description, version: "1.0.0" }),
-    );
-
-    try {
-      const existing = await fs.promises.readdir(syntheticSkillsDir);
-      await Promise.all(
-        existing.map((e) =>
-          fs.promises.rm(path.join(syntheticSkillsDir, e), {
-            recursive: true,
-            force: true,
-          }),
-        ),
-      );
-    } catch {
-      // ignore
-    }
-
-    await Promise.all(
-      skillDirs.map(async (skillName) => {
-        const src = path.join(sourceSkillsDir, skillName);
-        const dest = path.join(syntheticSkillsDir, skillName);
-        try {
-          const realSrc = await fs.promises.realpath(src);
-          await fs.promises.symlink(realSrc, dest);
-        } catch (err) {
-          log.warn("Failed to symlink skill", {
-            skillName,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }),
-    );
-
-    return [{ type: "local", path: pluginDir }];
-  } catch (err) {
-    log.warn("Failed to discover skills", {
-      source: sourceSkillsDir,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return [];
-  }
+  });
 }
 
 export async function readSkillMetadataFromDir(

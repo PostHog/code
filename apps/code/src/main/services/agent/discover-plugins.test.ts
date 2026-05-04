@@ -140,6 +140,29 @@ describe("discoverExternalPlugins", () => {
       const entries = vol.readdirSync(syntheticSkillsDir);
       expect(entries).toEqual(["fresh-skill"]);
     });
+
+    it("serialises concurrent rebuilds of the same plugin dir", async () => {
+      // Two sessions starting at the same time both call
+      // discoverExternalPlugins() against the same userDataDir, so they
+      // both touch `<userData>/plugins/user-skills`. Without serialisation
+      // they race on the wipe-then-symlink sequence and end up with a
+      // partial / inconsistent skill set (#1956).
+      createSkillDir(USER_SKILLS_DIR, "skill-a");
+      createSkillDir(USER_SKILLS_DIR, "skill-b");
+      createSkillDir(USER_SKILLS_DIR, "skill-c");
+
+      const [resultA, resultB] = await Promise.all([
+        discoverExternalPlugins({ userDataDir: USER_DATA_DIR }),
+        discoverExternalPlugins({ userDataDir: USER_DATA_DIR }),
+      ]);
+
+      const syntheticSkillsDir = `${USER_DATA_DIR}/plugins/user-skills/skills`;
+      const entries = (vol.readdirSync(syntheticSkillsDir) as string[]).sort();
+
+      expect(entries).toEqual(["skill-a", "skill-b", "skill-c"]);
+      expect(resultA).toHaveLength(1);
+      expect(resultB).toHaveLength(1);
+    });
   });
 
   describe("marketplace plugins", () => {
