@@ -1685,48 +1685,48 @@ describe("SessionService", () => {
       ).not.toHaveBeenCalled();
     });
     it("ignores stale async starts when the same watcher is replaced", async () => {
-    const service = getSessionService();
-    let resolveFirstWatchStart!: () => void;
-    let resolveSecondWatchStart!: () => void;
+      const service = getSessionService();
+      let resolveFirstWatchStart!: () => void;
+      let resolveSecondWatchStart!: () => void;
 
-    mockTrpcCloudTask.watch.mutate
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveFirstWatchStart = resolve;
-          }),
-      )
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveSecondWatchStart = resolve;
-          }),
+      mockTrpcCloudTask.watch.mutate
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              resolveFirstWatchStart = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((resolve) => {
+              resolveSecondWatchStart = resolve;
+            }),
+        );
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+      );
+      service.stopCloudTaskWatch("task-123");
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
       );
 
-    service.watchCloudTask(
-      "task-123",
-      "run-123",
-      "https://api.anthropic.com",
-      123,
-    );
-    service.stopCloudTaskWatch("task-123");
-    service.watchCloudTask(
-      "task-123",
-      "run-123",
-      "https://api.anthropic.com",
-      123,
-    );
+      resolveSecondWatchStart();
+      await Promise.resolve();
+      await Promise.resolve();
 
-    resolveSecondWatchStart();
-    await Promise.resolve();
-    await Promise.resolve();
+      resolveFirstWatchStart();
+      await Promise.resolve();
+      await Promise.resolve();
 
-    resolveFirstWatchStart();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(mockTrpcCloudTask.watch.mutate).toHaveBeenCalledTimes(2);
-  });
+      expect(mockTrpcCloudTask.watch.mutate).toHaveBeenCalledTimes(2);
+    });
 
     it("sends a compensating unwatch if teardown wins the race after watch starts", async () => {
       const service = getSessionService();
