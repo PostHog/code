@@ -34,3 +34,23 @@ export function unreachable(value: never, logger: Logger): void {
   }
   logger.error(`Unexpected case: ${valueAsString}`);
 }
+
+const DEFAULT_TRUNCATE_LIMIT = 200;
+
+export function truncateForLog(
+  value: unknown,
+  limit: number = DEFAULT_TRUNCATE_LIMIT,
+): string {
+  let str: string;
+  if (typeof value === "string") {
+    str = value;
+  } else {
+    try {
+      str = JSON.stringify(value);
+    } catch {
+      str = String(value);
+    }
+  }
+  if (str.length <= limit) return str;
+  return `${str.slice(0, limit)}…(+${str.length - limit} chars)`;
+}

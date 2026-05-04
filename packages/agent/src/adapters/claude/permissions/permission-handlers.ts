@@ -7,6 +7,7 @@ import type {
   PermissionUpdate,
 } from "@anthropic-ai/claude-agent-sdk";
 import { text } from "../../../utils/acp-content";
+import { truncateForLog } from "../../../utils/common";
 import type { Logger } from "../../../utils/logger";
 import { toolInfoFromToolUse } from "../conversion/tool-use-to-acp";
 import {
@@ -70,7 +71,7 @@ async function emitToolDenial(
   message: string,
 ): Promise<void> {
   context.logger.info(`[canUseTool] Tool denied: ${context.toolName}`, {
-    message,
+    message: truncateForLog(message),
   });
   await context.client.sessionUpdate({
     sessionId: context.sessionId,
@@ -496,8 +497,15 @@ async function handlePostHogExecApprovalFlow(
   context: ToolHandlerContext,
   subTool: string,
 ): Promise<ToolPermissionResult> {
-  const { toolName, toolInput, toolUseID, client, sessionId, session } =
+  const { toolName, toolInput, toolUseID, client, sessionId, session, logger } =
     context;
+
+  logger.info("[handlePostHogExecApprovalFlow] requesting permission", {
+    toolName,
+    subTool,
+    toolUseID,
+    sessionId,
+  });
 
   const response = await client.requestPermission({
     options: [
@@ -531,6 +539,16 @@ async function handlePostHogExecApprovalFlow(
     },
   });
 
+  logger.info("[handlePostHogExecApprovalFlow] permission response", {
+    subTool,
+    outcome: response.outcome?.outcome,
+    optionId:
+      response.outcome?.outcome === "selected"
+        ? response.outcome.optionId
+        : undefined,
+    aborted: context.signal?.aborted,
+  });
+
   if (context.signal?.aborted || response.outcome?.outcome === "cancelled") {
     throw new Error("Tool use aborted");
   }
@@ -541,11 +559,14 @@ async function handlePostHogExecApprovalFlow(
       response.outcome.optionId === "allow_always")
   ) {
     if (response.outcome.optionId === "allow_always") {
+      logger.info("[handlePostHogExecApprovalFlow] persisting approval", {
+        subTool,
+      });
       try {
         await session.settingsManager.addPostHogExecApproval(subTool);
       } catch (error) {
-        context.logger.warn(
-          "[canUseTool] Failed to persist PostHog exec approval",
+        logger.warn(
+          "[handlePostHogExecApprovalFlow] Failed to persist PostHog exec approval",
           { error: error instanceof Error ? error.message : String(error) },
         );
       }
@@ -560,6 +581,10 @@ async function handlePostHogExecApprovalFlow(
   const message = feedback
     ? `User refused permission to run tool with feedback: ${feedback}`
     : "User refused permission to run tool";
+  logger.info("[handlePostHogExecApprovalFlow] denied by user", {
+    subTool,
+    hasFeedback: !!feedback,
+  });
   await emitToolDenial(context, message);
   return { behavior: "deny", message, interrupt: !feedback };
 }
@@ -649,7 +674,7 @@ function isDomainAllowed(hostname: string, allowedDomains: string[]): boolean {
 export async function canUseTool(
   context: ToolHandlerContext,
 ): Promise<ToolPermissionResult> {
-  const { toolName, toolInput, session, allowedDomains } = context;
+  const { toolName, toolInput, session, allowedDomains, logger } = context;
 
   // Enforce domain allowlist for web tools
   if (allowedDomains && allowedDomains.length > 0) {
@@ -682,17 +707,37 @@ export async function canUseTool(
 
     if (isPostHogExecTool(toolName)) {
       const subTool = extractPostHogSubTool(toolInput);
-      if (subTool && isPostHogDestructiveSubTool(subTool)) {
+      const isDestructive = subTool
+        ? isPostHogDestructiveSubTool(subTool)
+        : false;
+      logger.info("[canUseTool] PostHog exec sub-tool", {
+        toolName,
+        subTool,
+        isDestructive,
+        permissionMode: session.permissionMode,
+        rawCommand: truncateForLog(
+          (toolInput as { command?: unknown }).command,
+        ),
+      });
+      if (subTool && isDestructive) {
         if (
           session.permissionMode === "auto" ||
           session.permissionMode === "bypassPermissions"
         ) {
+          logger.info(
+            "[canUseTool] PostHog exec auto-allowed by permission mode",
+            { subTool, permissionMode: session.permissionMode },
+          );
           return {
             behavior: "allow",
             updatedInput: toolInput as Record<string, unknown>,
           };
         }
         if (session.settingsManager.hasPostHogExecApproval(subTool)) {
+          logger.info(
+            "[canUseTool] PostHog exec auto-allowed by stored approval",
+            { subTool },
+          );
           return {
             behavior: "allow",
             updatedInput: toolInput as Record<string, unknown>,

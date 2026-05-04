@@ -3,8 +3,14 @@ import {
   enrichFileForAgent,
   type FileEnrichmentDeps,
 } from "../../enrichment/file-enricher";
+import { truncateForLog } from "../../utils/common";
 import type { Logger } from "../../utils/logger";
 import { stripCatLineNumbers } from "./conversion/sdk-to-acp";
+import {
+  extractPostHogSubTool,
+  isPostHogDestructiveSubTool,
+  isPostHogExecTool,
+} from "./permissions/posthog-exec-gate";
 import type { SettingsManager } from "./session/settings";
 import type { CodeExecutionMode } from "./tools";
 
@@ -231,7 +237,37 @@ export const createPreToolUseHook =
       toolInput,
     );
 
-    if (permissionCheck.decision !== "ask") {
+    const isPosthogExec = isPostHogExecTool(toolName);
+    if (isPosthogExec) {
+      const subTool = extractPostHogSubTool(toolInput);
+      const isDestructive = subTool
+        ? isPostHogDestructiveSubTool(subTool)
+        : false;
+      logger.info("[PreToolUseHook] PostHog exec", {
+        toolName,
+        decision: permissionCheck.decision,
+        rule: permissionCheck.rule,
+        subTool,
+        isDestructive,
+        toolInput: truncateForLog(toolInput),
+      });
+
+      // Defer destructive PostHog exec sub-tools to canUseTool so the
+      // sub-tool gate can re-prompt. Returning `{ continue: true }` is
+      // not enough — the SDK then falls back to its default permission
+      // flow which re-checks the same allow rule. We must force "ask"
+      // so the SDK invokes canUseTool.
+      if (permissionCheck.decision === "allow" && subTool && isDestructive) {
+        return {
+          continue: true,
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse" as const,
+            permissionDecision: "ask" as const,
+            permissionDecisionReason: `Destructive PostHog sub-tool '${subTool}' requires explicit approval`,
+          },
+        };
+      }
+    } else if (permissionCheck.decision !== "ask") {
       logger.info(
         `[PreToolUseHook] Tool: ${toolName}, Decision: ${permissionCheck.decision}, Rule: ${permissionCheck.rule}`,
       );
