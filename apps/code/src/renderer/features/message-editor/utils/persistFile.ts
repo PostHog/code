@@ -103,7 +103,7 @@ export async function persistBrowserFile(
 ): Promise<{ id: string; label: string }> {
   if (file.type.startsWith("image/")) {
     const result = await persistImageFile(file);
-    return { id: result.path, label: file.name };
+    return { id: result.path, label: result.name };
   }
 
   const result = await persistGenericFile(file);
