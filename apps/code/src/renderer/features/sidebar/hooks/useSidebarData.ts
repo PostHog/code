@@ -40,6 +40,7 @@ export interface SidebarData {
   isInboxActive: boolean;
   isCommandCenterActive: boolean;
   isSkillsActive: boolean;
+  isMcpServersActive: boolean;
   isLoading: boolean;
   activeTaskId: string | null;
   pinnedTasks: TaskData[];
@@ -58,7 +59,8 @@ interface ViewState {
     | "inbox"
     | "archived"
     | "command-center"
-    | "skills";
+    | "skills"
+    | "mcp-servers";
   data?: Task;
 }
 
@@ -123,6 +125,7 @@ export function useSidebarData({
   const isInboxActive = activeView.type === "inbox";
   const isCommandCenterActive = activeView.type === "command-center";
   const isSkillsActive = activeView.type === "skills";
+  const isMcpServersActive = activeView.type === "mcp-servers";
 
   const activeTaskId =
     activeView.type === "task-detail" && activeView.data
@@ -232,6 +235,7 @@ export function useSidebarData({
     isInboxActive,
     isCommandCenterActive,
     isSkillsActive,
+    isMcpServersActive,
     isLoading,
     activeTaskId,
     pinnedTasks,

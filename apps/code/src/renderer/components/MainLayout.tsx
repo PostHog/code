@@ -10,6 +10,7 @@ import { CommandMenu } from "@features/command/components/CommandMenu";
 import { CommandCenterView } from "@features/command-center/components/CommandCenterView";
 import { InboxView } from "@features/inbox/components/InboxView";
 import { useInboxDeepLink } from "@features/inbox/hooks/useInboxDeepLink";
+import { McpServersView } from "@features/mcp-servers/components/McpServersView";
 import { FolderSettingsView } from "@features/settings/components/FolderSettingsView";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { useSettingsDialogStore } from "@features/settings/stores/settingsDialogStore";
@@ -129,6 +130,8 @@ export function MainLayout() {
           {view.type === "command-center" && <CommandCenterView />}
 
           {view.type === "skills" && <SkillsView />}
+
+          {view.type === "mcp-servers" && <McpServersView />}
         </Box>
       </Flex>
 
