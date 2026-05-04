@@ -1,8 +1,10 @@
+import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import {
   describeGithubConnectError,
+  invalidateGithubQueries,
   useGithubUserConnect,
 } from "@features/integrations/hooks/useGithubUserConnect";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
@@ -22,18 +24,21 @@ import {
   GitBranch,
 } from "@phosphor-icons/react";
 import {
+  AlertDialog,
   Box,
   Button,
   DropdownMenu,
   Flex,
   Skeleton,
+  Spinner,
   Text,
 } from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient } from "@renderer/trpc/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { DetectedRepo } from "../hooks/useOnboardingFlow";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { OnboardingHogTip } from "./OnboardingHogTip";
@@ -140,6 +145,28 @@ export function GitIntegrationStep({
       (r) => r.toLowerCase() === detectedRepo.fullName.toLowerCase(),
     );
   }, [detectedRepo, repositories]);
+
+  const apiClient = useOptionalAuthenticatedClient();
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const installationId = githubIntegration?.installation_id;
+      if (!apiClient || !installationId) {
+        throw new Error("No GitHub integration to disconnect");
+      }
+      await apiClient.disconnectGithubUserIntegration(installationId);
+    },
+    onSuccess: () => {
+      setDisconnectConfirmOpen(false);
+      invalidateGithubQueries(queryClient, selectedProjectId);
+      toast.success("GitHub disconnected.");
+    },
+    onError: (e) => {
+      toast.error(
+        e instanceof Error ? e.message : "Failed to disconnect GitHub.",
+      );
+    },
+  });
 
   const handleContinue = () => {
     if (selectedProjectId && selectedProjectId !== currentProjectId) {
@@ -369,6 +396,15 @@ export function GitIntegrationStep({
                             <ArrowsClockwise size={12} />
                             Refresh
                           </Button>
+                          <Button
+                            size="1"
+                            variant="ghost"
+                            color="red"
+                            disabled={!githubIntegration?.installation_id}
+                            onClick={() => setDisconnectConfirmOpen(true)}
+                          >
+                            Disconnect
+                          </Button>
                         </Flex>
                       </Flex>
                     ) : !isLoading && !githubUserIntegrationsLoading ? (
@@ -529,6 +565,45 @@ export function GitIntegrationStep({
             <ArrowRight size={16} weight="bold" />
           </Button>
         </StepActions>
+
+        <AlertDialog.Root
+          open={disconnectConfirmOpen}
+          onOpenChange={(next) => {
+            if (!next && !disconnectMutation.isPending) {
+              setDisconnectConfirmOpen(false);
+            }
+          }}
+        >
+          <AlertDialog.Content maxWidth="450px">
+            <AlertDialog.Title>Disconnect GitHub</AlertDialog.Title>
+            <AlertDialog.Description className="text-sm">
+              This removes your personal GitHub authorization from PostHog. You
+              can reconnect at any time. The GitHub App itself stays installed
+              in your org — uninstall it on GitHub if you want to remove that
+              too.
+            </AlertDialog.Description>
+            <Flex gap="3" mt="4" justify="end">
+              <AlertDialog.Cancel>
+                <Button
+                  variant="soft"
+                  color="gray"
+                  disabled={disconnectMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              </AlertDialog.Cancel>
+              <Button
+                variant="solid"
+                color="red"
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+              >
+                {disconnectMutation.isPending ? <Spinner size="1" /> : null}
+                Disconnect
+              </Button>
+            </Flex>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
       </Flex>
     </Flex>
   );

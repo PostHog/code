@@ -3,7 +3,7 @@ import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useGitHubIntegrationCallback } from "@features/integrations/hooks/useGitHubIntegrationCallback";
 import { trpcClient } from "@renderer/trpc/client";
 import { IS_DEV } from "@shared/constants/environment";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL_MS = 3_000;
@@ -68,6 +68,24 @@ interface Result {
   reset: () => void;
 }
 
+export function invalidateGithubQueries(
+  queryClient: QueryClient,
+  projectId: number | null = null,
+): void {
+  if (projectId !== null) {
+    void queryClient.invalidateQueries({
+      queryKey: ["integrations", projectId],
+    });
+  }
+  void queryClient.invalidateQueries({
+    queryKey: ["integrations", "list"],
+  });
+  void queryClient.invalidateQueries({
+    queryKey: ["user-github-integrations"],
+  });
+  void queryClient.invalidateQueries({ queryKey: ["github_login"] });
+}
+
 async function openUrlInBrowser(url: string): Promise<void> {
   try {
     await trpcClient.os.openExternal.mutate({ url });
@@ -99,20 +117,7 @@ export function useGithubUserConnect({ projectId }: Options): Result {
   }, []);
 
   const invalidate = useCallback(
-    (pid: number | null) => {
-      if (pid !== null) {
-        void queryClient.invalidateQueries({
-          queryKey: ["integrations", pid],
-        });
-      }
-      void queryClient.invalidateQueries({
-        queryKey: ["integrations", "list"],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["user-github-integrations"],
-      });
-      void queryClient.invalidateQueries({ queryKey: ["github_login"] });
-    },
+    (pid: number | null) => invalidateGithubQueries(queryClient, pid),
     [queryClient],
   );
 
