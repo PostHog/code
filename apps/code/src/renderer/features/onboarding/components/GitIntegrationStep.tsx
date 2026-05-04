@@ -1,7 +1,7 @@
-import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useSelectProjectMutation } from "@features/auth/hooks/authMutations";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
+import { useGithubUserConnect } from "@features/integrations/hooks/useGithubUserConnect";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import {
   useUserGithubIntegrations,
@@ -28,19 +28,13 @@ import {
 } from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient } from "@renderer/trpc/client";
-import { IS_DEV } from "@shared/constants/environment";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { useGitHubIntegrationCallback } from "../../integrations/hooks/useGitHubIntegrationCallback";
+import { useMemo, useState } from "react";
 import type { DetectedRepo } from "../hooks/useOnboardingFlow";
 import { useProjectsWithIntegrations } from "../hooks/useProjectsWithIntegrations";
 import { OnboardingHogTip } from "./OnboardingHogTip";
 import { StepActions } from "./StepActions";
-
-const POLL_INTERVAL_MS = 3_000;
-const POLL_TIMEOUT_MS = 300_000;
 
 interface GitIntegrationStepProps {
   onNext: () => void;
@@ -59,28 +53,19 @@ export function GitIntegrationStep({
   isDetectingRepo,
   onDirectoryChange,
 }: GitIntegrationStepProps) {
-  const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const currentProjectId = useAuthStateValue((state) => state.projectId);
-  const client = useOptionalAuthenticatedClient();
   const selectProjectMutation = useSelectProjectMutation();
 
   const queryClient = useQueryClient();
   const { projects, projectsWithGithub, isLoading } =
     useProjectsWithIntegrations();
 
-  const isConnecting = useOnboardingStore((state) => state.isConnectingGithub);
-  const setConnectingGithub = useOnboardingStore(
-    (state) => state.setConnectingGithub,
-  );
   const manuallySelectedProjectId = useOnboardingStore(
     (state) => state.selectedProjectId,
   );
   const setSelectedProjectId = useOnboardingStore(
     (state) => state.selectProjectId,
   );
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [timedOut, setTimedOut] = useState(false);
 
   const selectedProjectId = useMemo(() => {
     if (manuallySelectedProjectId !== null) {
@@ -88,6 +73,11 @@ export function GitIntegrationStep({
     }
     return currentProjectId ?? projects[0]?.id ?? null;
   }, [manuallySelectedProjectId, currentProjectId, projects]);
+
+  const { state: connectState, connect: handleConnectGitHub } =
+    useGithubUserConnect({ projectId: selectedProjectId });
+  const isConnecting = connectState === "connecting";
+  const timedOut = connectState === "timed-out";
 
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId),
@@ -134,109 +124,6 @@ export function GitIntegrationStep({
       (r) => r.toLowerCase() === detectedRepo.fullName.toLowerCase(),
     );
   }, [detectedRepo, repositories]);
-
-  const stopPolling = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    if (pollTimeoutRef.current) {
-      clearTimeout(pollTimeoutRef.current);
-      pollTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (hasGitIntegration && isConnecting) {
-      stopPolling();
-      setConnectingGithub(false);
-      setTimedOut(false);
-    }
-  }, [hasGitIntegration, isConnecting, setConnectingGithub, stopPolling]);
-
-  useEffect(() => stopPolling, [stopPolling]);
-
-  const invalidateProject = useCallback(
-    (projectId: number | null) => {
-      if (projectId === null) {
-        void queryClient.invalidateQueries({ queryKey: ["integrations"] });
-        void queryClient.invalidateQueries({
-          queryKey: ["user-github-integrations"],
-        });
-        return;
-      }
-      void queryClient.invalidateQueries({
-        queryKey: ["integrations", projectId],
-      });
-      void queryClient.invalidateQueries({
-        queryKey: ["user-github-integrations"],
-      });
-    },
-    [queryClient],
-  );
-
-  useGitHubIntegrationCallback({
-    onSuccess: (projectId) => {
-      stopPolling();
-      setTimedOut(false);
-      setConnectingGithub(false);
-      invalidateProject(projectId ?? selectedProjectId);
-    },
-    onError: (message) => {
-      stopPolling();
-      setTimedOut(false);
-      setConnectingGithub(false);
-      toast.error(message);
-    },
-    onTimedOut: () => {
-      stopPolling();
-      setConnectingGithub(false);
-      setTimedOut(true);
-    },
-  });
-
-  const handleConnectGitHub = async () => {
-    if (!cloudRegion || !selectedProjectId || !client) return;
-    stopPolling();
-    setTimedOut(false);
-    setConnectingGithub(true);
-    try {
-      const res =
-        await client.startGithubUserIntegrationConnect(selectedProjectId);
-      const installUrl = res.install_url?.trim() ?? "";
-      if (!installUrl) {
-        throw new Error("GitHub connection did not return a URL");
-      }
-      await trpcClient.os.openExternal.mutate({ url: installUrl });
-
-      // Dev-only fallback: GitHub returns via posthog-code-dev:// while the
-      // browser flow may not always surface the same path; poll integrations.
-      if (IS_DEV) {
-        pollTimerRef.current = setInterval(() => {
-          void queryClient.invalidateQueries({
-            queryKey: ["integrations", selectedProjectId],
-          });
-          void queryClient.invalidateQueries({
-            queryKey: ["user-github-integrations"],
-          });
-        }, POLL_INTERVAL_MS);
-      }
-
-      // Safety timeout in case the subscription drops or the user abandons the browser.
-      pollTimeoutRef.current = setTimeout(() => {
-        stopPolling();
-        setConnectingGithub(false);
-        setTimedOut(true);
-      }, POLL_TIMEOUT_MS);
-    } catch (error) {
-      setConnectingGithub(false);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to start GitHub connection",
-      );
-    }
-  };
 
   const handleContinue = () => {
     if (selectedProjectId && selectedProjectId !== currentProjectId) {

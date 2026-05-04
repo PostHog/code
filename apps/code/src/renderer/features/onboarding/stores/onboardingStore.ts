@@ -8,7 +8,6 @@ const log = logger.scope("onboarding-store");
 interface OnboardingStoreState {
   currentStep: OnboardingStep;
   hasCompletedOnboarding: boolean;
-  isConnectingGithub: boolean;
   selectedProjectId: number | null;
   selectedDirectory: string;
 }
@@ -18,7 +17,6 @@ interface OnboardingStoreActions {
   completeOnboarding: () => void;
   resetOnboarding: () => void;
   resetSelections: () => void;
-  setConnectingGithub: (isConnecting: boolean) => void;
   selectProjectId: (projectId: number | null) => void;
   setSelectedDirectory: (path: string) => void;
 }
@@ -28,7 +26,6 @@ type OnboardingStore = OnboardingStoreState & OnboardingStoreActions;
 const initialState: OnboardingStoreState = {
   currentStep: "welcome",
   hasCompletedOnboarding: false,
-  isConnectingGithub: false,
   selectedProjectId: null,
   selectedDirectory: "",
 };
@@ -47,10 +44,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
       resetSelections: () =>
         set({
           currentStep: "welcome",
-          isConnectingGithub: false,
           selectedProjectId: null,
         }),
-      setConnectingGithub: (isConnectingGithub) => set({ isConnectingGithub }),
       selectProjectId: (selectedProjectId) => set({ selectedProjectId }),
       setSelectedDirectory: (selectedDirectory) => set({ selectedDirectory }),
     }),
