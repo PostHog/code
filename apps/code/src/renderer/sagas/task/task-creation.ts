@@ -28,8 +28,48 @@ import {
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { logger } from "@utils/logger";
 import { getCachedTask, queryClient } from "@utils/queryClient";
+import { unescapeXmlAttr } from "@utils/xml";
 
 const log = logger.scope("task-creation-saga");
+
+const FILE_TAG_REGEX = /<file path="([^"]*)" \/>/g;
+const MAX_INLINED_CLIPBOARD_CHARS = 8000;
+
+// When a user pastes a long block of text into the prompt, the editor turns it
+// into a clipboard file attachment, leaving the prompt as just `<file path=… />`.
+// The title generator would otherwise see no real content and fall back to
+// "Untitled". Inline the file's text so the LLM has something to summarise.
+async function expandClipboardTextTags(description: string): Promise<string> {
+  const matches = [...description.matchAll(FILE_TAG_REGEX)];
+  if (matches.length === 0) return description;
+
+  const reads = await Promise.all(
+    matches.map(async (match) => {
+      const filePath = unescapeXmlAttr(match[1]);
+      try {
+        const text = await trpcClient.os.readClipboardText.query({ filePath });
+        return { tag: match[0], text };
+      } catch (error) {
+        log.debug("Failed to read clipboard text for title", {
+          filePath,
+          error,
+        });
+        return { tag: match[0], text: null };
+      }
+    }),
+  );
+
+  let remaining = MAX_INLINED_CLIPBOARD_CHARS;
+  let result = description;
+  for (const { tag, text } of reads) {
+    if (text === null) continue;
+    const trimmed = text.length > remaining ? text.slice(0, remaining) : text;
+    remaining -= trimmed.length;
+    result = result.replace(tag, trimmed);
+    if (remaining <= 0) break;
+  }
+  return result;
+}
 
 async function generateTaskTitle(
   taskId: string,
@@ -38,7 +78,8 @@ async function generateTaskTitle(
 ): Promise<void> {
   if (!description.trim()) return;
 
-  const result = await generateTitleAndSummary(description);
+  const expanded = await expandClipboardTextTags(description);
+  const result = await generateTitleAndSummary(expanded);
   if (!result?.title) return;
   const { title } = result;
 

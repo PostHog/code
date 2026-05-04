@@ -296,6 +296,24 @@ export const osRouter = router({
     }),
 
   /**
+   * Read a clipboard-paste text file by its path. Restricted to the clipboard
+   * temp dir so callers can't probe arbitrary files on disk.
+   */
+  readClipboardText: publicProcedure
+    .input(z.object({ filePath: z.string() }))
+    .output(z.string().nullable())
+    .query(async ({ input }) => {
+      const resolved = path.resolve(input.filePath);
+      const clipboardRoot = CLIPBOARD_TEMP_DIR + path.sep;
+      if (!resolved.startsWith(clipboardRoot)) return null;
+      try {
+        return await fsPromises.readFile(resolved, "utf-8");
+      } catch {
+        return null;
+      }
+    }),
+
+  /**
    * Save pasted text to a temp file
    * Returns the file path for use as a file attachment
    */

@@ -6,6 +6,7 @@ const mockWorkspaceDelete = vi.hoisted(() => vi.fn());
 const mockGetTaskDirectory = vi.hoisted(() => vi.fn());
 const mockReadAbsoluteFile = vi.hoisted(() => vi.fn());
 const mockReadFileAsBase64 = vi.hoisted(() => vi.fn());
+const mockReadClipboardText = vi.hoisted(() => vi.fn());
 const mockGetCachedTask = vi.hoisted(() => vi.fn());
 
 vi.mock("@renderer/trpc", () => ({
@@ -13,6 +14,9 @@ vi.mock("@renderer/trpc", () => ({
     workspace: {
       create: { mutate: mockWorkspaceCreate },
       delete: { mutate: mockWorkspaceDelete },
+    },
+    os: {
+      readClipboardText: { query: mockReadClipboardText },
     },
   },
 }));
@@ -116,6 +120,7 @@ describe("TaskCreationSaga", () => {
     mockGetTaskDirectory.mockResolvedValue(null);
     mockReadAbsoluteFile.mockResolvedValue(null);
     mockReadFileAsBase64.mockResolvedValue(null);
+    mockReadClipboardText.mockResolvedValue(null);
   });
 
   it("waits for the cloud run response before surfacing the task", async () => {
@@ -223,6 +228,48 @@ describe("TaskCreationSaga", () => {
     });
 
     expect(updateTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("inlines pasted clipboard text before generating title", async () => {
+    const createdTask = createTask();
+    const startedTask = createTask({ latest_run: createRun() });
+    const createTaskMock = vi.fn().mockResolvedValue(createdTask);
+    const createTaskRunMock = vi.fn().mockResolvedValue(createRun());
+    const startTaskRunMock = vi.fn().mockResolvedValue(startedTask);
+    const updateTaskMock = vi.fn().mockResolvedValue(undefined);
+
+    mockReadClipboardText.mockResolvedValue("Investigate flaky CI on main");
+    mockGenerateTitleAndSummary.mockResolvedValue({ title: "Auto title" });
+    mockGetCachedTask.mockReturnValue(undefined);
+
+    const saga = new TaskCreationSaga({
+      posthogClient: {
+        createTask: createTaskMock,
+        deleteTask: vi.fn(),
+        getTask: vi.fn(),
+        createTaskRun: createTaskRunMock,
+        startTaskRun: startTaskRunMock,
+        sendRunCommand: vi.fn(),
+        updateTask: updateTaskMock,
+      } as never,
+    });
+
+    await saga.run({
+      content:
+        '<file path="/tmp/posthog-code-clipboard/attachment-x/pasted-text.txt" />',
+      repository: "posthog/posthog",
+      workspaceMode: "cloud",
+      branch: "main",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockGenerateTitleAndSummary).toHaveBeenCalledWith(
+        "Investigate flaky CI on main",
+      );
+    });
+    expect(mockReadClipboardText).toHaveBeenCalledWith({
+      filePath: "/tmp/posthog-code-clipboard/attachment-x/pasted-text.txt",
+    });
   });
 
   it("applies auto-title when task has not been manually renamed", async () => {
