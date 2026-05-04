@@ -49,7 +49,7 @@ jobs:
           QUIET_RETRIES: ${{ github.event.inputs.quiet_retries || 0 }}
         run: |
           RETRIES="${QUIET_RETRIES}"
-          MAX_RETRIES=3
+          MAX_RETRIES=5
           LAST_COMMIT_EPOCH=$(git log -1 --format=%ct HEAD)
           NOW_EPOCH=$(date +%s)
           AGE_MINUTES=$(( (NOW_EPOCH - LAST_COMMIT_EPOCH) / 60 ))
