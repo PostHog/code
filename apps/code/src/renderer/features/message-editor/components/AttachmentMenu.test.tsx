@@ -149,7 +149,7 @@ describe("AttachmentMenu", () => {
     });
     expect(onAddAttachment).toHaveBeenCalledWith({
       id: "/tmp/posthog-code-clipboard/attachment-xyz/photo.jpg",
-      label: "demo/photo.png",
+      label: "photo.jpg",
     });
     expect(onInsertChip).toHaveBeenCalledWith({
       type: "file",

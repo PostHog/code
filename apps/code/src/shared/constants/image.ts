@@ -24,5 +24,5 @@ export function isGifFile(filename: string): boolean {
 
 export function getImageMimeType(filePath: string): string {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
-  return IMAGE_MIME_TYPES[ext] ?? "image/png";
+  return IMAGE_MIME_TYPES[ext] ?? "application/octet-stream";
 }

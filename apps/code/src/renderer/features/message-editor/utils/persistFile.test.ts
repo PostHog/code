@@ -180,26 +180,23 @@ describe("persistImageFilePath", () => {
       mimeType: "image/jpeg",
     });
 
-    const result = await persistImageFilePath(
-      "/Users/me/Desktop/photo.png",
-      "photo.png",
-    );
+    const result = await persistImageFilePath("/Users/me/Desktop/photo.png");
 
     expect(mockDownscaleImageFile).toHaveBeenCalledWith({
       filePath: "/Users/me/Desktop/photo.png",
     });
     expect(result).toEqual({
       id: "/tmp/posthog-code-clipboard/attachment-aaa/photo.jpg",
-      label: "photo.png",
+      label: "photo.jpg",
     });
   });
 
   it("propagates errors from downscaleImageFile", async () => {
     mockDownscaleImageFile.mockRejectedValue(new Error("Image too large"));
 
-    await expect(
-      persistImageFilePath("/big/image.png", "image.png"),
-    ).rejects.toThrow("Image too large");
+    await expect(persistImageFilePath("/big/image.png")).rejects.toThrow(
+      "Image too large",
+    );
   });
 });
 
@@ -241,7 +238,7 @@ describe("resolveDroppedFile", () => {
     });
     expect(result).toEqual({
       id: "/tmp/posthog-code-clipboard/attachment-bbb/photo.jpg",
-      label: "photo.png",
+      label: "photo.jpg",
     });
   });
 

@@ -119,10 +119,7 @@ export function AttachmentMenu({
       for (const { path: filePath, kind } of results) {
         if (kind === "file" && isImageFile(filePath)) {
           try {
-            const attachment = await persistImageFilePath(
-              filePath,
-              deriveFileLabel(filePath),
-            );
+            const attachment = await persistImageFilePath(filePath);
             onAddAttachment(attachment);
           } catch {
             toast.error("Failed to attach image");

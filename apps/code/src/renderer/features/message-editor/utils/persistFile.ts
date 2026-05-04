@@ -63,10 +63,9 @@ export async function persistGenericFile(file: File): Promise<PersistedFile> {
 
 export async function persistImageFilePath(
   filePath: string,
-  fileName: string,
 ): Promise<{ id: string; label: string }> {
   const result = await trpcClient.os.downscaleImageFile.mutate({ filePath });
-  return { id: result.path, label: fileName };
+  return { id: result.path, label: result.name };
 }
 
 export async function resolveDroppedFile(
@@ -77,7 +76,7 @@ export async function resolveDroppedFile(
 
   if (isImageFile(file.name)) {
     try {
-      return await persistImageFilePath(filePath, file.name);
+      return await persistImageFilePath(filePath);
     } catch {
       toast.warning("Image could not be downscaled", {
         description: "Attaching original file instead",

@@ -353,7 +353,7 @@ export const osRouter = router({
   downscaleImageFile: publicProcedure
     .input(z.object({ filePath: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      const ext = path.extname(input.filePath).replace(".", "").toLowerCase();
+      const ext = path.extname(input.filePath).toLowerCase().slice(1);
       if (!IMAGE_MIME_TYPES[ext]) {
         throw new Error(`Unsupported image type: .${ext}`);
       }
