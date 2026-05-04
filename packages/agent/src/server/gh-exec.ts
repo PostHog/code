@@ -5,7 +5,6 @@ export interface GhExecOptions {
   cwd: string;
   timeoutMs: number;
   logger?: Logger;
-  binary?: string;
 }
 
 export interface GhExecResult {
@@ -18,14 +17,23 @@ export interface GhExecResult {
 
 const KILL_GRACE_MS = 2_000;
 
-export async function runGh(
+export function runGh(
   args: string[],
   options: GhExecOptions,
 ): Promise<GhExecResult> {
-  const binary = options.binary ?? "gh";
+  // Binary is pinned here. Callers (incl. the HTTP route) cannot override it —
+  // the body schema strips unknowns and runGh has no binary parameter.
+  return spawnAndCollect("gh", args, options);
+}
+
+export async function spawnAndCollect(
+  binary: string,
+  args: string[],
+  options: GhExecOptions,
+): Promise<GhExecResult> {
   const logger = options.logger;
 
-  logger?.debug("Running gh", {
+  logger?.debug("Running command", {
     binary,
     args,
     cwd: options.cwd,
@@ -46,14 +54,14 @@ export async function runGh(
 
     const timeout = setTimeout(() => {
       timedOut = true;
-      logger?.warn("gh command timed out, sending SIGTERM", {
+      logger?.warn("Command timed out, sending SIGTERM", {
         pid: child.pid,
         timeoutMs: options.timeoutMs,
       });
       child.kill("SIGTERM");
       killTimer = setTimeout(() => {
         if (!child.killed) {
-          logger?.warn("gh command did not exit, sending SIGKILL", {
+          logger?.warn("Command did not exit, sending SIGKILL", {
             pid: child.pid,
           });
           child.kill("SIGKILL");
