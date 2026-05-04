@@ -45,6 +45,7 @@ import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
+import { CloudRepoFallbackNotice } from "./CloudRepoFallbackNotice";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 
 interface TaskInputProps {
@@ -780,6 +781,10 @@ export function TaskInput({
               </div>
             )}
           </Flex>
+
+          {workspaceMode === "cloud" &&
+            cloudRepoSource === "team" &&
+            !isLoadingRepos && <CloudRepoFallbackNotice />}
         </Flex>
       </Flex>
 

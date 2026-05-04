@@ -1,7 +1,7 @@
 import { Button } from "@components/ui/Button";
-import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
+import { useConnectUserGithub } from "@hooks/useConnectUserGithub";
 import { useUserRepositoryIntegration } from "@hooks/useIntegrations";
 import {
   ArrowSquareOutIcon,
@@ -9,18 +9,6 @@ import {
   InfoIcon,
 } from "@phosphor-icons/react";
 import { Spinner } from "@radix-ui/themes";
-import { trpcClient } from "@renderer/trpc/client";
-import { queryClient } from "@utils/queryClient";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
-
-async function openUrlInBrowser(url: string): Promise<void> {
-  try {
-    await trpcClient.os.openExternal.mutate({ url });
-  } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-}
 
 export function GitHubConnectionBanner() {
   const { data: githubLogin, isLoading: loginLoading } = useAuthenticatedQuery(
@@ -30,33 +18,12 @@ export function GitHubConnectionBanner() {
   );
   const { hasGithubIntegration: hasGithubForProject } =
     useUserRepositoryIntegration();
-  const apiClient = useOptionalAuthenticatedClient();
-  const projectId = useAuthStateValue((s) => s.projectId);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
-  const awaitingLink = useRef(false);
-  const connectInFlight = useRef(false);
-  const [connecting, setConnecting] = useState(false);
-
-  const canConnectCloud =
-    apiClient != null && projectId != null && cloudRegion != null;
-
-  // After the user clicks connect and returns to the app, refetch to pick up the new github_login
-  useEffect(() => {
-    const onFocus = () => {
-      if (awaitingLink.current) {
-        awaitingLink.current = false;
-        void queryClient.invalidateQueries({ queryKey: ["github_login"] });
-        void queryClient.invalidateQueries({
-          queryKey: ["integrations", "list"],
-        });
-        void queryClient.invalidateQueries({
-          queryKey: ["user-github-integrations"],
-        });
-      }
-    };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  const {
+    connect,
+    isConnecting: connecting,
+    canConnect: canConnectCloud,
+  } = useConnectUserGithub();
 
   if (loginLoading) {
     return null;
@@ -109,37 +76,7 @@ export function GitHubConnectionBanner() {
           </>
         }
         onClick={() => {
-          if (!canConnectCloud || connectInFlight.current) {
-            return;
-          }
-          connectInFlight.current = true;
-          awaitingLink.current = true;
-          setConnecting(true);
-          void (async () => {
-            try {
-              const res =
-                await apiClient.startGithubUserIntegrationConnect(projectId);
-              const installUrl = res.install_url?.trim() ?? "";
-              if (!installUrl) {
-                awaitingLink.current = false;
-                toast.error(
-                  "GitHub connection did not return a URL. Please try again.",
-                );
-                return;
-              }
-              await openUrlInBrowser(installUrl);
-            } catch (e) {
-              awaitingLink.current = false;
-              toast.error(
-                e instanceof Error
-                  ? e.message
-                  : "Failed to start GitHub connection",
-              );
-            } finally {
-              connectInFlight.current = false;
-              setConnecting(false);
-            }
-          })();
+          void connect();
         }}
       >
         {connecting ? (
