@@ -18,7 +18,7 @@ import type {
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
-import { generateTitleAndSummary } from "@renderer/utils/generateTitle";
+import { createFileTagRegex } from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
 import {
   type ExecutionMode,
@@ -27,81 +27,8 @@ import {
 } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { logger } from "@utils/logger";
-import { getCachedTask, queryClient } from "@utils/queryClient";
-import { unescapeXmlAttr } from "@utils/xml";
 
 const log = logger.scope("task-creation-saga");
-
-const FILE_TAG_REGEX = /<file path="([^"]*)" \/>/g;
-const MAX_INLINED_CLIPBOARD_CHARS = 8000;
-
-// When a user pastes a long block of text into the prompt, the editor turns it
-// into a clipboard file attachment, leaving the prompt as just `<file path=… />`.
-// The title generator would otherwise see no real content and fall back to
-// "Untitled". Inline the file's text so the LLM has something to summarise.
-async function expandClipboardTextTags(description: string): Promise<string> {
-  const matches = [...description.matchAll(FILE_TAG_REGEX)];
-  if (matches.length === 0) return description;
-
-  const reads = await Promise.all(
-    matches.map(async (match) => {
-      const filePath = unescapeXmlAttr(match[1]);
-      try {
-        const text = await trpcClient.os.readClipboardText.query({ filePath });
-        return { tag: match[0], text };
-      } catch (error) {
-        log.debug("Failed to read clipboard text for title", {
-          filePath,
-          error,
-        });
-        return { tag: match[0], text: null };
-      }
-    }),
-  );
-
-  let remaining = MAX_INLINED_CLIPBOARD_CHARS;
-  let result = description;
-  for (const { tag, text } of reads) {
-    if (text === null) continue;
-    const trimmed = text.length > remaining ? text.slice(0, remaining) : text;
-    remaining -= trimmed.length;
-    result = result.replace(tag, () => trimmed);
-    if (remaining <= 0) break;
-  }
-  return result;
-}
-
-async function generateTaskTitle(
-  taskId: string,
-  description: string,
-  posthogClient: PostHogAPIClient,
-): Promise<void> {
-  if (!description.trim()) return;
-
-  const expanded = await expandClipboardTextTags(description);
-  const result = await generateTitleAndSummary(expanded);
-  if (!result?.title) return;
-  const { title } = result;
-
-  if (getCachedTask(taskId)?.title_manually_set) {
-    log.debug("Skipping auto-title, user renamed task", { taskId });
-    return;
-  }
-
-  try {
-    await posthogClient.updateTask(taskId, { title });
-
-    // Update all cached task lists so the sidebar reflects the new title instantly
-    queryClient.setQueriesData<Task[]>({ queryKey: ["tasks", "list"] }, (old) =>
-      old?.map((task) => (task.id === taskId ? { ...task, title } : task)),
-    );
-
-    // Sync to session store so notifications use the updated title
-    getSessionService().updateSessionTaskTitle(taskId, title);
-  } catch (error) {
-    log.error("Failed to save task title", { taskId, error });
-  }
-}
 
 // Adapt our logger to SagaLogger interface
 const sagaLogger: SagaLogger = {
@@ -172,15 +99,6 @@ export class TaskCreationSaga extends Saga<
           this.deps.posthogClient.getTask(taskId),
         )
       : await this.createTask(input);
-
-    // Fire-and-forget: generate a proper LLM title for new tasks
-    if (!taskId) {
-      generateTaskTitle(
-        task.id,
-        input.taskDescription ?? input.content ?? "",
-        this.deps.posthogClient,
-      );
-    }
 
     const repoKey = getTaskRepository(task);
     const repoPath =
@@ -486,8 +404,11 @@ export class TaskCreationSaga extends Saga<
     return this.step({
       name: "task_creation",
       execute: async () => {
+        const description = input.taskDescription ?? input.content ?? "";
+        const plainText = description.replace(createFileTagRegex(), "").trim();
         const result = await this.deps.posthogClient.createTask({
-          description: input.taskDescription ?? input.content ?? "",
+          title: (plainText || "Reading attachment\u2026").slice(0, 255),
+          description,
           repository: repository ?? undefined,
           github_integration:
             input.workspaceMode === "cloud" &&

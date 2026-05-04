@@ -107,6 +107,51 @@ function execFileAsync(
   });
 }
 
+async function chmodTreeWritable(target: string): Promise<void> {
+  let stat: import("node:fs").Stats;
+  try {
+    stat = await fs.lstat(target);
+  } catch {
+    return;
+  }
+  if (stat.isSymbolicLink()) return;
+  try {
+    await fs.chmod(target, stat.isDirectory() ? 0o700 : 0o600);
+  } catch (error) {
+    console.warn(`forceRemove: chmod failed on ${target}`, error);
+  }
+  if (!stat.isDirectory()) return;
+  let entries: string[];
+  try {
+    entries = await fs.readdir(target);
+  } catch (error) {
+    console.warn(`forceRemove: readdir failed on ${target}`, error);
+    return;
+  }
+  await Promise.all(
+    entries.map((entry) => chmodTreeWritable(path.join(target, entry))),
+  );
+}
+
+/**
+ * Recursively remove a path, retrying after chmod'ing the tree writable when
+ * the kernel rejects the initial removal with EACCES/EPERM. Worktrees commonly
+ * contain read-only subtrees populated by Go's module cache (which marks every
+ * cached directory mode 0555); plain `fs.rm` cannot unlink entries from those
+ * parents until we restore the write bit.
+ */
+export async function forceRemove(target: string): Promise<void> {
+  try {
+    await fs.rm(target, { recursive: true, force: true, maxRetries: 3 });
+    return;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "EACCES" && code !== "EPERM") throw error;
+  }
+  await chmodTreeWritable(target);
+  await fs.rm(target, { recursive: true, force: true, maxRetries: 3 });
+}
+
 export interface GitHubPr {
   owner: string;
   repo: string;
