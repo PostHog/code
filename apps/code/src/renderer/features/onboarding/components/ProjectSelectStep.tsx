@@ -8,7 +8,6 @@ import {
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
 import { useSeatStore } from "@features/billing/stores/seatStore";
-import { Command } from "@features/command/components/Command";
 import {
   type ProjectInfo,
   useProjects,
