@@ -5,13 +5,17 @@ import { isLoopbackAddress, runGh } from "./gh-exec";
 describe("isLoopbackAddress", () => {
   it.each([
     ["127.0.0.1", true],
+    ["127.0.0.2", true],
+    ["127.1.2.3", true],
     ["::1", true],
     ["::ffff:127.0.0.1", true],
+    ["::ffff:127.1.2.3", true],
     ["localhost", true],
     ["10.0.0.1", false],
     ["192.168.1.1", false],
     ["::ffff:10.0.0.1", false],
     ["8.8.8.8", false],
+    ["128.0.0.1", false],
     ["", false],
     [undefined, false],
   ])("address %s -> %s", (input, expected) => {

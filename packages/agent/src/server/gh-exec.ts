@@ -90,14 +90,12 @@ export async function runGh(
   });
 }
 
-const LOOPBACK_ADDRESSES = new Set([
-  "127.0.0.1",
-  "::1",
-  "::ffff:127.0.0.1",
-  "localhost",
-]);
-
 export function isLoopbackAddress(address: string | undefined): boolean {
   if (!address) return false;
-  return LOOPBACK_ADDRESSES.has(address);
+  if (address === "::1" || address === "localhost") return true;
+  // IPv4 reserves the full 127.0.0.0/8 range as loopback, and IPv4-mapped
+  // IPv6 covers ::ffff:127.0.0.0/104 — match by prefix rather than equality.
+  if (address.startsWith("127.")) return true;
+  if (address.startsWith("::ffff:127.")) return true;
+  return false;
 }

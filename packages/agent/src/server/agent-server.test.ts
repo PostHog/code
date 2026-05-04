@@ -409,95 +409,59 @@ describe("AgentServer HTTP Mode", () => {
       return bare;
     };
 
-    it("updates GH_TOKEN and GITHUB_TOKEN on process.env", async () => {
-      const previousGh = process.env.GH_TOKEN;
-      const previousGithub = process.env.GITHUB_TOKEN;
-      delete process.env.GH_TOKEN;
-      delete process.env.GITHUB_TOKEN;
+    it.each([
+      { method: "set_token", token: "ghp_refreshed" },
+      { method: "posthog/set_token", token: "ghp_aliased" },
+    ])(
+      "updates GH_TOKEN and GITHUB_TOKEN via $method",
+      async ({ method, token }) => {
+        const previousGh = process.env.GH_TOKEN;
+        const previousGithub = process.env.GITHUB_TOKEN;
+        delete process.env.GH_TOKEN;
+        delete process.env.GITHUB_TOKEN;
 
-      try {
-        const result = await buildBareServer().executeCommand("set_token", {
-          token: "ghp_refreshed",
-        });
+        try {
+          const result = await buildBareServer().executeCommand(method, {
+            token,
+          });
 
-        expect(result).toEqual({ updated: true });
-        expect(process.env.GH_TOKEN).toBe("ghp_refreshed");
-        expect(process.env.GITHUB_TOKEN).toBe("ghp_refreshed");
-      } finally {
-        if (previousGh === undefined) delete process.env.GH_TOKEN;
-        else process.env.GH_TOKEN = previousGh;
-        if (previousGithub === undefined) delete process.env.GITHUB_TOKEN;
-        else process.env.GITHUB_TOKEN = previousGithub;
-      }
-    });
-
-    it("accepts the posthog/-prefixed alias", async () => {
-      const previousGh = process.env.GH_TOKEN;
-      delete process.env.GH_TOKEN;
-      try {
-        await buildBareServer().executeCommand("posthog/set_token", {
-          token: "ghp_aliased",
-        });
-
-        expect(process.env.GH_TOKEN).toBe("ghp_aliased");
-      } finally {
-        if (previousGh === undefined) delete process.env.GH_TOKEN;
-        else process.env.GH_TOKEN = previousGh;
-      }
-    });
+          expect(result).toEqual({ updated: true });
+          expect(process.env.GH_TOKEN).toBe(token);
+          expect(process.env.GITHUB_TOKEN).toBe(token);
+        } finally {
+          if (previousGh === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = previousGh;
+          if (previousGithub === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = previousGithub;
+        }
+      },
+    );
   });
 
   describe("POST /gh", () => {
-    it("rejects malformed JSON bodies with 400", async () => {
-      await createServer().start();
+    // Each case rejects with 400 (validation), proving 1) the body schema is
+    // enforced and 2) the route doesn't require a JWT — a 401 would mean the
+    // route is gated, which would defeat the wrapper-script use case.
+    it.each([
+      { name: "malformed JSON", body: "not-json" },
+      { name: "missing args", body: JSON.stringify({ cwd: "/tmp" }) },
+      { name: "empty args array", body: JSON.stringify({ args: [] }) },
+      { name: "empty body (no JWT required)", body: JSON.stringify({}) },
+    ])(
+      "rejects $name with 400",
+      async ({ body }) => {
+        await createServer().start();
 
-      const response = await fetch(`http://localhost:${port}/gh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "not-json",
-      });
+        const response = await fetch(`http://localhost:${port}/gh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
 
-      expect(response.status).toBe(400);
-    }, 20000);
-
-    it("rejects bodies missing args with 400", async () => {
-      await createServer().start();
-
-      const response = await fetch(`http://localhost:${port}/gh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd: "/tmp" }),
-      });
-
-      expect(response.status).toBe(400);
-    }, 20000);
-
-    it("rejects empty args arrays with 400", async () => {
-      await createServer().start();
-
-      const response = await fetch(`http://localhost:${port}/gh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ args: [] }),
-      });
-
-      expect(response.status).toBe(400);
-    }, 20000);
-
-    it("does not require a JWT", async () => {
-      await createServer().start();
-
-      // Even with no Authorization header, validation runs (and rejects on
-      // missing args). A 401 here would mean the route is gated by JWT, which
-      // would defeat the wrapper-script use case.
-      const response = await fetch(`http://localhost:${port}/gh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-
-      expect(response.status).toBe(400);
-    }, 20000);
+        expect(response.status).toBe(400);
+      },
+      20000,
+    );
   });
 
   describe("session lifecycle", () => {
