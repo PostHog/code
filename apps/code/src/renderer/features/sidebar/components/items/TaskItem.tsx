@@ -195,6 +195,16 @@ export function TaskItem({
     <DotsCircleSpinner size={ICON_SIZE} className="text-accent-11" />
   ) : isCloudTask ? (
     <CloudStatusIcon taskRunStatus={taskRunStatus} />
+  ) : isSuspended ? (
+    <Tooltip content="Suspended" side="right">
+      <span className="flex items-center justify-center">
+        <Pause size={ICON_SIZE} className="text-gray-9" />
+      </span>
+    </Tooltip>
+  ) : isUnread ? (
+    <span className="flex items-center justify-center">
+      <Circle size={8} weight="fill" className="text-green-11" />
+    </span>
   ) : prState === "merged" ? (
     <Tooltip content="PR merged" side="right">
       <span className="flex items-center justify-center">
@@ -237,16 +247,6 @@ export function TaskItem({
         <GitBranch size={ICON_SIZE} weight="bold" className="text-amber-11" />
       </span>
     </Tooltip>
-  ) : isSuspended ? (
-    <Tooltip content="Suspended" side="right">
-      <span className="flex items-center justify-center">
-        <Pause size={ICON_SIZE} className="text-gray-9" />
-      </span>
-    </Tooltip>
-  ) : isUnread ? (
-    <span className="flex items-center justify-center">
-      <Circle size={8} weight="fill" className="text-green-11" />
-    </span>
   ) : isPinned ? (
     <PushPin size={ICON_SIZE} className="text-accent-11" />
   ) : (

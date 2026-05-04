@@ -145,6 +145,12 @@ describe("mapPrState", () => {
     expect(mapPrState("Open", false, false)).toBe("open");
   });
 
+  it("returns merged when state string is MERGED even if merged boolean is false", () => {
+    expect(mapPrState("MERGED", false, false)).toBe("merged");
+    expect(mapPrState("merged", false, false)).toBe("merged");
+    expect(mapPrState("Merged", false, false)).toBe("merged");
+  });
+
   it("returns null for unknown state", () => {
     expect(mapPrState(null, false, false)).toBeNull();
     expect(mapPrState("something", false, false)).toBeNull();

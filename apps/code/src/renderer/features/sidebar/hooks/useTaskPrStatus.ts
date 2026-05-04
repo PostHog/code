@@ -18,8 +18,8 @@ export function mapPrState(
   merged: boolean,
   draft: boolean,
 ): SidebarPrState {
-  if (merged) return "merged";
   const lower = state?.toLowerCase() ?? null;
+  if (merged || lower === "merged") return "merged";
   if (lower === "closed") return "closed";
   if (draft) return "draft";
   if (lower === "open") return "open";
@@ -123,7 +123,7 @@ export function useTaskPrStatus(
       if (localPrStatus.prExists && localPrStatus.prState) {
         prState = mapPrState(
           localPrStatus.prState,
-          localPrStatus.prState.toUpperCase() === "MERGED",
+          false,
           localPrStatus.isDraft ?? false,
         );
       }
