@@ -46,7 +46,8 @@ vi.mock("@features/panels/store/panelLayoutStore", () => ({
 
 vi.mock("@features/sessions/service/service", () => ({
   getSessionService: () => ({
-    updateSessionTaskTitle: vi.fn(),
+    connectToTask: vi.fn(),
+    disconnectFromTask: vi.fn(),
   }),
 }));
 
