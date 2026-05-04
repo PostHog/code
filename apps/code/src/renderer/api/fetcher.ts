@@ -64,9 +64,12 @@ export const buildApiFetcher: (config: {
             await config.refreshAccessToken(),
           );
         } catch {
+          const cloned = response.clone();
           const errorResponse = await response
             .json()
-            .catch(() => ({ error: response.statusText }));
+            .catch(() =>
+              cloned.text().then((t) => ({ error: t || `${response.status}` })),
+            );
           throw new Error(
             `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
           );
@@ -74,9 +77,12 @@ export const buildApiFetcher: (config: {
       }
 
       if (!response.ok) {
+        const cloned = response.clone();
         const errorResponse = await response
           .json()
-          .catch(() => ({ error: response.statusText }));
+          .catch(() =>
+            cloned.text().then((t) => ({ error: t || `${response.status}` })),
+          );
         throw new Error(
           `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
         );

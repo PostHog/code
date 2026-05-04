@@ -7,6 +7,8 @@ import {
   useAuthStateValue,
   useCurrentUser,
 } from "@features/auth/hooks/authQueries";
+import { useSeatStore } from "@features/billing/stores/seatStore";
+import { Command } from "@features/command/components/Command";
 import {
   type ProjectInfo,
   useProjects,
@@ -107,6 +109,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
       await queryClient.invalidateQueries({
         queryKey: authKeys.currentUsers(),
       });
+      void useSeatStore.getState().fetchSeat({ autoProvision: true });
     },
     onMutate: () => {
       setIsSwitchingOrg(true);
