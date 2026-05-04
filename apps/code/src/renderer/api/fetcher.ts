@@ -64,7 +64,9 @@ export const buildApiFetcher: (config: {
             await config.refreshAccessToken(),
           );
         } catch {
-          const errorResponse = await response.json();
+          const errorResponse = await response
+            .json()
+            .catch(() => ({ error: response.statusText }));
           throw new Error(
             `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
           );
@@ -72,7 +74,9 @@ export const buildApiFetcher: (config: {
       }
 
       if (!response.ok) {
-        const errorResponse = await response.json();
+        const errorResponse = await response
+          .json()
+          .catch(() => ({ error: response.statusText }));
         throw new Error(
           `Failed request: [${response.status}] ${JSON.stringify(errorResponse)}`,
         );

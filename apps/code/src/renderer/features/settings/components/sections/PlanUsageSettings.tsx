@@ -238,10 +238,10 @@ export function PlanUsageSettings() {
           className="rounded-(--radius-3) border border-(--accent-7) bg-(--accent-2)"
         >
           <Flex direction="column" gap="2">
-            <Text className="font-medium text-sm">Alpha plan</Text>
+            <Text className="font-medium text-sm">Extended Alpha Plan</Text>
             <Text className="text-(--gray-11) text-sm">
-              You're on the free alpha Pro plan with full Pro features. You can
-              upgrade to the paid Pro plan anytime for higher usage limits.
+              You're on the free Pro plan with full Pro features until June 4,
+              2026.
             </Text>
           </Flex>
         </Flex>
