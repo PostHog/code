@@ -6,6 +6,15 @@ contextBridge.exposeInMainWorld("electronUtils", {
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 });
 
+contextBridge.exposeInMainWorld("__posthogCodeTest", {
+  crash: () => {
+    process.crash();
+  },
+  abort: () => {
+    process.abort();
+  },
+});
+
 process.once("loaded", async () => {
   exposeElectronTRPC();
 });

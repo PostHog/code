@@ -15,8 +15,10 @@
  */
 
 import dns from "node:dns";
+import { mkdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { app, protocol } from "electron";
+import { app, crashReporter, protocol } from "electron";
 import { fixPath } from "./utils/fixPath";
 
 const isDev = !app.isPackaged;
@@ -36,6 +38,18 @@ app.setPath("userData", userDataPath);
 process.env.POSTHOG_CODE_DATA_DIR = userDataPath;
 process.env.POSTHOG_CODE_IS_DEV = String(isDev);
 process.env.POSTHOG_CODE_VERSION = app.getVersion();
+
+const logDir = path.join(
+  os.homedir(),
+  ".posthog-code",
+  isDev ? "logs-dev" : "logs",
+);
+mkdirSync(logDir, { recursive: true });
+app.commandLine.appendSwitch("enable-logging");
+app.commandLine.appendSwitch("log-file", path.join(logDir, "chromium.log"));
+app.commandLine.appendSwitch("log-level", isDev ? "0" : "1");
+
+crashReporter.start({ uploadToServer: false });
 
 // Force IPv4 resolution when "localhost" is used so the agent hits 127.0.0.1
 // instead of ::1. This matches how the renderer already reaches the PostHog API.

@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIPCHandler } from "@posthog/electron-trpc/main";
 import {
+  app,
   BrowserWindow,
   Menu,
   type MenuItemConstructorOptions,
@@ -53,7 +54,7 @@ function getSavedWindowState(): WindowStateSchema {
   return state;
 }
 
-function saveWindowState(window: BrowserWindow): void {
+export function saveWindowState(window: BrowserWindow): void {
   const isMaximized = window.isMaximized();
   windowStateStore.set("isMaximized", isMaximized);
 
@@ -183,6 +184,9 @@ export function createWindow(): void {
       mainWindow?.maximize();
     }
     mainWindow?.show();
+    mainWindow?.moveTop();
+    mainWindow?.focus();
+    app.focus({ steal: true });
   };
 
   mainWindow.once("ready-to-show", showWindow);
