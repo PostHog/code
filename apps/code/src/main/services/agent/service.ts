@@ -1628,6 +1628,29 @@ For git operations while detached:
           error: err,
         });
       });
+
+    // The user-initiated PR-creation flow links the current branch to the
+    // workspace atomically (see GitService.createPr). PRs created via bash —
+    // e.g. an agent running a `/commit-and-pr` skill — never go through that
+    // flow, so `workspace.linkedBranch` would otherwise stay unset and
+    // PR-aware UI (the unified PR badge, branch mismatch warning, diff
+    // source) would have no anchor. Emit AgentFileActivity here too so
+    // WorkspaceService.handleAgentFileActivity links the current feature
+    // branch the moment we observe a PR for it.
+    getCurrentBranch(session.repoPath)
+      .then((branchName) => {
+        this.emit(AgentServiceEvent.AgentFileActivity, {
+          taskId: session.taskId,
+          branchName,
+        });
+      })
+      .catch((err) => {
+        log.warn("Failed to resolve branch for PR auto-link", {
+          taskRunId,
+          taskId: session.taskId,
+          error: err,
+        });
+      });
   }
 
   /**

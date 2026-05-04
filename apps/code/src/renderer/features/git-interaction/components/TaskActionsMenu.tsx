@@ -59,17 +59,6 @@ interface TaskActionsMenuProps {
  * list. Cloud tasks without a PR render nothing.
  */
 export function TaskActionsMenu({ taskId, isCloud }: TaskActionsMenuProps) {
-  // PR URL resolution — pick the right source based on task kind.
-  const cloudPrUrl = useCloudPrUrl(taskId);
-  const linkedPrUrl = useLinkedBranchPrUrl(taskId);
-  const prUrl = isCloud ? cloudPrUrl : linkedPrUrl;
-
-  const {
-    meta: { state: prState, merged, draft },
-  } = usePrDetails(prUrl);
-  const { execute: executePrAction, isPending: isPrActionPending } =
-    usePrActions(prUrl);
-
   // Git state (skipped for cloud — useGitInteraction handles undefined repo).
   const workspace = useWorkspace(taskId);
   const isFocused = useFocusStore(
@@ -84,18 +73,38 @@ export function TaskActionsMenu({ taskId, isCloud }: TaskActionsMenuProps) {
     actions: gitActions,
   } = useGitInteraction(taskId, isCloud ? undefined : localRepoPath);
 
+  // PR URL resolution — pick the right source based on task kind.
+  // For local tasks, prefer the explicitly linked-branch lookup but fall back
+  // to whatever `getPrStatus` found on the current branch. The fallback
+  // catches PRs created outside the in-app flow (e.g. agents/skills running
+  // `gh pr create` via bash) where `workspace.linkedBranch` may not be set
+  // yet.
+  const cloudPrUrl = useCloudPrUrl(taskId);
+  const linkedPrUrl = useLinkedBranchPrUrl(taskId);
+  const prUrl = isCloud ? cloudPrUrl : (linkedPrUrl ?? gitState.prUrl ?? null);
+
+  const {
+    meta: { state: prState, merged, draft },
+  } = usePrDetails(prUrl);
+  const { execute: executePrAction, isPending: isPrActionPending } =
+    usePrActions(prUrl);
+
   const pr = prUrl && prState !== null ? { url: prUrl, state: prState } : null;
 
   // Cloud tasks only appear when they have a PR.
   if (isCloud && !pr) return null;
 
-  // "view-pr" is redundant when the badge itself links to the PR;
-  // "create-pr" is redundant once a PR exists.
+  // When a PR exists the badge handles "view PR" and "create PR" is moot.
+  // Disabled commit/push entries (no changes, branch up to date) just clutter
+  // the dropdown next to the badge — drop them so the menu only surfaces
+  // actions the user can actually take.
   const gitItems = isCloud
     ? []
-    : gitState.actions.filter(
-        (a) => !(pr && (a.id === "view-pr" || a.id === "create-pr")),
-      );
+    : gitState.actions.filter((a) => {
+        if (!pr) return true;
+        if (a.id === "view-pr" || a.id === "create-pr") return false;
+        return a.enabled;
+      });
 
   return (
     <>
