@@ -545,14 +545,19 @@ export function useTiptapEditor(options: UseTiptapEditorOptions) {
     }
   }, [attachments, editor]);
 
-  // Notify parent when emptiness changes due to attachment add/remove
+  // Notify parent when emptiness changes due to attachment add/remove.
+  // Only reacts to attachment changes; text changes are handled by onUpdate.
+  // We read editor text directly because isEmptyState may include stale
+  // attachment info (isContentEmpty counts attachments in its input).
   useEffect(() => {
-    const newIsEmpty = !editor || (isEmptyState && attachments.length === 0);
+    if (!editor) return;
+    const hasText = !!editor.getText().trim();
+    const newIsEmpty = !hasText && attachments.length === 0;
     if (newIsEmpty !== prevIsEmptyRef.current) {
       prevIsEmptyRef.current = newIsEmpty;
       callbackRefs.current.onEmptyChange?.(newIsEmpty);
     }
-  }, [attachments, editor, isEmptyState]);
+  }, [attachments, editor]);
 
   // Restore attachments from draft on mount
   useEffect(() => {
