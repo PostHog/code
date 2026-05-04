@@ -190,6 +190,12 @@ export interface AgentSessionErrorProperties {
   error_type: string;
 }
 
+export interface InboxReportDismissedProperties {
+  report_id: string;
+  reason: string;
+  note?: string;
+}
+
 // Permission events
 export interface PermissionRespondedProperties {
   task_id: string;
@@ -316,6 +322,9 @@ export const ANALYTICS_EVENTS = {
   // Tour events
   TOUR_EVENT: "Tour event",
 
+  // Inbox events
+  INBOX_REPORT_DISMISSED: "Inbox report dismissed",
+
   // Error events
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
@@ -379,6 +388,9 @@ export type EventPropertyMap = {
 
   // Tour events
   [ANALYTICS_EVENTS.TOUR_EVENT]: TourEventProperties;
+
+  // Inbox events
+  [ANALYTICS_EVENTS.INBOX_REPORT_DISMISSED]: InboxReportDismissedProperties;
 
   // Error events
   [ANALYTICS_EVENTS.TASK_CREATION_FAILED]: TaskCreationFailedProperties;

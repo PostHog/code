@@ -8,6 +8,7 @@ module.exports = {
     extend: {
       animation: {
         "sync-rotate": "sync-rotate 3s ease-in-out infinite",
+        shimmer: "shimmer 1.6s ease-in-out infinite",
       },
       keyframes: {
         "sync-rotate": {
@@ -15,6 +16,10 @@ module.exports = {
           "33%": { transform: "rotate(0deg)" },
           "66%": { transform: "rotate(360deg)" },
           "100%": { transform: "rotate(360deg)" },
+        },
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(400%)" },
         },
       },
       colors: {

@@ -2,7 +2,7 @@ import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
 import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
 import { Flex, Text } from "@radix-ui/themes";
 import { useMemo } from "react";
-import { InboxSignalsTab } from "./InboxSignalsTab";
+import { InboxPage } from "./InboxPage";
 
 export function InboxView() {
   const headerContent = useMemo(
@@ -24,7 +24,7 @@ export function InboxView() {
 
   return (
     <div className="h-full">
-      <InboxSignalsTab />
+      <InboxPage />
     </div>
   );
 }

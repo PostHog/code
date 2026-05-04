@@ -1782,28 +1782,32 @@ export class PostHogAPIClient {
     params?: SignalReportsQueryParams,
   ): Promise<SignalReportsResponse> {
     const teamId = await this.getTeamId();
-    const url = new URL(
-      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/`,
-    );
 
+    // Build query string manually to avoid URLSearchParams encoding commas
+    // in comma-separated values like status, ordering, source_product.
+    const queryParts: string[] = [];
     if (params?.limit != null) {
-      url.searchParams.set("limit", String(params.limit));
+      queryParts.push(`limit=${encodeURIComponent(String(params.limit))}`);
     }
     if (params?.offset != null) {
-      url.searchParams.set("offset", String(params.offset));
+      queryParts.push(`offset=${encodeURIComponent(String(params.offset))}`);
     }
     if (params?.status) {
-      url.searchParams.set("status", params.status);
+      queryParts.push(`status=${params.status}`);
     }
     if (params?.ordering) {
-      url.searchParams.set("ordering", params.ordering);
+      queryParts.push(`ordering=${params.ordering}`);
     }
     if (params?.source_product) {
-      url.searchParams.set("source_product", params.source_product);
+      queryParts.push(`source_product=${params.source_product}`);
     }
     if (params?.suggested_reviewers) {
-      url.searchParams.set("suggested_reviewers", params.suggested_reviewers);
+      queryParts.push(`suggested_reviewers=${params.suggested_reviewers}`);
     }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+    const url = new URL(
+      `${this.api.baseUrl}/api/projects/${teamId}/signals/reports/${queryString}`,
+    );
 
     const response = await this.api.fetcher.fetch({
       method: "get",

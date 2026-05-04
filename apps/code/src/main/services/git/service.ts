@@ -1048,7 +1048,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         "api",
         `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`,
         "--jq",
-        "{state,merged,draft}",
+        "{state,merged,draft,additions,deletions,headRef:.head.ref}",
       ]);
 
       if (result.exitCode !== 0) {
@@ -1063,6 +1063,9 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
         state: string;
         merged: boolean;
         draft: boolean;
+        additions?: number;
+        deletions?: number;
+        headRef?: string;
       };
 
       return data;

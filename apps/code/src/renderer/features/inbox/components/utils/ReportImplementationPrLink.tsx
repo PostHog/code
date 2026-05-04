@@ -16,7 +16,7 @@ interface ReportImplementationPrLinkProps {
   skipStatusFetch?: boolean;
 }
 
-function parseGitHubPrReference(prUrl: string): {
+export function parseGitHubPrReference(prUrl: string): {
   reference: string;
   prNumber: string;
 } {
