@@ -51,15 +51,14 @@ vi.mock("@utils/logger", () => ({
 }));
 
 vi.mock("@features/sessions/stores/sessionStore", () => {
-  const fn: any = (selector: any) =>
-    selector({
-      taskIdIndex: { "task-1": "run-1" },
-      sessions: { "run-1": { events: mockPrompts.value } },
-    });
-  fn.getState = () => ({
+  const state = {
     taskIdIndex: { "task-1": "run-1" },
     sessions: { "run-1": { events: mockPrompts.value } },
-  });
+  };
+  const fn = Object.assign(
+    (selector: (s: typeof state) => unknown) => selector(state),
+    { getState: () => state },
+  );
   return {
     useSessionStore: fn,
     sessionStoreSetters: mockSessionStoreSetters,
