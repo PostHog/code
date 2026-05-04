@@ -148,10 +148,16 @@ function useAllUserGithubRepositories(
     })),
     combine: (results) => {
       const map: Record<string, UserRepositoryIntegrationRef> = {};
+      const failedInstallationIds: string[] = [];
       let pending = false;
-      for (const result of results) {
+      results.forEach((result, index) => {
         if (result.isPending) pending = true;
-        if (!result.data) continue;
+        if (result.isError) {
+          const installationId =
+            githubIntegrations[index]?.installation_id ?? null;
+          if (installationId) failedInstallationIds.push(installationId);
+        }
+        if (!result.data) return;
         for (const repo of result.data.repos ?? []) {
           if (!(repo in map)) {
             map[repo] = {
@@ -160,8 +166,12 @@ function useAllUserGithubRepositories(
             };
           }
         }
-      }
-      return { repositoryMap: map, isPending: pending };
+      });
+      return {
+        repositoryMap: map,
+        isPending: pending,
+        failedInstallationIds,
+      };
     },
   });
 }
@@ -489,8 +499,11 @@ export function useUserRepositoryIntegration() {
     useUserGithubIntegrations();
   const [isRefreshingRepos, setIsRefreshingRepos] = useState(false);
 
-  const { repositoryMap, isPending: reposPending } =
-    useAllUserGithubRepositories(githubIntegrations);
+  const {
+    repositoryMap,
+    isPending: reposPending,
+    failedInstallationIds,
+  } = useAllUserGithubRepositories(githubIntegrations);
 
   const repositories = useMemo(
     () => Object.keys(repositoryMap),
@@ -555,6 +568,7 @@ export function useUserRepositoryIntegration() {
     isRefreshingRepos,
     refreshRepositories,
     hasGithubIntegration: githubIntegrations.length > 0,
+    failedInstallationIds,
   };
 }
 

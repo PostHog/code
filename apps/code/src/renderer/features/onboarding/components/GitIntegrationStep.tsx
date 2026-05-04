@@ -110,8 +110,12 @@ export function GitIntegrationStep({
     isLoading: githubUserIntegrationsLoading,
   } = useUserGithubIntegrations();
   const hasGitIntegration = githubUserIntegrations.length > 0;
-  const { repositories, isLoadingRepos } = useUserRepositoryIntegration();
+  const { repositories, isLoadingRepos, failedInstallationIds } =
+    useUserRepositoryIntegration();
   const githubIntegration = githubUserIntegrations[0] ?? null;
+  const integrationIsStale =
+    !!githubIntegration &&
+    failedInstallationIds.includes(githubIntegration.installation_id);
 
   const alternativeConnectedProjects = useMemo(() => {
     if (hasGitIntegration) return [];
@@ -149,17 +153,18 @@ export function GitIntegrationStep({
   const apiClient = useOptionalAuthenticatedClient();
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
   const disconnectMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts: { silent?: boolean } = {}) => {
       const installationId = githubIntegration?.installation_id;
       if (!apiClient || !installationId) {
         throw new Error("No GitHub integration to disconnect");
       }
       await apiClient.disconnectGithubUserIntegration(installationId);
+      return { silent: opts.silent ?? false };
     },
-    onSuccess: () => {
+    onSuccess: ({ silent }) => {
       setDisconnectConfirmOpen(false);
       invalidateGithubQueries(queryClient, selectedProjectId);
-      toast.success("GitHub disconnected.");
+      if (!silent) toast.success("GitHub disconnected.");
     },
     onError: (e) => {
       toast.error(
@@ -339,28 +344,65 @@ export function GitIntegrationStep({
                       {isLoading || githubUserIntegrationsLoading ? (
                         <Skeleton className="h-[16px] w-[80px]" />
                       ) : hasGitIntegration ? (
-                        <Flex align="center" gap="1">
-                          <CheckCircle
-                            size={14}
-                            weight="fill"
-                            className="text-(--green-9)"
-                          />
-                          <Text className="text-(--green-11) text-[13px]">
-                            Connected
+                        integrationIsStale ? (
+                          <Text className="text-(--amber-11) text-[13px]">
+                            Reconnect needed
                           </Text>
-                        </Flex>
+                        ) : (
+                          <Flex align="center" gap="1">
+                            <CheckCircle
+                              size={14}
+                              weight="fill"
+                              className="text-(--green-9)"
+                            />
+                            <Text className="text-(--green-11) text-[13px]">
+                              Connected
+                            </Text>
+                          </Flex>
+                        )
                       ) : null}
                     </Flex>
                     {hasGitIntegration ? (
                       <Flex direction="column" gap="3">
-                        <Text className="text-(--gray-11) text-sm">
-                          {isLoadingRepos
-                            ? "Loading repositories..."
-                            : repoSummary
-                              ? `Access to ${repoSummary}`
-                              : "No repositories found. Check your GitHub app settings."}
+                        <Text
+                          className={
+                            integrationIsStale
+                              ? "text-(--amber-11) text-sm"
+                              : "text-(--gray-11) text-sm"
+                          }
+                        >
+                          {integrationIsStale
+                            ? "We can't reach GitHub with your saved authorization. The app may have been uninstalled or the token revoked. Reconnect to restore access."
+                            : isLoadingRepos
+                              ? "Loading repositories..."
+                              : repoSummary
+                                ? `Access to ${repoSummary}`
+                                : "No repositories found. Check your GitHub app settings."}
                         </Text>
-                        <Flex align="center" gap="3">
+                        <Flex align="center" gap="3" wrap="wrap">
+                          {integrationIsStale && (
+                            <Button
+                              size="1"
+                              variant="solid"
+                              loading={
+                                disconnectMutation.isPending || isConnecting
+                              }
+                              onClick={async () => {
+                                if (!githubIntegration?.installation_id) return;
+                                try {
+                                  await disconnectMutation.mutateAsync({
+                                    silent: true,
+                                  });
+                                } catch {
+                                  return;
+                                }
+                                void handleConnectGitHub();
+                              }}
+                            >
+                              Reconnect
+                              <ArrowSquareOut size={12} />
+                            </Button>
+                          )}
                           <Button
                             size="1"
                             variant="soft"
@@ -595,7 +637,7 @@ export function GitIntegrationStep({
               <Button
                 variant="solid"
                 color="red"
-                onClick={() => disconnectMutation.mutate()}
+                onClick={() => disconnectMutation.mutate({})}
                 disabled={disconnectMutation.isPending}
               >
                 {disconnectMutation.isPending ? <Spinner size="1" /> : null}
