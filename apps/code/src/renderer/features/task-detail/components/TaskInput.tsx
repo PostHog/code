@@ -15,6 +15,7 @@ import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReport
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
+import { resolveAndAttachDroppedFiles } from "@features/message-editor/utils/persistFile";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -40,7 +41,6 @@ import {
   useNavigationStore,
 } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
-import { getFilePath } from "@utils/getFilePath";
 import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
@@ -545,18 +545,11 @@ export function TaskInput({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const filePath = getFilePath(file);
-      if (filePath) {
-        editorRef.current?.addAttachment({
-          id: filePath,
-          label: file.name,
-        });
-      }
-    }
-
-    editorRef.current?.focus();
+    resolveAndAttachDroppedFiles(files, (a) =>
+      editorRef.current?.addAttachment(a),
+    )
+      .then(() => editorRef.current?.focus())
+      .catch(() => toast.error("Failed to attach files"));
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
