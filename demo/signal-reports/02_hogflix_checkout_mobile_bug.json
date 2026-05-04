@@ -1,0 +1,59 @@
+{
+  "name": "hogflix_checkout_fails_mobile",
+  "report_id": "demo-hogflix-checkout-001",
+  "generated_at": "2026-04-30T16:45:00Z",
+  "repository": "PostHog/hogflix",
+  "signal_ids": [
+    "demo-signal-hogflix-checkout-err-001",
+    "demo-signal-hogflix-checkout-err-002",
+    "demo-signal-hogflix-checkout-session-003"
+  ],
+  "result": {
+    "title": "fix(account): Plan upgrade crashes on mobile viewports",
+    "summary": "Users on mobile devices get a \"Checkout failed\" error when trying to upgrade or switch their HogFlix subscription plan, while the same flow works fine on desktop.\n\n**What's happening:** Error tracking shows a spike of `\"Checkout failed: unable to process plan change\"` exceptions originating from the Account page (`/account`). All affected sessions have viewport widths below 640px (mobile). The error fires immediately when tapping any plan upgrade button. Desktop users are unaffected.\n\n**Root cause:** In `app/account/page.tsx`, the plan change button handler calculates an animation duration using `300 / (scale - 1)` where `scale = window.innerWidth / rect.width`. On desktop, the plan cards sit in a 3-column CSS grid (`sm:grid-cols-3`), so each card is roughly 1/3 of the viewport — `scale` is around 3 and the math works. On mobile (below the `sm` breakpoint), the grid collapses to a single column, so each card spans the full viewport width. This makes `rect.width === window.innerWidth`, therefore `scale === 1`, and `300 / (1 - 1)` produces `Infinity`. The subsequent `isFinite()` check then throws the error.\n\n**How to resolve:** Remove the animation duration calculation entirely — it serves no purpose since no actual animation is implemented. Replace the onClick handler with a direct `updatePlan(p.id)` call. Alternatively, guard against `scale === 1` by defaulting to a fixed duration.",
+    "findings": [
+      {
+        "signal_id": "demo-signal-hogflix-checkout-err-001",
+        "relevant_code_paths": [
+          "app/account/page.tsx (line 118-130: onClick handler with the broken scale calculation)",
+          "app/account/page.tsx (line 90: data-plan attribute used by querySelector)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Added the animation duration calculation to the plan upgrade flow that breaks on mobile viewports"
+        },
+        "data_queried": "Error tracking shows 47 occurrences of 'Checkout failed: unable to process plan change' in the last 7 days. 100% of affected sessions have $screen_width < 640px. Stack trace points to app/account/page.tsx onClick handler. The error is deterministic on mobile — every tap on a plan upgrade button triggers it.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-checkout-err-002",
+        "relevant_code_paths": [
+          "app/account/page.tsx (line 122: `const scale = window.innerWidth / rect.width`)",
+          "app/account/page.tsx (line 125: `const duration = 300 / (scale - 1)` — division by zero when scale===1)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Introduced the viewport-dependent animation math"
+        },
+        "data_queried": "Confirmed by inspecting the CSS: the `.grid.sm\\:grid-cols-3` class uses Tailwind's responsive prefix, meaning below 640px the grid is single-column. Verified that on single-column layout, each plan card's width equals the container width (minus padding), which approximately equals window.innerWidth. The division by zero is therefore guaranteed on any mobile viewport.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-checkout-session-003",
+        "relevant_code_paths": ["app/account/page.tsx (line 118-130)"],
+        "relevant_commit_hashes": {
+          "198632a": "The commit that added the buggy handler"
+        },
+        "data_queried": "Session recordings show mobile users navigating to /account, scrolling to the plan section, tapping 'Upgrade', and seeing nothing happen (the error is thrown but not displayed to the user). Some users tap multiple times before giving up.",
+        "verified": true
+      }
+    ],
+    "actionability": {
+      "explanation": "The fix is trivial: the entire animation duration calculation is dead code — no animation actually uses it. The onClick handler should just call `updatePlan(p.id)` directly, which is what the original code did before the regression. This is a one-line simplification that completely fixes the mobile checkout flow.",
+      "actionability": "immediately_actionable",
+      "already_addressed": false
+    },
+    "priority": {
+      "explanation": "Plan upgrades are completely broken for all mobile users. This is a revenue-blocking bug — users literally cannot change their subscription on mobile. The error is deterministic and affects 100% of mobile upgrade attempts. Trivial fix with zero risk.",
+      "priority": "P0"
+    }
+  }
+}

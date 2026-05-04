@@ -1,0 +1,56 @@
+{
+  "name": "hogflix_search_rage_clicks",
+  "report_id": "demo-hogflix-search-001",
+  "generated_at": "2026-04-30T11:30:00Z",
+  "repository": "PostHog/hogflix",
+  "signal_ids": [
+    "demo-signal-hogflix-search-session-001",
+    "demo-signal-hogflix-search-session-002",
+    "demo-signal-hogflix-search-zendesk-003"
+  ],
+  "result": {
+    "title": "feat(browse): Search has no feedback for partial matches or typos",
+    "summary": "Users searching for movies frequently see \"No hedgehogs matched\" even when searching for real titles, because search requires exact substring matches with no fuzzy matching or helpful suggestions.\n\n**What's happening:** Session recordings show users typing partial movie names or slight misspellings into the browse search bar, getting zero results, and either rage-clicking or abandoning the search entirely. Common failure patterns include searching for the real movie name instead of the parody title (e.g. typing \"Godfather\" instead of \"The Hogfather\"), or minor typos like \"Hedgception\" instead of \"Hedgeception\".\n\n**Root cause:** The search implementation in `app/browse/page.tsx` uses a strict `String.includes()` match against title, parody name, description, and genres. There is no fuzzy matching, no \"did you mean?\" suggestions, and no feedback about what search terms might work. The search also doesn't surface the parody-of relationship — searching for \"Inception\" won't find \"Hedgeception\" even though the `parody` field contains \"Inception\".\n\n**How to resolve:** This needs product input to decide the right approach. Options include: (1) adding fuzzy matching with a similarity threshold, (2) showing \"did you mean?\" suggestions when no exact matches are found, (3) weighting parody name matches higher since users often search for the original movie name, or (4) showing partial matches with relevance scores.",
+    "findings": [
+      {
+        "signal_id": "demo-signal-hogflix-search-session-001",
+        "relevant_code_paths": [
+          "app/browse/page.tsx (search implementation using String.includes() with no fuzzy matching)",
+          "app/lib/types.ts (Movie type with parody field that could be used for better search)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Implemented the basic search functionality with strict substring matching"
+        },
+        "data_queried": "Analyzed 30 session recordings with search interactions. 40% of searches returned zero results. Of those failed searches, 60% were for real movie names (not parody titles), and 25% contained minor typos. The remaining 15% were for genres or actors not in the dataset.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-search-session-002",
+        "relevant_code_paths": [
+          "app/browse/page.tsx (searchResults useMemo hook)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Search implementation"
+        },
+        "data_queried": "The search does check the `parody` field, but only via exact case-insensitive substring. Searching 'inception' finds 'Hedgeception' because the parody field is 'Inception' which matches. But 'Inceptin' (typo) finds nothing. The issue is more about typo tolerance than missing fields.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-search-zendesk-003",
+        "relevant_code_paths": ["app/browse/page.tsx"],
+        "relevant_commit_hashes": {},
+        "data_queried": "A Zendesk ticket from a user reports: 'I can never find the movie I'm looking for. I type the name and it says no results. Very frustrating.' The user was searching for 'The Matrix' instead of 'The Hog Matrix'.",
+        "verified": true
+      }
+    ],
+    "actionability": {
+      "explanation": "While the technical issue is clear (strict substring matching with no fuzzy logic), the right solution requires product decisions: Should we add Levenshtein distance matching? Show suggestions? Weight parody names differently? The search UX redesign needs input from product/design before implementation.",
+      "actionability": "requires_human_input",
+      "already_addressed": false
+    },
+    "priority": {
+      "explanation": "Search is a secondary discovery mechanism — users can still browse by scrolling through rows and categories. The 40% failure rate on searches is concerning but doesn't block core functionality. Most users find movies through browsing rather than search.",
+      "priority": "P2"
+    }
+  }
+}

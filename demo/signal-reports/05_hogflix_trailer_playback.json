@@ -1,0 +1,46 @@
+{
+  "name": "hogflix_no_trailers_configured",
+  "report_id": "demo-hogflix-trailers-001",
+  "generated_at": "2026-04-28T18:00:00Z",
+  "repository": "PostHog/hogflix",
+  "signal_ids": [
+    "demo-signal-hogflix-trailers-session-001",
+    "demo-signal-hogflix-trailers-session-002"
+  ],
+  "result": {
+    "title": "fix(player): No movies have trailers configured — Play button always shows placeholder",
+    "summary": "Every movie in the HogFlix catalog shows a \"Curled up for later\" placeholder instead of playing a trailer when users click the Play button, because no YouTube trailer IDs are configured.\n\n**What's happening:** Session recordings show users clicking Play on movie detail pages and seeing the hedgehog placeholder screen instead of a video. Users click Play, see the placeholder, and immediately close the modal — the average time spent on the placeholder screen is under 2 seconds, indicating users expected actual video content.\n\n**Root cause:** In `app/lib/defaultData.ts`, none of the 22 default movies have a `youtubeId` property set. The `Player` component in `app/components/Player.tsx` checks `movie.youtubeId` to decide whether to render a YouTube embed or the placeholder. Since `youtubeId` is always undefined, the placeholder is always shown. This is a data configuration issue rather than a code bug — the Player component works correctly when a `youtubeId` is provided.\n\n**How to resolve:** Add YouTube trailer IDs to movies in `defaultData.ts`. Real trailer IDs for the parodied movies could be used (e.g. The Godfather trailer), or placeholder entertainment videos. Alternatively, the Admin Studio already supports setting YouTube IDs per movie, so this could be done through the UI.",
+    "findings": [
+      {
+        "signal_id": "demo-signal-hogflix-trailers-session-001",
+        "relevant_code_paths": [
+          "app/components/Player.tsx (line 33-35: youtubeId check determines embed vs placeholder)",
+          "app/lib/defaultData.ts (default movie data with no youtubeId values)"
+        ],
+        "relevant_commit_hashes": {
+          "ad48551": "Initial movie data setup without YouTube trailer IDs"
+        },
+        "data_queried": "Session recordings show the Play button is clicked on average 1.2 times per movie detail page visit. Users spend less than 2 seconds on the placeholder before closing. 0% of Play button clicks result in actual video playback.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-trailers-session-002",
+        "relevant_code_paths": [
+          "app/components/Player.tsx",
+          "app/admin/page.tsx (Admin Studio has YouTube ID field for editing movies)"
+        ],
+        "relevant_commit_hashes": {
+          "ad48551": "Initial setup"
+        },
+        "data_queried": "Confirmed that the Player component correctly renders YouTube embeds when youtubeId is set — tested by checking the embed URL construction logic. The issue is purely a data gap.",
+        "verified": true
+      }
+    ],
+    "actionability": {
+      "explanation": "This is a content/data configuration issue, not a code bug. The Player component works correctly — it just needs YouTube IDs to be added to the movie data. This could be done through the existing Admin Studio UI without any code changes. However, it's a known limitation of the demo data rather than a regression.",
+      "actionability": "not_actionable",
+      "already_addressed": false
+    },
+    "priority": null
+  }
+}

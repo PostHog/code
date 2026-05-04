@@ -1,0 +1,49 @@
+{
+  "name": "hogflix_player_zindex_overlap",
+  "report_id": "demo-hogflix-zindex-001",
+  "generated_at": "2026-04-29T09:15:00Z",
+  "repository": "PostHog/hogflix",
+  "signal_ids": [
+    "demo-signal-hogflix-zindex-session-001",
+    "demo-signal-hogflix-zindex-session-002"
+  ],
+  "result": {
+    "title": "fix(player): Video player close button hidden behind navbar on scroll",
+    "summary": "When users open the video player and have previously scrolled down the page, the navbar's backdrop blur overlaps the top-right corner of the player modal, partially obscuring the close button.\n\n**What's happening:** Session recordings show users opening the video player from movie detail pages after scrolling down. The fixed navbar (z-50) renders its blurred background over the player modal's close button area. Users resort to pressing Escape or clicking the backdrop to close the player instead of using the close button.\n\n**Root cause:** The navbar in `app/components/Navbar.tsx` uses `z-50` (z-index: 50), while the Player modal in `app/components/Player.tsx` uses `z-[60]`. Although z-[60] is higher than z-50, the navbar's `backdrop-blur-md` filter creates a new stacking context that visually overlaps the close button area. The issue is cosmetic — the player is still functional and closeable via Escape key or backdrop click.\n\n**How to resolve:** Increase the player's z-index from `z-[60]` to `z-[100]` to ensure clear separation from the navbar's stacking context, or add `z-[70]` to the close button specifically.",
+    "findings": [
+      {
+        "signal_id": "demo-signal-hogflix-zindex-session-001",
+        "relevant_code_paths": [
+          "app/components/Player.tsx (line 38: `z-[60]` on the player modal overlay)",
+          "app/components/Navbar.tsx (line 32: `z-50` on the fixed navbar header)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Set player z-index to z-[60] which is only marginally above the navbar z-50"
+        },
+        "data_queried": "Reviewed 12 session recordings where users opened the video player. In 4 of them, users visibly moved their cursor toward the close button area, paused, then used the Escape key instead. The overlap is subtle — only the top-right corner of the close button is partially covered by the navbar blur.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-zindex-session-002",
+        "relevant_code_paths": [
+          "app/components/Player.tsx (line 38)",
+          "app/components/Navbar.tsx (line 32)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Both z-index values were set in the same commit"
+        },
+        "data_queried": "This is a minor visual glitch. The player is still fully functional — users can close via Escape key, clicking the dark backdrop, or clicking the non-overlapped portion of the close button. No errors are thrown.",
+        "verified": true
+      }
+    ],
+    "actionability": {
+      "explanation": "Simple CSS z-index bump from z-[60] to z-[100] on the Player component's root div. The fix is a single class change with no side effects. However, this is a minor cosmetic issue — the player is fully functional via alternative close methods (Escape key, backdrop click).",
+      "actionability": "immediately_actionable",
+      "already_addressed": false
+    },
+    "priority": {
+      "explanation": "Minor visual glitch affecting the close button on the video player modal. Users can still close the player via Escape or backdrop click. Low user impact, cosmetic only.",
+      "priority": "P3"
+    }
+  }
+}

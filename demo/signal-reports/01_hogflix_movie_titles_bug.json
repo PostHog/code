@@ -1,0 +1,60 @@
+{
+  "name": "hogflix_movie_titles_not_visible",
+  "report_id": "demo-hogflix-titles-001",
+  "generated_at": "2026-04-30T14:22:00Z",
+  "repository": "PostHog/hogflix",
+  "signal_ids": [
+    "demo-signal-hogflix-titles-err-001",
+    "demo-signal-hogflix-titles-session-002",
+    "demo-signal-hogflix-titles-session-003"
+  ],
+  "result": {
+    "title": "fix(browse): Movie titles not visible on poster cards",
+    "summary": "Users browsing the HogFlix catalog cannot see movie titles, years, or ratings on any poster card, making it impossible to identify films without clicking into each one.\n\n**What's happening:** Multiple session recordings show users scrolling through the browse page and rage-clicking on random poster cards because they can't tell which movie is which. The poster cards display only a gradient placeholder with a hedgehog emoji — no title overlay. All 22 movies in the default catalog are affected.\n\n**Root cause:** In `app/components/MovieCard.tsx`, the title/year/rating overlay is conditionally rendered behind `movie.posterUrl` — it only shows when a custom poster image URL is set. Since none of the 22 default movies in `app/lib/defaultData.ts` have a `posterUrl` defined, the overlay is never rendered. The fallback `MoviePoster` component does render the title inside the gradient card, but the `MovieCard` overlay with the bottom gradient and metadata (year, rating, genres) is completely suppressed. This was introduced in commit `198632a` which refactored the card component and accidentally gated the overlay behind the poster URL check.\n\n**How to resolve:** Remove the `movie.posterUrl &&` condition wrapping the overlay JSX in `MovieCard.tsx` (around line 15). The overlay should always render regardless of whether a custom poster image is set, so users can see the title, year, and rating on every card.",
+    "findings": [
+      {
+        "signal_id": "demo-signal-hogflix-titles-err-001",
+        "relevant_code_paths": [
+          "app/components/MovieCard.tsx (line 15: conditional `{movie.posterUrl &&` gates the entire title overlay)",
+          "app/components/MoviePoster.tsx (fallback gradient renderer — shows title inside card but without the metadata overlay)",
+          "app/lib/defaultData.ts (all 22 default movies have posterUrl undefined)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Refactored MovieCard and introduced the posterUrl conditional that hides the title overlay for movies without custom posters"
+        },
+        "data_queried": "Checked session recordings showing users on the /browse page. Multiple sessions show users slowly scrolling horizontally through movie rows, pausing on cards, then clicking seemingly at random — consistent with being unable to read titles. The MoviePoster fallback does render titles inside the gradient, but the text is small and embedded in the colorful background, making it hard to read compared to the designed overlay with the dark gradient backdrop.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-titles-session-002",
+        "relevant_code_paths": [
+          "app/components/MovieCard.tsx (line 15: the posterUrl guard)",
+          "app/browse/page.tsx (renders MovieCard for all movie rows)"
+        ],
+        "relevant_commit_hashes": {
+          "198632a": "Commit that changed overlay rendering to be conditional on posterUrl"
+        },
+        "data_queried": "Session replay analysis confirms the pattern: users spend 3-4x longer on the browse page than expected, with frequent back-and-forth navigation between movie detail pages and the browse page, suggesting they're trying to find specific movies but can't identify them from the cards.",
+        "verified": true
+      },
+      {
+        "signal_id": "demo-signal-hogflix-titles-session-003",
+        "relevant_code_paths": ["app/components/MovieCard.tsx (line 15)"],
+        "relevant_commit_hashes": {
+          "198632a": "Introduced the posterUrl conditional"
+        },
+        "data_queried": "Cross-referenced with the original code in commit ad48551 which always rendered the overlay (with hover animations). The refactor in 198632a removed the hover animation and added the posterUrl gate, effectively hiding titles for all default content.",
+        "verified": true
+      }
+    ],
+    "actionability": {
+      "explanation": "This is a straightforward one-line fix: remove the `movie.posterUrl &&` condition in MovieCard.tsx line 15 so the title overlay renders unconditionally. The root cause is clearly identified, the fix is minimal, and it affects all users browsing the catalog. No design decisions or human input needed — the overlay was always meant to be visible.",
+      "actionability": "immediately_actionable",
+      "already_addressed": false
+    },
+    "priority": {
+      "explanation": "Every user who visits the browse page is affected — movie titles are invisible on all 22 default catalog entries. This makes the core browsing experience fundamentally broken. Users cannot identify any movie without clicking into it. High user impact with a trivial fix.",
+      "priority": "P1"
+    }
+  }
+}
