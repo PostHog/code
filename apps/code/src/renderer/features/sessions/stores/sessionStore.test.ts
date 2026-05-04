@@ -116,6 +116,72 @@ describe("dequeueMessages", () => {
   });
 });
 
+describe("dequeueMessagesAsText", () => {
+  beforeEach(() => {
+    useSessionStore.setState((state) => {
+      state.sessions = {};
+      state.taskIdIndex = {};
+    });
+  });
+
+  it("returns the joined queue text and clears the queue", () => {
+    sessionStoreSetters.setSession({
+      taskRunId: "run-123",
+      taskId: "task-123",
+      taskTitle: "Test",
+      channel: "agent-event:run-123",
+      events: [],
+      startedAt: 0,
+      status: "connected",
+      isPromptPending: false,
+      isCompacting: false,
+      promptStartedAt: null,
+      pendingPermissions: new Map(),
+      pausedDurationMs: 0,
+      messageQueue: [],
+      optimisticItems: [],
+    });
+    sessionStoreSetters.enqueueMessage("task-123", "first", [
+      { type: "text", text: "first" },
+    ]);
+    sessionStoreSetters.enqueueMessage("task-123", "second", [
+      { type: "text", text: "second" },
+    ]);
+
+    const combined = sessionStoreSetters.dequeueMessagesAsText("task-123");
+
+    expect(combined).toBe("first\n\nsecond");
+    expect(useSessionStore.getState().sessions["run-123"].messageQueue).toEqual(
+      [],
+    );
+  });
+
+  it("returns null for an empty queue", () => {
+    sessionStoreSetters.setSession({
+      taskRunId: "run-123",
+      taskId: "task-123",
+      taskTitle: "Test",
+      channel: "agent-event:run-123",
+      events: [],
+      startedAt: 0,
+      status: "connected",
+      isPromptPending: false,
+      isCompacting: false,
+      promptStartedAt: null,
+      pendingPermissions: new Map(),
+      pausedDurationMs: 0,
+      messageQueue: [],
+      optimisticItems: [],
+    });
+
+    expect(sessionStoreSetters.dequeueMessagesAsText("task-123")).toBeNull();
+  });
+
+  it("returns null for an unknown task id", () => {
+    expect(sessionStoreSetters.dequeueMessagesAsText("nope")).toBeNull();
+  });
+});
+
 describe("prependQueuedMessages", () => {
   beforeEach(() => {
     useSessionStore.setState((state) => {

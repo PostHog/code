@@ -361,18 +361,25 @@ export const sessionStoreSetters = {
   },
 
   dequeueMessagesAsText: (taskId: string): string | null => {
-    let result: string | null = null;
-    useSessionStore.setState((state) => {
-      const taskRunId = state.taskIdIndex[taskId];
-      if (!taskRunId) return;
+    // Read the queue from the frozen committed state BEFORE entering the
+    // immer draft — same rationale as `dequeueMessages`: anything captured
+    // through a draft proxy can be revoked when setState exits.
+    const state = useSessionStore.getState();
+    const taskRunId = state.taskIdIndex[taskId];
+    if (!taskRunId) return null;
+    const session = state.sessions[taskRunId];
+    if (!session || session.messageQueue.length === 0) return null;
 
-      const session = state.sessions[taskRunId];
-      if (!session || session.messageQueue.length === 0) return;
-
-      result = session.messageQueue.map((msg) => msg.content).join("\n\n");
-      session.messageQueue = [];
+    const combined = session.messageQueue
+      .map((msg) => msg.content)
+      .join("\n\n");
+    useSessionStore.setState((draft) => {
+      const trid = draft.taskIdIndex[taskId];
+      if (!trid) return;
+      const draftSession = draft.sessions[trid];
+      if (draftSession) draftSession.messageQueue = [];
     });
-    return result;
+    return combined;
   },
 
   dequeueMessages: (taskId: string): QueuedMessage[] => {
