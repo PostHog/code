@@ -4,7 +4,7 @@ import { logger } from "@utils/logger";
 
 const log = logger.scope("title-generator");
 
-export const FILE_TAG_REGEX = /<file\s+path="([^"]+)"\s*\/>/g;
+export const createFileTagRegex = () => /<file\s+path="([^"]+)"\s*\/>/g;
 const ATTACHED_FILES_REGEX = /^\[?Attached files:.*]?$/gm;
 const PASTED_TEXT_SNIPPET_LIMIT = 500;
 
@@ -56,7 +56,7 @@ export async function enrichDescriptionWithFileContent(
   filePaths: string[] = [],
 ): Promise<string> {
   const stripped = description
-    .replace(FILE_TAG_REGEX, "")
+    .replace(createFileTagRegex(), "")
     .replace(ATTACHED_FILES_REGEX, "")
     .replace(/^\d+\.\s*$/gm, "")
     .trim();
@@ -66,7 +66,7 @@ export async function enrichDescriptionWithFileContent(
   const paths =
     filePaths.length > 0
       ? filePaths
-      : [...description.matchAll(FILE_TAG_REGEX)].map((m) => m[1]);
+      : [...description.matchAll(createFileTagRegex())].map((m) => m[1]);
 
   if (paths.length === 0) return description;
 

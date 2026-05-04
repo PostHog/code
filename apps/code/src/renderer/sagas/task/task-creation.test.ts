@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockWorkspaceCreate = vi.hoisted(() => vi.fn());
 const mockWorkspaceDelete = vi.hoisted(() => vi.fn());
 const mockGetTaskDirectory = vi.hoisted(() => vi.fn());
-const mockReadAbsoluteFile = vi.hoisted(() => vi.fn());
 const mockReadFileAsBase64 = vi.hoisted(() => vi.fn());
 vi.mock("@renderer/trpc", () => ({
   trpcClient: {
@@ -18,7 +17,7 @@ vi.mock("@renderer/trpc", () => ({
 vi.mock("@renderer/trpc/client", () => ({
   trpcClient: {
     fs: {
-      readAbsoluteFile: { query: mockReadAbsoluteFile },
+      readAbsoluteFile: { query: vi.fn() },
       readFileAsBase64: { query: mockReadFileAsBase64 },
     },
   },
@@ -52,7 +51,7 @@ vi.mock("@features/sessions/service/service", () => ({
 }));
 
 vi.mock("@renderer/utils/generateTitle", () => ({
-  FILE_TAG_REGEX: /<file\s+path="([^"]+)"\s*\/>/g,
+  createFileTagRegex: () => /<file\s+path="([^"]+)"\s*\/>/g,
 }));
 
 vi.mock("@utils/logger", () => ({
@@ -104,7 +103,6 @@ describe("TaskCreationSaga", () => {
     mockWorkspaceCreate.mockResolvedValue(undefined);
     mockWorkspaceDelete.mockResolvedValue(undefined);
     mockGetTaskDirectory.mockResolvedValue(null);
-    mockReadAbsoluteFile.mockResolvedValue(null);
     mockReadFileAsBase64.mockResolvedValue(null);
   });
 
