@@ -28,6 +28,7 @@ import { useSidebarData } from "../hooks/useSidebarData";
 import { useTaskViewed } from "../hooks/useTaskViewed";
 import { CommandCenterItem } from "./items/CommandCenterItem";
 import { InboxItem, NewTaskItem } from "./items/HomeItem";
+import { McpServersItem } from "./items/McpServersItem";
 import { SkillsItem } from "./items/SkillsItem";
 import { SidebarItem } from "./SidebarItem";
 import { TaskListView } from "./TaskListView";
@@ -40,6 +41,7 @@ function SidebarMenuComponent() {
     navigateToInbox,
     navigateToCommandCenter,
     navigateToSkills,
+    navigateToMcpServers,
   } = useNavigationStore();
 
   const { data: allTasks = [] } = useTasks();
@@ -112,6 +114,10 @@ function SidebarMenuComponent() {
 
   const handleSkillsClick = () => {
     navigateToSkills();
+  };
+
+  const handleMcpServersClick = () => {
+    navigateToMcpServers();
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -289,6 +295,13 @@ function SidebarMenuComponent() {
             <SkillsItem
               isActive={sidebarData.isSkillsActive}
               onClick={handleSkillsClick}
+            />
+          </Box>
+
+          <Box>
+            <McpServersItem
+              isActive={sidebarData.isMcpServersActive}
+              onClick={handleMcpServersClick}
             />
           </Box>
 
