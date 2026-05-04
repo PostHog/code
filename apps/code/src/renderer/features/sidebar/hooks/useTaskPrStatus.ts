@@ -29,12 +29,14 @@ export function mapPrState(
 export function useTaskPrStatus(
   task: TaskData,
   worktreePath: string | null,
+  repoPath: string | null,
 ): TaskPrStatus {
   const trpc = useTRPC();
   const isCloud = task.taskRunEnvironment === "cloud";
   const cloudPrUrl = task.cloudPrUrl;
   const linkedBranch = task.linkedBranch;
   const hasWorktree = !!worktreePath;
+  const hasRepo = !!repoPath;
 
   const { data: cloudPrDetails } = useQuery(
     trpc.git.getPrDetailsByUrl.queryOptions(
@@ -49,11 +51,11 @@ export function useTaskPrStatus(
   const { data: linkedBranchPrUrl } = useQuery(
     trpc.git.getPrUrlForBranch.queryOptions(
       {
-        directoryPath: worktreePath as string,
+        directoryPath: (worktreePath ?? repoPath) as string,
         branchName: linkedBranch as string,
       },
       {
-        enabled: !isCloud && hasWorktree && !!linkedBranch,
+        enabled: !isCloud && (hasWorktree || hasRepo) && !!linkedBranch,
         staleTime: SIDEBAR_STALE_TIME,
       },
     ),

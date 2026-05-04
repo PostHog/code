@@ -103,7 +103,8 @@ function TaskRow({
     (task.taskRunEnvironment === "cloud" ? "cloud" : undefined);
   const { prState, hasDiff } = useTaskPrStatus(
     task,
-    workspace?.worktreePath ?? workspace?.folderPath ?? null,
+    workspace?.worktreePath ?? null,
+    workspace?.folderPath ?? null,
   );
 
   return (

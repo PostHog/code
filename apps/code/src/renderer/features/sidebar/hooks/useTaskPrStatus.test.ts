@@ -174,14 +174,16 @@ describe("useTaskPrStatus", () => {
 
   it("returns empty status when no data is available", () => {
     const task = makeTask();
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
 
     expect(result.current).toEqual({ prState: null, hasDiff: false });
   });
 
   it("returns empty status when worktreePath is null", () => {
     const task = makeTask();
-    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    const { result } = renderHook(() => useTaskPrStatus(task, null, null));
 
     expect(result.current).toEqual({ prState: null, hasDiff: false });
   });
@@ -191,7 +193,7 @@ describe("useTaskPrStatus", () => {
       taskRunEnvironment: "cloud",
       cloudPrUrl: null,
     });
-    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    const { result } = renderHook(() => useTaskPrStatus(task, null, null));
 
     expect(result.current).toEqual({ prState: null, hasDiff: false });
   });
@@ -211,27 +213,33 @@ describe("useTaskPrStatus query enablement", () => {
           taskRunEnvironment: "cloud",
           cloudPrUrl: "https://github.com/org/repo/pull/1",
         }),
-        path: null as string | null,
+        worktreePath: null as string | null,
+        repoPath: null as string | null,
       },
     ];
 
     const disabledCases = [
-      { task: makeTask({ taskRunEnvironment: "local" }), path: "/worktree" },
+      {
+        task: makeTask({ taskRunEnvironment: "local" }),
+        worktreePath: "/worktree",
+        repoPath: "/repo",
+      },
       {
         task: makeTask({ taskRunEnvironment: "cloud", cloudPrUrl: null }),
-        path: null as string | null,
+        worktreePath: null as string | null,
+        repoPath: null as string | null,
       },
     ];
 
-    for (const { task, path } of enabledCases) {
-      renderHook(() => useTaskPrStatus(task, path));
+    for (const { task, worktreePath, repoPath } of enabledCases) {
+      renderHook(() => useTaskPrStatus(task, worktreePath, repoPath));
       const entry = queryResults.get(`getPrDetailsByUrl:${task.cloudPrUrl}`);
       expect(entry?.enabled).toBe(true);
     }
 
-    for (const { task, path } of disabledCases) {
+    for (const { task, worktreePath, repoPath } of disabledCases) {
       queryResults.clear();
-      renderHook(() => useTaskPrStatus(task, path));
+      renderHook(() => useTaskPrStatus(task, worktreePath, repoPath));
       const entries = [...queryResults.entries()].filter(([k]) =>
         k.startsWith("getPrDetailsByUrl:"),
       );
@@ -243,15 +251,23 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("enables linked branch PR lookup only for local tasks with worktree and linkedBranch", () => {
     const task = makeTask({ linkedBranch: "feat/linked" });
-    renderHook(() => useTaskPrStatus(task, "/worktree"));
+    renderHook(() => useTaskPrStatus(task, "/worktree", "/repo"));
 
     const entry = queryResults.get("getPrUrlForBranch:feat/linked");
     expect(entry?.enabled).toBe(true);
   });
 
-  it("disables linked branch PR lookup when no worktree path", () => {
+  it("enables linked branch PR lookup with repoPath when no worktree", () => {
     const task = makeTask({ linkedBranch: "feat/linked" });
-    renderHook(() => useTaskPrStatus(task, null));
+    renderHook(() => useTaskPrStatus(task, null, "/repo"));
+
+    const entry = queryResults.get("getPrUrlForBranch:feat/linked");
+    expect(entry?.enabled).toBe(true);
+  });
+
+  it("disables linked branch PR lookup when no worktree or repo path", () => {
+    const task = makeTask({ linkedBranch: "feat/linked" });
+    renderHook(() => useTaskPrStatus(task, null, null));
 
     const entry = queryResults.get("getPrUrlForBranch:feat/linked");
     expect(entry?.enabled).toBe(false);
@@ -259,7 +275,7 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("enables local PR status for worktree tasks without linked branch", () => {
     const task = makeTask({ linkedBranch: null });
-    renderHook(() => useTaskPrStatus(task, "/worktree"));
+    renderHook(() => useTaskPrStatus(task, "/worktree", "/repo"));
 
     const entry = queryResults.get("getPrStatus:/worktree");
     expect(entry?.enabled).toBe(true);
@@ -267,7 +283,7 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("disables local PR status when task has a linked branch", () => {
     const task = makeTask({ linkedBranch: "feat/linked" });
-    renderHook(() => useTaskPrStatus(task, "/worktree"));
+    renderHook(() => useTaskPrStatus(task, "/worktree", "/repo"));
 
     const entry = queryResults.get("getPrStatus:/worktree");
     expect(entry?.enabled).toBe(false);
@@ -275,7 +291,7 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("disables diff stats for cloud tasks", () => {
     const task = makeTask({ taskRunEnvironment: "cloud" });
-    renderHook(() => useTaskPrStatus(task, "/worktree"));
+    renderHook(() => useTaskPrStatus(task, "/worktree", "/repo"));
 
     const entry = queryResults.get("getDiffStats:/worktree");
     expect(entry?.enabled).toBe(false);
@@ -283,7 +299,7 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("disables diff stats when task has a linked branch", () => {
     const task = makeTask({ linkedBranch: "feat/linked" });
-    renderHook(() => useTaskPrStatus(task, "/worktree"));
+    renderHook(() => useTaskPrStatus(task, "/worktree", "/repo"));
 
     const entry = queryResults.get("getDiffStats:/worktree");
     expect(entry?.enabled).toBe(false);
@@ -291,7 +307,7 @@ describe("useTaskPrStatus query enablement", () => {
 
   it("disables diff stats when no worktree path", () => {
     const task = makeTask();
-    renderHook(() => useTaskPrStatus(task, null));
+    renderHook(() => useTaskPrStatus(task, null, null));
 
     const entries = [...queryResults.entries()].filter(([k]) =>
       k.startsWith("getDiffStats:"),
@@ -337,7 +353,7 @@ describe("useTaskPrStatus derivation", () => {
       cloudPrDetails: { state: "open", merged: false, draft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    const { result } = renderHook(() => useTaskPrStatus(task, null, null));
     expect(result.current.prState).toBe("open");
   });
 
@@ -350,7 +366,7 @@ describe("useTaskPrStatus derivation", () => {
       cloudPrDetails: { state: "closed", merged: true, draft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    const { result } = renderHook(() => useTaskPrStatus(task, null, null));
     expect(result.current.prState).toBe("merged");
   });
 
@@ -363,7 +379,7 @@ describe("useTaskPrStatus derivation", () => {
       cloudPrDetails: { state: "open", merged: false, draft: true },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, null));
+    const { result } = renderHook(() => useTaskPrStatus(task, null, null));
     expect(result.current.prState).toBe("draft");
   });
 
@@ -373,7 +389,9 @@ describe("useTaskPrStatus derivation", () => {
       linkedPrDetails: { state: "open", merged: false, draft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBe("open");
   });
 
@@ -383,7 +401,9 @@ describe("useTaskPrStatus derivation", () => {
       localPrStatus: { prExists: true, prState: "OPEN", isDraft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBe("open");
   });
 
@@ -393,7 +413,9 @@ describe("useTaskPrStatus derivation", () => {
       localPrStatus: { prExists: true, prState: "MERGED", isDraft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBe("merged");
   });
 
@@ -403,7 +425,9 @@ describe("useTaskPrStatus derivation", () => {
       localPrStatus: { prExists: true, prState: "OPEN", isDraft: true },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBe("draft");
   });
 
@@ -413,7 +437,9 @@ describe("useTaskPrStatus derivation", () => {
       localPrStatus: { prExists: false, prState: null, isDraft: null },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBeNull();
   });
 
@@ -423,7 +449,9 @@ describe("useTaskPrStatus derivation", () => {
       diffStats: { filesChanged: 3, linesAdded: 10, linesRemoved: 2 },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.hasDiff).toBe(true);
   });
 
@@ -433,7 +461,9 @@ describe("useTaskPrStatus derivation", () => {
       syncStatus: { aheadOfDefault: 2 },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.hasDiff).toBe(true);
   });
 
@@ -444,7 +474,9 @@ describe("useTaskPrStatus derivation", () => {
       syncStatus: { aheadOfDefault: 0 },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.hasDiff).toBe(false);
   });
 
@@ -459,7 +491,9 @@ describe("useTaskPrStatus derivation", () => {
       linkedPrDetails: { state: "closed", merged: false, draft: false },
     });
 
-    const { result } = renderHook(() => useTaskPrStatus(task, "/worktree"));
+    const { result } = renderHook(() =>
+      useTaskPrStatus(task, "/worktree", "/repo"),
+    );
     expect(result.current.prState).toBe("open");
   });
 });
