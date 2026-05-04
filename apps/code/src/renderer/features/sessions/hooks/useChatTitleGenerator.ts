@@ -35,8 +35,7 @@ export function useChatTitleGenerator(taskId: string): void {
     if (isGenerating.current) return;
 
     if (lastGeneratedAtCount.current === null) {
-      lastGeneratedAtCount.current = promptCount;
-      return;
+      lastGeneratedAtCount.current = 0;
     }
 
     const shouldGenerate =

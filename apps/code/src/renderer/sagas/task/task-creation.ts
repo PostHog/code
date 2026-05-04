@@ -18,10 +18,6 @@ import type {
 import { Saga, type SagaLogger } from "@posthog/shared";
 import type { PostHogAPIClient } from "@renderer/api/posthogClient";
 import { trpcClient } from "@renderer/trpc";
-import {
-  enrichDescriptionWithFileContent,
-  generateTitleAndSummary,
-} from "@renderer/utils/generateTitle";
 import { getTaskRepository } from "@renderer/utils/repository";
 import {
   type ExecutionMode,
@@ -30,45 +26,8 @@ import {
 } from "@shared/types";
 import type { CloudRunSource, PrAuthorshipMode } from "@shared/types/cloud";
 import { logger } from "@utils/logger";
-import { getCachedTask, queryClient } from "@utils/queryClient";
 
 const log = logger.scope("task-creation-saga");
-
-async function generateTaskTitle(
-  taskId: string,
-  description: string,
-  filePaths: string[],
-  posthogClient: PostHogAPIClient,
-): Promise<void> {
-  if (!description.trim()) return;
-
-  const enriched = await enrichDescriptionWithFileContent(
-    description,
-    filePaths,
-  );
-  const result = await generateTitleAndSummary(enriched);
-  if (!result?.title) return;
-  const { title } = result;
-
-  if (getCachedTask(taskId)?.title_manually_set) {
-    log.debug("Skipping auto-title, user renamed task", { taskId });
-    return;
-  }
-
-  try {
-    await posthogClient.updateTask(taskId, { title });
-
-    // Update all cached task lists so the sidebar reflects the new title instantly
-    queryClient.setQueriesData<Task[]>({ queryKey: ["tasks", "list"] }, (old) =>
-      old?.map((task) => (task.id === taskId ? { ...task, title } : task)),
-    );
-
-    // Sync to session store so notifications use the updated title
-    getSessionService().updateSessionTaskTitle(taskId, title);
-  } catch (error) {
-    log.error("Failed to save task title", { taskId, error });
-  }
-}
 
 // Adapt our logger to SagaLogger interface
 const sagaLogger: SagaLogger = {
@@ -139,16 +98,6 @@ export class TaskCreationSaga extends Saga<
           this.deps.posthogClient.getTask(taskId),
         )
       : await this.createTask(input);
-
-    // Fire-and-forget: generate a proper LLM title for new tasks
-    if (!taskId) {
-      generateTaskTitle(
-        task.id,
-        input.taskDescription ?? input.content ?? "",
-        input.filePaths ?? [],
-        this.deps.posthogClient,
-      );
-    }
 
     const repoKey = getTaskRepository(task);
     const repoPath =
@@ -455,8 +404,11 @@ export class TaskCreationSaga extends Saga<
       name: "task_creation",
       execute: async () => {
         const description = input.taskDescription ?? input.content ?? "";
+        const plainText = description
+          .replace(/<file\s+path="[^"]*"\s*\/>/g, "")
+          .trim();
         const result = await this.deps.posthogClient.createTask({
-          title: description,
+          title: plainText || "Reading attachment\u2026",
           description,
           repository: repository ?? undefined,
           github_integration:
