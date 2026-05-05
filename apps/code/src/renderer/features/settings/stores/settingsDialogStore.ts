@@ -10,6 +10,7 @@ export type SettingsCategory =
   | "personalization"
   | "claude-code"
   | "shortcuts"
+  | "github"
   | "signals"
   | "updates"
   | "advanced";

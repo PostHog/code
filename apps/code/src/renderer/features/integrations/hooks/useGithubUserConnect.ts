@@ -86,7 +86,7 @@ export function invalidateGithubQueries(
   void queryClient.invalidateQueries({ queryKey: ["github_login"] });
 }
 
-async function openUrlInBrowser(url: string): Promise<void> {
+export async function openUrlInBrowser(url: string): Promise<void> {
   try {
     await trpcClient.os.openExternal.mutate({ url });
   } catch {
