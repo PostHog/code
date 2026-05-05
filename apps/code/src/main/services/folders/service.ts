@@ -114,6 +114,7 @@ export class FoldersService {
 
   async addFolder(
     folderPath: string,
+    options: { remoteUrl?: string } = {},
   ): Promise<RegisteredFolder & { exists: boolean }> {
     const folderName = path.basename(folderPath);
     if (!folderPath || !folderName) {
@@ -152,6 +153,7 @@ export class FoldersService {
       }
     }
 
+    const repoKey = await this.resolveRepoKey(folderPath, options.remoteUrl);
     const existingRepo = this.repositoryRepo.findByPath(folderPath);
     let repo: Repository;
 
@@ -163,23 +165,17 @@ export class FoldersService {
       }
       repo = updated;
 
-      if (!repo.remoteUrl) {
-        const remoteUrl = await getRemoteUrl(folderPath);
-        const repoKey = remoteUrl ? extractRepoKey(remoteUrl) : null;
-        if (repoKey) {
-          this.repositoryRepo.updateRemoteUrl(repo.id, repoKey);
-          const refreshed = this.repositoryRepo.findById(repo.id);
-          if (!refreshed) {
-            throw new Error(
-              `Repository ${repo.id} not found after remote URL update`,
-            );
-          }
-          repo = refreshed;
+      if (repoKey && repo.remoteUrl !== repoKey) {
+        this.repositoryRepo.updateRemoteUrl(repo.id, repoKey);
+        const refreshed = this.repositoryRepo.findById(repo.id);
+        if (!refreshed) {
+          throw new Error(
+            `Repository ${repo.id} not found after remote URL update`,
+          );
         }
+        repo = refreshed;
       }
     } else {
-      const remoteUrl = await getRemoteUrl(folderPath);
-      const repoKey = remoteUrl ? extractRepoKey(remoteUrl) : null;
       repo = this.repositoryRepo.create({
         path: folderPath,
         remoteUrl: repoKey ?? undefined,
@@ -246,6 +242,19 @@ export class FoldersService {
     const associatedWorktreePaths = allWorktrees.map((wt) => wt.path);
 
     await manager.cleanupOrphanedWorktrees(associatedWorktreePaths);
+  }
+
+  private async resolveRepoKey(
+    folderPath: string,
+    overrideRemoteUrl: string | undefined,
+  ): Promise<string | null> {
+    if (overrideRemoteUrl) {
+      const overrideKey = extractRepoKey(overrideRemoteUrl);
+      if (overrideKey) return overrideKey;
+      return normalizeRepoKey(overrideRemoteUrl);
+    }
+    const localRemoteUrl = await getRemoteUrl(folderPath);
+    return localRemoteUrl ? extractRepoKey(localRemoteUrl) : null;
   }
 
   getRepositoryByRemoteUrl(

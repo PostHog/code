@@ -15,6 +15,7 @@ import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReport
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
+import { resolveAndAttachDroppedFiles } from "@features/message-editor/utils/persistFile";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -40,11 +41,11 @@ import {
   useNavigationStore,
 } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
-import { getFilePath } from "@utils/getFilePath";
 import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
+import { CloudGithubMissingNotice } from "./CloudGithubMissingNotice";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 
 interface TaskInputProps {
@@ -182,6 +183,7 @@ export function TaskInput({
     isLoadingRepos,
     isRefreshingRepos,
     refreshRepositories,
+    hasGithubIntegration,
   } = useUserRepositoryIntegration();
   const {
     repositories: visibleCloudRepositories,
@@ -353,7 +355,18 @@ export function TaskInput({
   }, [lastUsedCloudRepository, selectedRepository]);
 
   useEffect(() => {
-    if (isLoadingRepos || !selectedRepository || selectedCloudRepository) {
+    // Clear `selectedRepository` only when the list has actually loaded AND the
+    // selection is missing from it — i.e. the repo was removed from the user's
+    // integrations. Bail out when `repositories` is empty: that can happen
+    // transiently after `isLoadingRepos` flips false but before the
+    // per-integration queries have produced data, and clearing here would
+    // wipe out a freshly-supplied `initialCloudRepository` prefill.
+    if (
+      isLoadingRepos ||
+      repositories.length === 0 ||
+      !selectedRepository ||
+      selectedCloudRepository
+    ) {
       return;
     }
 
@@ -363,6 +376,7 @@ export function TaskInput({
     }
   }, [
     isLoadingRepos,
+    repositories.length,
     lastUsedCloudRepository,
     selectedCloudRepository,
     selectedRepository,
@@ -545,18 +559,11 @@ export function TaskInput({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const filePath = getFilePath(file);
-      if (filePath) {
-        editorRef.current?.addAttachment({
-          id: filePath,
-          label: file.name,
-        });
-      }
-    }
-
-    editorRef.current?.focus();
+    resolveAndAttachDroppedFiles(files, (a) =>
+      editorRef.current?.addAttachment(a),
+    )
+      .then(() => editorRef.current?.focus())
+      .catch(() => toast.error("Failed to attach files"));
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
@@ -774,6 +781,13 @@ export function TaskInput({
                 </Tooltip>
               </div>
             )}
+            {effectiveWorkspaceMode === "cloud" &&
+              !isLoadingRepos &&
+              !hasGithubIntegration && (
+                <div className="mx-2 mt-2">
+                  <CloudGithubMissingNotice />
+                </div>
+              )}
           </Flex>
         </Flex>
       </Flex>

@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> PostHog Code is pre-alpha and not production-ready. Interested? Join our [Discord](https://discord.gg/posthog)
+> PostHog Code is pre-alpha and not production-ready. Interested? Join our [Discord](https://discord.gg/aSrHKVNVdR)
 
 **[Download the latest version](https://github.com/PostHog/code/releases/latest)**
 

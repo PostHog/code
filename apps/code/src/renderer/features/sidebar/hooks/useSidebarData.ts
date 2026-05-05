@@ -31,6 +31,10 @@ export interface TaskData {
   folderId?: string;
   taskRunStatus?: TaskRunStatus;
   taskRunEnvironment?: "local" | "cloud";
+  folderPath: string | null;
+  cloudPrUrl: string | null;
+  branchName: string | null;
+  linkedBranch: string | null;
 }
 
 export type TaskGroup = GenericTaskGroup<TaskData>;
@@ -40,6 +44,8 @@ export interface SidebarData {
   isInboxActive: boolean;
   isCommandCenterActive: boolean;
   isSkillsActive: boolean;
+  isMcpServersActive: boolean;
+  isSetupActive: boolean;
   isLoading: boolean;
   activeTaskId: string | null;
   pinnedTasks: TaskData[];
@@ -58,7 +64,9 @@ interface ViewState {
     | "inbox"
     | "archived"
     | "command-center"
-    | "skills";
+    | "skills"
+    | "mcp-servers"
+    | "setup";
   data?: Task;
 }
 
@@ -123,6 +131,8 @@ export function useSidebarData({
   const isInboxActive = activeView.type === "inbox";
   const isCommandCenterActive = activeView.type === "command-center";
   const isSkillsActive = activeView.type === "skills";
+  const isMcpServersActive = activeView.type === "mcp-servers";
+  const isSetupActive = activeView.type === "setup";
 
   const activeTaskId =
     activeView.type === "task-detail" && activeView.data
@@ -155,6 +165,11 @@ export function useSidebarData({
       const isUnread =
         taskLastViewedAt != null && lastActivityAt > taskLastViewedAt;
 
+      const cloudPrUrl =
+        typeof task.latest_run?.output?.pr_url === "string"
+          ? task.latest_run.output.pr_url
+          : ((session?.cloudOutput?.pr_url as string | undefined) ?? null);
+
       return {
         id: task.id,
         title: task.title,
@@ -169,6 +184,10 @@ export function useSidebarData({
         folderId: workspace?.folderId || undefined,
         taskRunStatus: session?.cloudStatus ?? task.latest_run?.status,
         taskRunEnvironment: task.latest_run?.environment,
+        folderPath: workspace?.folderPath ?? null,
+        cloudPrUrl,
+        branchName: workspace?.branchName ?? null,
+        linkedBranch: workspace?.linkedBranch ?? null,
       };
     });
   }, [
@@ -232,6 +251,8 @@ export function useSidebarData({
     isInboxActive,
     isCommandCenterActive,
     isSkillsActive,
+    isMcpServersActive,
+    isSetupActive,
     isLoading,
     activeTaskId,
     pinnedTasks,

@@ -19,10 +19,10 @@ import {
   CreditCard,
   Folder,
   GearSix,
+  GithubLogo,
   HardDrives,
   Keyboard,
   Palette,
-  Plugs,
   SignOut,
   TrafficSignal,
   TreeStructure,
@@ -37,7 +37,7 @@ import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
-import { McpServersSettings } from "./sections/McpServersSettings";
+import { GitHubSettings } from "./sections/GitHubSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { PlanUsageSettings } from "./sections/PlanUsageSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
@@ -51,12 +51,11 @@ interface SidebarItem {
   label: string;
   icon: ReactNode;
   hasChevron?: boolean;
-  fullwidth?: boolean;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "general", label: "General", icon: <GearSix size={16} /> },
-  { id: "plan-usage", label: "Plan & Usage", icon: <CreditCard size={16} /> },
+  { id: "plan-usage", label: "Plan & usage", icon: <CreditCard size={16} /> },
   { id: "workspaces", label: "Workspaces", icon: <Folder size={16} /> },
   { id: "worktrees", label: "Worktrees", icon: <TreeStructure size={16} /> },
   {
@@ -75,13 +74,8 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <Palette size={16} />,
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
-  {
-    id: "mcp-servers",
-    label: "MCP servers",
-    icon: <Plugs size={16} />,
-    fullwidth: true,
-  },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
+  { id: "github", label: "GitHub", icon: <GithubLogo size={16} /> },
 
   {
     id: "signals",
@@ -94,15 +88,15 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
 
 const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   general: "General",
-  "plan-usage": "Plan & Usage",
+  "plan-usage": "Plan & usage",
   workspaces: "Workspaces",
   worktrees: "Worktrees",
   environments: "Environments",
   "cloud-environments": "Cloud environments",
   personalization: "Personalization",
   "claude-code": "Claude Code",
-  "mcp-servers": "MCP Servers",
   shortcuts: "Shortcuts",
+  github: "GitHub",
 
   signals: "Signals",
   updates: "Updates",
@@ -118,8 +112,8 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   "cloud-environments": CloudEnvironmentsSettings,
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
-  "mcp-servers": McpServersSettings,
   shortcuts: ShortcutsSettings,
+  github: GitHubSettings,
 
   signals: SignalSourcesSettings,
   updates: UpdatesSettings,
@@ -169,8 +163,6 @@ export function SettingsDialog() {
   }
 
   const ActiveComponent = CATEGORY_COMPONENTS[activeCategory];
-  const activeItem = sidebarItems.find((i) => i.id === activeCategory);
-  const isFullwidth = !!activeItem?.fullwidth;
 
   const initials = user
     ? user.first_name && user.last_name
@@ -278,22 +270,16 @@ export function SettingsDialog() {
               fill="url(#settings-dot-pattern)"
             />
           </svg>
-          {isFullwidth ? (
-            <div className="relative z-[1] flex h-full min-h-0 w-full">
-              <ActiveComponent />
-            </div>
-          ) : (
-            <ScrollArea className="h-full w-full">
-              <Box p="6" mx="auto" className="relative z-[1] max-w-[800px]">
-                <Flex direction="column" gap="4">
-                  <Text className="font-medium text-lg leading-6.5">
-                    {CATEGORY_TITLES[activeCategory]}
-                  </Text>
-                  <ActiveComponent />
-                </Flex>
-              </Box>
-            </ScrollArea>
-          )}
+          <ScrollArea className="h-full w-full">
+            <Box p="6" mx="auto" className="relative z-[1] max-w-[800px]">
+              <Flex direction="column" gap="4">
+                <Text className="font-medium text-lg leading-6.5">
+                  {CATEGORY_TITLES[activeCategory]}
+                </Text>
+                <ActiveComponent />
+              </Flex>
+            </Box>
+          </ScrollArea>
         </div>
       </div>
     </div>

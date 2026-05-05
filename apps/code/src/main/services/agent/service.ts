@@ -1773,7 +1773,7 @@ For git operations while detached:
         id: adapter === "codex" ? "reasoning_effort" : "effort",
         name: adapter === "codex" ? "Reasoning Level" : "Effort",
         type: "select",
-        currentValue: "high",
+        currentValue: adapter === "codex" ? "high" : "medium",
         options: effortOpts,
         category: "thought_level",
         description:

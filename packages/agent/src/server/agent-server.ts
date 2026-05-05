@@ -73,6 +73,8 @@ const errorWithClassificationSchema = z.object({
 
 type MessageCallback = (message: unknown) => void;
 
+export const SSE_KEEPALIVE_INTERVAL_MS = 25_000;
+
 class NdJsonTap {
   private decoder = new TextDecoder();
   private buffer = "";
@@ -329,41 +331,73 @@ export class AgentServer {
         );
       }
 
+      let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+      const clearKeepalive = (): void => {
+        if (keepaliveInterval) {
+          clearInterval(keepaliveInterval);
+          keepaliveInterval = null;
+        }
+      };
+
       const stream = new ReadableStream({
         start: async (controller) => {
-          const sseController: SseController = {
+          let sseController: SseController | null = null;
+          const encoder = new TextEncoder();
+          const detachCurrentSseController = (): void => {
+            if (sseController) {
+              this.detachSseController(sseController);
+            }
+          };
+          const enqueueSseFrame = (frame: string): void => {
+            try {
+              controller.enqueue(encoder.encode(frame));
+            } catch {
+              clearKeepalive();
+              detachCurrentSseController();
+            }
+          };
+
+          sseController = {
             send: (data: unknown) => {
-              try {
-                controller.enqueue(
-                  new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
-                );
-              } catch {
-                this.detachSseController(sseController);
-              }
+              enqueueSseFrame(`data: ${JSON.stringify(data)}\n\n`);
             },
             close: () => {
               try {
+                clearKeepalive();
                 controller.close();
               } catch {
-                this.detachSseController(sseController);
+                detachCurrentSseController();
               }
             },
           };
 
-          if (!this.session || this.session.payload.run_id !== payload.run_id) {
-            await this.initializeSession(payload, sseController);
-          } else {
-            this.session.sseController = sseController;
-            this.session.hasDesktopConnected = true;
-            this.replayPendingEvents();
-          }
+          keepaliveInterval = setInterval(() => {
+            enqueueSseFrame(": keepalive\n\n");
+          }, SSE_KEEPALIVE_INTERVAL_MS);
 
-          this.sendSseEvent(sseController, {
-            type: "connected",
-            run_id: payload.run_id,
-          });
+          try {
+            if (
+              !this.session ||
+              this.session.payload.run_id !== payload.run_id
+            ) {
+              await this.initializeSession(payload, sseController);
+            } else {
+              this.session.sseController = sseController;
+              this.session.hasDesktopConnected = true;
+              this.replayPendingEvents();
+            }
+
+            this.sendSseEvent(sseController, {
+              type: "connected",
+              run_id: payload.run_id,
+            });
+          } catch (error) {
+            clearKeepalive();
+            throw error;
+          }
         },
         cancel: () => {
+          clearKeepalive();
           this.logger.debug("SSE connection closed");
           if (this.session?.sseController) {
             this.session.sseController = null;
@@ -969,6 +1003,7 @@ export class AgentServer {
         sessionId: acpSessionId,
         runId: payload.run_id,
         taskId: payload.task_id,
+        agentVersion: this.config.version ?? packageJson.version,
       },
     };
     this.broadcastEvent({
@@ -1605,6 +1640,19 @@ ${attributionInstructions}
     }
 
     if (!this.config.repositoryPath) {
+      const publishInstructions =
+        this.config.createPr === false
+          ? `
+When the user asks for code changes:
+- You may clone a repository and make local edits in that clone
+- Do NOT create branches, commits, push changes, or open pull requests in this run`
+          : `
+When the user explicitly asks to clone or work in a GitHub repository:
+- Clone the repository into /tmp/workspace/repos/<owner>/<repo> using \`gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>\`
+- Work from inside that cloned repository for follow-up code changes
+- If the user explicitly asks you to open or update a pull request, create a branch, commit the requested changes, push it, and open a draft pull request from inside the clone
+- Do NOT create branches, commits, push changes, or open pull requests unless the user explicitly asks for that`;
+
       return `
 # Cloud Task Execution — No Repository Mode
 
@@ -1617,11 +1665,12 @@ When the user asks about analytics, data, metrics, events, funnels, dashboards, 
 
 When the user asks for code changes or software engineering tasks:
 - Let them know you can help but don't have a repository connected for this session
-- Offer to write code snippets, scripts, or provide guidance
+- If they have not specified a repository to clone, offer to write code snippets, scripts, or provide guidance
+${publishInstructions}
 
 Important:
-- Do NOT create branches, commits, or pull requests in this mode.
 - Prefer using MCP tools to answer questions with real data over giving generic advice.
+${attributionInstructions}
 `;
     }
 
