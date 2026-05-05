@@ -7,6 +7,7 @@ import {
   useQueuedMessagesForTask,
   useSessionForTask,
 } from "@features/sessions/stores/sessionStore";
+import { extractSearchableText } from "@features/sessions/utils/extractSearchableText";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { SkillButtonActionMessage } from "@features/skill-buttons/components/SkillButtonActionMessage";
 import { ArrowDown, XCircle } from "@phosphor-icons/react";
@@ -20,6 +21,7 @@ import {
   type ConversationItem,
   type TurnContext,
 } from "./buildConversationItems";
+import { ConversationSearchBar } from "./ConversationSearchBar";
 import { GitActionMessage } from "./GitActionMessage";
 import { GitActionResult } from "./GitActionResult";
 import { mergeConversationItems } from "./mergeConversationItems";
@@ -150,6 +152,192 @@ export function ConversationView({
     return indices;
   }, [items]);
 
+  // --- Cmd+F search ---
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Per-occurrence matching: each match tracks its item for scrolling
+  const searchMatches = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    const matches: { itemIndex: number }[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const text = extractSearchableText(items[i]).toLowerCase();
+      let start = 0;
+      while (start < text.length) {
+        const idx = text.indexOf(q, start);
+        if (idx === -1) break;
+        matches.push({ itemIndex: i });
+        start = idx + 1;
+      }
+    }
+    return matches;
+  }, [items, searchQuery]);
+
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setCurrentMatchIndex(0);
+  }, []);
+
+  const handleSearchNext = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const next = (currentMatchIndex + 1) % searchMatches.length;
+    setCurrentMatchIndex(next);
+    listRef.current?.scrollToIndex(searchMatches[next].itemIndex);
+  }, [searchMatches, currentMatchIndex]);
+
+  const handleSearchPrev = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    const prev =
+      (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length;
+    setCurrentMatchIndex(prev);
+    listRef.current?.scrollToIndex(searchMatches[prev].itemIndex);
+  }, [searchMatches, currentMatchIndex]);
+
+  const handleSearchClose = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setCurrentMatchIndex(0);
+    if (CSS?.highlights) {
+      CSS.highlights.delete("search-match");
+      CSS.highlights.delete("search-match-active");
+    }
+  }, []);
+
+  // Scroll to first match when query changes
+  useEffect(() => {
+    if (searchMatches.length > 0 && searchQuery) {
+      listRef.current?.scrollToIndex(searchMatches[0].itemIndex);
+    }
+  }, [searchMatches, searchQuery]);
+
+  // CSS Highlight API: highlight matching text in visible DOM
+  useEffect(() => {
+    if (typeof CSS === "undefined" || !CSS.highlights) return;
+    if (!searchQuery || !containerRef.current) {
+      CSS.highlights.delete("search-match");
+      CSS.highlights.delete("search-match-active");
+      return;
+    }
+
+    const container = containerRef.current;
+    const activeMatch =
+      searchMatches.length > 0 ? searchMatches[currentMatchIndex] : null;
+
+    // Build set of item indices that have data-model matches so the DOM
+    // walker only highlights text inside those items (keeps count in sync).
+    const matchingItemIndices = new Set(searchMatches.map((m) => m.itemIndex));
+
+    function applyHighlights() {
+      CSS.highlights.delete("search-match");
+      CSS.highlights.delete("search-match-active");
+
+      const q = searchQuery.toLowerCase();
+      const allRanges: Range[] = [];
+
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+
+        // Only highlight inside items the data model identified as matches
+        const itemEl = (node.parentElement as HTMLElement | null)?.closest(
+          "[data-conversation-item]",
+        );
+        if (itemEl) {
+          const idx = Number(itemEl.getAttribute("data-conversation-item"));
+          if (!matchingItemIndices.has(idx)) continue;
+        }
+
+        const text = node.textContent?.toLowerCase() ?? "";
+
+        let start = 0;
+        while (start < text.length) {
+          const idx = text.indexOf(q, start);
+          if (idx === -1) break;
+          const range = new Range();
+          range.setStart(node, idx);
+          range.setEnd(node, idx + searchQuery.length);
+          allRanges.push(range);
+          start = idx + 1;
+        }
+      }
+
+      if (allRanges.length > 0) {
+        CSS.highlights.set("search-match", new Highlight(...allRanges));
+      }
+
+      // The active match is identified by finding DOM ranges that belong
+      // to the target item and picking the right occurrence within it.
+      // Count occurrences per-item in DOM order to find the correct one.
+      if (activeMatch && allRanges.length > 0) {
+        const targetItem = activeMatch.itemIndex;
+        // Find which DOM-occurrence within this item we need
+        let targetOccInItem = 0;
+        for (let i = 0; i < currentMatchIndex; i++) {
+          if (searchMatches[i].itemIndex === targetItem) {
+            targetOccInItem++;
+          }
+        }
+        // Walk DOM ranges to find the Nth occurrence in the target item
+        let occInItem = 0;
+        for (const range of allRanges) {
+          const itemEl = range.startContainer.parentElement?.closest(
+            "[data-conversation-item]",
+          );
+          const itemIdx = itemEl
+            ? Number(itemEl.getAttribute("data-conversation-item"))
+            : -1;
+          if (itemIdx === targetItem) {
+            if (occInItem === targetOccInItem) {
+              CSS.highlights.set("search-match-active", new Highlight(range));
+              return range;
+            }
+            occInItem++;
+          }
+        }
+      }
+
+      return null;
+    }
+
+    // Run immediately, then always retry after short delays so the
+    // active highlight appears even when the virtualized list is still
+    // scrolling/rendering the target item into view.
+    applyHighlights();
+    if (activeMatch) {
+      let cancelled = false;
+      const retryDelays = [50, 150, 300];
+      const timeouts = retryDelays.map((ms) =>
+        setTimeout(() => {
+          if (!cancelled) applyHighlights();
+        }, ms),
+      );
+      return () => {
+        cancelled = true;
+        for (const id of timeouts) clearTimeout(id);
+      };
+    }
+    return undefined;
+  }, [searchQuery, searchMatches, currentMatchIndex]);
+
+  // Cmd+F keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", handleKeyDown, { capture: true });
+  }, []);
+  // --- End search ---
+
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     isAtBottomRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
@@ -241,11 +429,22 @@ export function ConversationView({
       poolOptions={DIFFS_POOL_OPTIONS}
       highlighterOptions={DIFFS_HIGHLIGHTER_OPTIONS}
     >
-      <div className="relative flex-1">
+      <div ref={containerRef} className="relative flex-1">
         <div
           id="fullscreen-portal"
           className="pointer-events-none absolute inset-0 z-20"
         />
+        {searchOpen && (
+          <ConversationSearchBar
+            query={searchQuery}
+            currentMatch={currentMatchIndex}
+            totalMatches={searchMatches.length}
+            onQueryChange={handleSearchQueryChange}
+            onNext={handleSearchNext}
+            onPrev={handleSearchPrev}
+            onClose={handleSearchClose}
+          />
+        )}
 
         <VirtualizedList
           ref={listRef}

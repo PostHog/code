@@ -1118,3 +1118,13 @@ button,
     background-color: var(--accent-11);
   }
 }
+
+::highlight(search-match) {
+  background-color: #ffff00;
+  color: inherit;
+}
+
+::highlight(search-match-active) {
+  background-color: #ff9632;
+  color: inherit;
+}
