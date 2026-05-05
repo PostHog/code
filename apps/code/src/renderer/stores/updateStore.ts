@@ -97,6 +97,7 @@ export function initializeUpdateStore() {
     },
     onError: (error) => {
       log.error("Update status subscription error", { error });
+      menuCheckPending = false;
     },
   });
 
