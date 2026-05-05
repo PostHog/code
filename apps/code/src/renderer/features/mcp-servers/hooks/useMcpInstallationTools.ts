@@ -77,15 +77,21 @@ export function useMcpInstallationTools(
   );
 
   const setBulkApprovalMutation = useAuthenticatedMutation(
-    (client, approval_state: McpApprovalState) => {
+    (
+      client,
+      vars: {
+        approval_state: McpApprovalState;
+        targetTools?: McpInstallationTool[];
+      },
+    ) => {
       if (!installationId) {
         return Promise.reject(new Error("No installation selected"));
       }
       return dispatchBulkApproval(
         client,
         installationId,
-        tools ?? [],
-        approval_state,
+        vars.targetTools ?? tools ?? [],
+        vars.approval_state,
       );
     },
     {
@@ -174,7 +180,10 @@ export function useMcpInstallationTools(
     tools: tools ?? [],
     isLoading,
     setToolApproval: setToolApprovalMutation.mutate,
-    setBulkApproval: setBulkApprovalMutation.mutate,
+    setBulkApproval: (
+      approval_state: McpApprovalState,
+      targetTools?: McpInstallationTool[],
+    ) => setBulkApprovalMutation.mutate({ approval_state, targetTools }),
     bulkPending: setBulkApprovalMutation.isPending,
     refresh: () => refreshMutation.mutate(undefined),
     refreshPending: refreshMutation.isPending,
