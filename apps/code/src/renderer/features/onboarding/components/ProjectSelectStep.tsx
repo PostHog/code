@@ -12,6 +12,7 @@ import {
   type ProjectInfo,
   useProjects,
 } from "@features/projects/hooks/useProjects";
+import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,6 +31,7 @@ import {
 } from "@posthog/quill";
 import { Button, Flex, Spinner, Text } from "@radix-ui/themes";
 import happyHog from "@renderer/assets/images/hedgehogs/happy-hog.png";
+import { BILLING_FLAG } from "@shared/constants";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "@utils/logger";
 import { AnimatePresence, motion } from "framer-motion";
@@ -72,6 +74,7 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
   const client = useOptionalAuthenticatedClient();
   const queryClient = useQueryClient();
   const { data: fullUser } = useCurrentUser({ client });
+  const billingEnabled = useFeatureFlag(BILLING_FLAG);
 
   const organizations = useMemo<Org[]>(() => {
     if (!fullUser?.organizations) return [];
@@ -108,7 +111,9 @@ export function ProjectSelectStep({ onNext, onBack }: ProjectSelectStepProps) {
       await queryClient.invalidateQueries({
         queryKey: authKeys.currentUsers(),
       });
-      void useSeatStore.getState().fetchSeat({ autoProvision: true });
+      if (billingEnabled) {
+        void useSeatStore.getState().fetchSeat({ autoProvision: true });
+      }
     },
     onMutate: () => {
       setIsSwitchingOrg(true);
