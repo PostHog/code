@@ -277,9 +277,8 @@ export function PlanUsageSettings() {
             <Text className="font-medium text-sm">Extended Alpha Plan</Text>
             <Text className="text-(--gray-11) text-sm">
               You're on the free Pro plan with full Pro features until June 4,
-              2026. After that date, you'll be moved to the free plan
-              automatically. To keep using PostHog Code without interruption,
-              upgrade to the Pro plan before then.
+              2026. Once your alpha seat expires, you'll be moved to the free
+              plan automatically and will be able to upgrade to the Pro plan.
             </Text>
           </Flex>
         </Flex>
