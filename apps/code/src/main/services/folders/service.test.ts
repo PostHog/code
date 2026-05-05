@@ -445,6 +445,51 @@ describe("FoldersService", () => {
       expect(result.name).toBe("project");
     });
 
+    it("tags a new folder with the supplied remoteUrl override", async () => {
+      vi.mocked(isGitRepository).mockResolvedValue(true);
+      mockRepositoryRepo.findByPath.mockReturnValue(null);
+      mockRepositoryRepo.create.mockReturnValue({
+        id: "folder-new",
+        path: "/home/user/fork",
+        remoteUrl: "PostHog/posthog",
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      });
+
+      await service.addFolder("/home/user/fork", {
+        remoteUrl: "https://github.com/PostHog/posthog",
+      });
+
+      expect(mockRepositoryRepo.create).toHaveBeenCalledWith({
+        path: "/home/user/fork",
+        remoteUrl: "PostHog/posthog",
+      });
+    });
+
+    it("backfills remoteUrl on an existing folder when override is supplied", async () => {
+      vi.mocked(isGitRepository).mockResolvedValue(true);
+      const existing = {
+        id: "folder-existing",
+        path: "/home/user/project",
+        remoteUrl: null,
+        lastAccessedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      };
+      mockRepositoryRepo.findByPath.mockReturnValue(existing);
+      mockRepositoryRepo.findById.mockReturnValue(existing);
+
+      await service.addFolder("/home/user/project", {
+        remoteUrl: "https://github.com/PostHog/posthog",
+      });
+
+      expect(mockRepositoryRepo.updateRemoteUrl).toHaveBeenCalledWith(
+        "folder-existing",
+        "PostHog/posthog",
+      );
+    });
+
     it("throws error when user cancels git init", async () => {
       vi.mocked(isGitRepository).mockResolvedValue(false);
       mockDialog.confirm.mockResolvedValue(1);
