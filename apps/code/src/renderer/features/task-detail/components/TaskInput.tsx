@@ -76,6 +76,7 @@ export function TaskInput({
     trpcReact.folders.getMostRecentlyAccessedRepository.queryOptions(),
   );
   const {
+    lastUsedLocalWorkspaceMode,
     setLastUsedLocalWorkspaceMode,
     lastUsedWorkspaceMode,
     setLastUsedWorkspaceMode,
@@ -115,7 +116,6 @@ export function TaskInput({
   );
 
   const [selectedDirectory, setSelectedDirectory] = useState("");
-  const workspaceMode = lastUsedWorkspaceMode || "local";
   const adapter = lastUsedAdapter;
   const prefillRequestKey = initialPromptKey ?? initialPrompt;
 
@@ -167,12 +167,6 @@ export function TaskInput({
     }
   }, [mostRecentRepo?.path, selectedDirectory]);
 
-  const setWorkspaceMode = (mode: WorkspaceMode) => {
-    setLastUsedWorkspaceMode(mode);
-    if (mode !== "cloud") {
-      setLastUsedLocalWorkspaceMode(mode);
-    }
-  };
   const setAdapter = (newAdapter: AgentAdapter) =>
     setLastUsedAdapter(newAdapter);
 
@@ -185,6 +179,20 @@ export function TaskInput({
     refreshRepositories,
     hasGithubIntegration,
   } = useUserRepositoryIntegration();
+
+  // Stay optimistic while the integration list resolves to avoid flicker.
+  const cloudAvailable = isLoadingRepos || hasGithubIntegration;
+  const workspaceMode: WorkspaceMode =
+    !cloudAvailable && lastUsedWorkspaceMode === "cloud"
+      ? lastUsedLocalWorkspaceMode
+      : lastUsedWorkspaceMode || "local";
+
+  const setWorkspaceMode = (mode: WorkspaceMode) => {
+    setLastUsedWorkspaceMode(mode);
+    if (mode !== "cloud") {
+      setLastUsedLocalWorkspaceMode(mode);
+    }
+  };
   const {
     repositories: visibleCloudRepositories,
     isPending: cloudRepositoriesLoading,
@@ -606,6 +614,7 @@ export function TaskInput({
               onChange={setWorkspaceMode}
               selectedCloudEnvironmentId={selectedCloudEnvId}
               onCloudEnvironmentChange={setSelectedCloudEnvId}
+              cloudAvailable={cloudAvailable}
               size="1"
             />
             {workspaceMode === "worktree" && (
