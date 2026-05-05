@@ -1,3 +1,4 @@
+import { UpdateBanner } from "@features/sidebar/components/UpdateBanner";
 import { Lifebuoy } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
 import phWordmark from "@renderer/assets/images/wordmark.svg";
@@ -63,20 +64,23 @@ export function FullScreenLayout({
             className="absolute right-[32px] bottom-[20px] left-[32px] z-[2]"
           >
             {footerLeft ?? (
-              <Button
-                size="1"
-                variant="ghost"
-                color="gray"
-                onClick={() =>
-                  trpcClient.os.openExternal.mutate({
-                    url: EXTERNAL_LINKS.discord,
-                  })
-                }
-                className="opacity-50"
-              >
-                <Lifebuoy size={14} />
-                Get support
-              </Button>
+              <Flex align="center" gap="3">
+                <Button
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() =>
+                    trpcClient.os.openExternal.mutate({
+                      url: EXTERNAL_LINKS.discord,
+                    })
+                  }
+                  className="opacity-50"
+                >
+                  <Lifebuoy size={14} />
+                  Get support
+                </Button>
+                <UpdateBanner variant="compact" />
+              </Flex>
             )}
             {footerRight ?? <div />}
           </Flex>

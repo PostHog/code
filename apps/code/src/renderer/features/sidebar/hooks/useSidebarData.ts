@@ -33,6 +33,10 @@ export interface TaskData {
   folderId?: string;
   taskRunStatus?: TaskRunStatus;
   taskRunEnvironment?: "local" | "cloud";
+  folderPath: string | null;
+  cloudPrUrl: string | null;
+  branchName: string | null;
+  linkedBranch: string | null;
 }
 
 export type TaskGroup = GenericTaskGroup<TaskData>;
@@ -42,6 +46,8 @@ export interface SidebarData {
   isInboxActive: boolean;
   isCommandCenterActive: boolean;
   isSkillsActive: boolean;
+  isMcpServersActive: boolean;
+  isSetupActive: boolean;
   isLoading: boolean;
   activeTaskId: string | null;
   pinnedTasks: TaskData[];
@@ -60,7 +66,9 @@ interface ViewState {
     | "inbox"
     | "archived"
     | "command-center"
-    | "skills";
+    | "skills"
+    | "mcp-servers"
+    | "setup";
   data?: Task;
 }
 
@@ -82,6 +90,7 @@ export function useSidebarData({
   activeView,
 }: UseSidebarDataProps): SidebarData {
   const showAllUsers = useSidebarStore((state) => state.showAllUsers);
+  const showInternal = useSidebarStore((state) => state.showInternal);
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
@@ -118,11 +127,19 @@ export function useSidebarData({
   // its own optimization (e.g. server-side recency pagination). The mapping
   // below narrows full Task → TaskSummary so downstream sidebar code stays uniform.
   const { data: fullTasks = [], isLoading: isTasksLoading } = useTasks(
-    { showAllUsers },
+    { showAllUsers, showInternal },
     { enabled: showAllUsers },
   );
 
-  const rawTasks: Schemas.TaskSummary[] = useMemo(() => {
+  type SidebarTask = Schemas.TaskSummary & {
+    latest_run:
+      | (Schemas.TaskSummary["latest_run"] & {
+          output?: { pr_url?: unknown } | null;
+        })
+      | null;
+  };
+
+  const rawTasks: SidebarTask[] = useMemo(() => {
     if (!showAllUsers) return summaryTasks;
     return fullTasks.map((t) => ({
       id: t.id,
@@ -134,6 +151,7 @@ export function useSidebarData({
         ? {
             status: t.latest_run.status,
             environment: t.latest_run.environment ?? null,
+            output: t.latest_run.output ?? null,
           }
         : null,
     }));
@@ -148,10 +166,18 @@ export function useSidebarData({
         (task) =>
           !archivedTaskIds.has(task.id) &&
           (showAllUsers ||
+            showInternal ||
             !!workspaces?.[task.id] ||
             provisioningTaskIds.has(task.id)),
       ),
-    [rawTasks, archivedTaskIds, workspaces, showAllUsers, provisioningTaskIds],
+    [
+      rawTasks,
+      archivedTaskIds,
+      workspaces,
+      showAllUsers,
+      showInternal,
+      provisioningTaskIds,
+    ],
   );
   const organizeMode = useSidebarStore((state) => state.organizeMode);
   const sortMode = useSidebarStore((state) => state.sortMode);
@@ -161,6 +187,8 @@ export function useSidebarData({
   const isInboxActive = activeView.type === "inbox";
   const isCommandCenterActive = activeView.type === "command-center";
   const isSkillsActive = activeView.type === "skills";
+  const isMcpServersActive = activeView.type === "mcp-servers";
+  const isSetupActive = activeView.type === "setup";
 
   const activeTaskId =
     activeView.type === "task-detail" && activeView.data
@@ -193,6 +221,11 @@ export function useSidebarData({
       const isUnread =
         taskLastViewedAt != null && lastActivityAt > taskLastViewedAt;
 
+      const cloudPrUrl =
+        typeof task.latest_run?.output?.pr_url === "string"
+          ? task.latest_run.output.pr_url
+          : ((session?.cloudOutput?.pr_url as string | undefined) ?? null);
+
       return {
         id: task.id,
         title: task.title,
@@ -208,6 +241,10 @@ export function useSidebarData({
         taskRunStatus:
           session?.cloudStatus ?? task.latest_run?.status ?? undefined,
         taskRunEnvironment: task.latest_run?.environment ?? undefined,
+        folderPath: workspace?.folderPath ?? null,
+        cloudPrUrl,
+        branchName: workspace?.branchName ?? null,
+        linkedBranch: workspace?.linkedBranch ?? null,
       };
     });
   }, [
@@ -271,6 +308,8 @@ export function useSidebarData({
     isInboxActive,
     isCommandCenterActive,
     isSkillsActive,
+    isMcpServersActive,
+    isSetupActive,
     isLoading,
     activeTaskId,
     pinnedTasks,

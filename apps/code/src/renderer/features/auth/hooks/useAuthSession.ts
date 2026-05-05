@@ -14,6 +14,7 @@ import { trpcClient } from "@renderer/trpc/client";
 import { BILLING_FLAG } from "@shared/constants";
 import { identifyUser, resetUser } from "@utils/analytics";
 import { logger } from "@utils/logger";
+import { queryClient } from "@utils/queryClient";
 import { useEffect } from "react";
 
 const log = logger.scope("auth-session");
@@ -93,9 +94,8 @@ function useSeatSync(
       return;
     }
 
-    void useSeatStore.getState().fetchSeat({
-      autoProvision: true,
-    });
+    void useSeatStore.getState().fetchSeat({ autoProvision: true });
+    void queryClient.invalidateQueries({ queryKey: [["llmGateway"]] });
   }, [authIdentity, billingEnabled]);
 }
 

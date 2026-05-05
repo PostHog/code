@@ -39,7 +39,6 @@ import { DEFAULT_GATEWAY_MODEL } from "@posthog/agent/gateway-models";
 import { getIsOnline } from "@renderer/stores/connectivityStore";
 import { trpc } from "@renderer/trpc";
 import { trpcClient } from "@renderer/trpc/client";
-import { getGhUserTokenOrThrow } from "@renderer/utils/github";
 import { toast } from "@renderer/utils/toast";
 import {
   type CloudTaskPermissionRequestUpdate,
@@ -93,6 +92,16 @@ const LOCAL_SESSION_RECOVERY_MESSAGE =
   "Lost connection to the agent. Reconnecting…";
 const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
   "Connecting to to the agent has been lost. Retry, or start a new session.";
+const GITHUB_AUTHORIZATION_REQUIRED_CODE = "github_authorization_required";
+
+class GitHubAuthorizationRequiredForCloudHandoffError extends Error {
+  constructor(
+    message = "Connect GitHub before continuing this task in cloud.",
+  ) {
+    super(message);
+    this.name = "GitHubAuthorizationRequiredForCloudHandoffError";
+  }
+}
 
 /**
  * Build default configOptions for cloud sessions so the mode switcher
@@ -226,6 +235,8 @@ export class SessionService {
   private connectingTasks = new Map<string, Promise<void>>();
   private localRepoPaths = new Map<string, string>();
   private localRecoveryAttempts = new Map<string, Promise<boolean>>();
+  /** Re-entrance guard for cloud queue dispatch (per taskId). */
+  private dispatchingCloudQueues = new Set<string>();
   private nextCloudTaskWatchToken = 0;
   private subscriptions = new Map<
     string,
@@ -1002,6 +1013,7 @@ export class SessionService {
     this.localRecoveryAttempts.clear();
     this.cloudPermissionRequestIds.clear();
     this.cloudLogGapReconciles.clear();
+    this.dispatchingCloudQueues.clear();
     this.idleKilledSubscription?.unsubscribe();
     this.idleKilledSubscription = null;
   }
@@ -1046,6 +1058,55 @@ export class SessionService {
           promptStartedAt: null,
           currentPromptId: null,
         });
+      }
+      // Lifecycle handshake from the agent — flip status to "connected"
+      // so the UI can release the queue-while-not-ready guard. This is
+      // the explicit "agent is up and accepting user messages" signal,
+      // emitted by `agent-server.ts` once the ACP session is fully
+      // wired. We deliberately do NOT drain the queue here: the agent
+      // is about to start `sendInitialTaskMessage` (or `sendResumeMessage`),
+      // and dispatching a queued user_message right now would race with
+      // its `clientConnection.prompt()` and one of the prompts would end
+      // up cancelled. The `turn_complete` handler below drains once the
+      // agent's initial / resume turn is actually finished.
+      if (
+        "method" in msg &&
+        isNotification(msg.method, POSTHOG_NOTIFICATIONS.RUN_STARTED)
+      ) {
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (session?.isCloud && session.status !== "connected") {
+          sessionStoreSetters.updateSession(taskRunId, {
+            status: "connected",
+          });
+        }
+      }
+      // Canonical "turn boundary" — flush any queued cloud messages now
+      // that the agent is idle and accepting the next prompt.
+      if (
+        "method" in msg &&
+        isNotification(msg.method, POSTHOG_NOTIFICATIONS.TURN_COMPLETE)
+      ) {
+        const session = sessionStoreSetters.getSessions()[taskRunId];
+        if (session?.isCloud) {
+          // Backward compat: treat turn_complete as an implicit run_started
+          // for agents that predate the run_started notification.
+          if (session.status !== "connected") {
+            sessionStoreSetters.updateSession(taskRunId, {
+              status: "connected",
+            });
+          }
+          if (session.messageQueue.length > 0) {
+            const taskId = session.taskId;
+            setTimeout(() => {
+              this.sendQueuedCloudMessages(taskId).catch((err) =>
+                log.error("turn_complete-driven cloud queue flush failed", {
+                  taskId,
+                  error: err,
+                }),
+              );
+            }, 0);
+          }
+        }
       }
     }
   }
@@ -1553,6 +1614,31 @@ export class SessionService {
       return { stopReason: "queued" };
     }
 
+    // Agent-readiness guard: until we've received `_posthog/run_started`
+    // (which flips `session.status` to `"connected"`), the agent may
+    // still be booting / restoring after a sandbox restart, or mid-
+    // initial-prompt — sending now would race with its
+    // `clientConnection.prompt(initialPrompt)` on the same ACP session.
+    // Funnel through the queue; the run_started or turn_complete
+    // handlers will drain it once the agent is provably ready.
+    if (
+      !options?.skipQueueGuard &&
+      session.isCloud &&
+      session.status !== "connected"
+    ) {
+      sessionStoreSetters.enqueueMessage(
+        session.taskId,
+        transport.promptText,
+        prompt,
+      );
+      log.info("Cloud message queued (agent not ready)", {
+        taskId: session.taskId,
+        sessionStatus: session.status,
+        queueLength: session.messageQueue.length + 1,
+      });
+      return { stopReason: "queued" };
+    }
+
     if (!options?.skipQueueGuard && session.isPromptPending) {
       sessionStoreSetters.enqueueMessage(
         session.taskId,
@@ -1642,71 +1728,58 @@ export class SessionService {
     }
   }
 
-  private async sendQueuedCloudMessages(
-    taskId: string,
-    attempt = 0,
-    pendingPrompt?: string | ContentBlock[],
-  ): Promise<{ stopReason: string }> {
-    // First attempt: atomically dequeue. Retries reuse the already-dequeued prompt.
-    const combinedPrompt =
-      pendingPrompt ??
-      combineQueuedCloudPrompts(sessionStoreSetters.dequeueMessages(taskId));
-    if (!combinedPrompt) return { stopReason: "skipped" };
+  /**
+   * Dispatches all currently queued cloud messages as a single combined
+   * prompt. Drains the queue up-front and rolls it back on failure so the
+   * next dispatch trigger (turn_complete, cloudStatus flip) can retry. A
+   * per-taskId re-entrance guard prevents concurrent triggers from
+   * double-dispatching.
+   *
+   * Pre-flight conditions match what `sendCloudPrompt` would otherwise
+   * silently re-queue on (sandbox not in_progress, prompt already pending).
+   * Skipping early lets the next trigger retry instead of re-queueing the
+   * already-dequeued prompt back into the same queue.
+   */
+  private async sendQueuedCloudMessages(taskId: string): Promise<void> {
+    if (this.dispatchingCloudQueues.has(taskId)) return;
 
-    const session = sessionStoreSetters.getSessionByTaskId(taskId);
-    if (!session) {
-      log.warn("No session found for queued cloud messages, message lost", {
-        taskId,
-      });
-      return { stopReason: "no_session" };
-    }
-
-    log.info("Sending queued cloud messages", {
-      taskId,
-      promptLength: combinedPrompt.length,
-      attempt,
-    });
-
+    this.dispatchingCloudQueues.add(taskId);
     try {
-      return await this.sendCloudPrompt(session, combinedPrompt, {
-        skipQueueGuard: true,
-      });
-    } catch (error) {
-      const maxRetries = 5;
-      if (attempt < maxRetries) {
-        const delayMs = Math.min(1000 * 2 ** attempt, 10_000);
-        log.warn("Cloud message send failed, scheduling retry", {
-          taskId,
-          attempt,
-          delayMs,
-          error: String(error),
-        });
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(
-              this.sendQueuedCloudMessages(
-                taskId,
-                attempt + 1,
-                combinedPrompt,
-              ).catch((err) => {
-                log.error("Queued cloud message retry failed", {
-                  taskId,
-                  attempt: attempt + 1,
-                  error: err,
-                });
-                return { stopReason: "error" };
-              }),
-            );
-          }, delayMs);
-        });
-      }
+      const session = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!session?.isCloud || session.messageQueue.length === 0) return;
+      // Terminal cloud runs route through `resumeCloudRun`, which spins a
+      // new run and consumes the prompt itself — so dispatch is fine.
+      // Otherwise gate on the agent-ready handshake (`run_started` flips
+      // status to "connected") to avoid racing with `sendInitialTaskMessage`.
+      const isTerminal = isTerminalStatus(session.cloudStatus);
+      const canSendNow =
+        isTerminal ||
+        (session.cloudStatus === "in_progress" &&
+          session.status === "connected");
+      if (!canSendNow || session.isPromptPending) return;
 
-      log.error("Queued cloud message send failed after max retries", {
+      const drained = sessionStoreSetters.dequeueMessages(taskId);
+      const combined = combineQueuedCloudPrompts(drained);
+      if (!combined) return;
+
+      log.info("Sending queued cloud messages", {
         taskId,
-        attempts: attempt + 1,
+        drainedCount: drained.length,
       });
-      toast.error("Failed to send follow-up message. Please try again.");
-      return { stopReason: "error" };
+
+      try {
+        await this.sendCloudPrompt(session, combined, {
+          skipQueueGuard: true,
+        });
+      } catch (err) {
+        log.warn("Cloud queue dispatch failed; re-enqueueing", {
+          taskId,
+          error: String(err),
+        });
+        sessionStoreSetters.prependQueuedMessages(taskId, drained);
+      }
+    } finally {
+      this.dispatchingCloudQueues.delete(taskId);
     }
   }
 
@@ -1733,11 +1806,10 @@ export class SessionService {
       transport.filePaths,
     );
 
-    const [previousRun, task] = await Promise.all([
-      authCredentials.client.getTaskRun(session.taskId, session.taskRunId),
-      authCredentials.client.getTask(session.taskId),
-    ]);
-    const hasGitHubRepo = !!task.repository && !!task.github_integration;
+    const previousRun = await authCredentials.client.getTaskRun(
+      session.taskId,
+      session.taskRunId,
+    );
     const previousState = previousRun.state as Record<string, unknown>;
     const previousOutput = (previousRun.output ?? {}) as Record<
       string,
@@ -1757,10 +1829,6 @@ export class SessionService {
         : null) ??
       session.cloudBranch;
     const prAuthorshipMode = this.getCloudPrAuthorshipMode(previousState);
-    const githubUserToken =
-      prAuthorshipMode === "user" && hasGitHubRepo
-        ? await getGhUserTokenOrThrow()
-        : undefined;
 
     log.info("Creating resume run for terminal cloud task", {
       taskId: session.taskId,
@@ -1790,7 +1858,6 @@ export class SessionService {
           typeof previousState.signal_report_id === "string"
             ? previousState.signal_report_id
             : undefined,
-        githubUserToken,
       },
     );
     const newRun = updatedTask.latest_run;
@@ -2421,6 +2488,7 @@ export class SessionService {
     initialMode?: string,
     adapter: Adapter = "claude",
     initialModel?: string,
+    taskDescription?: string,
   ): () => void {
     const taskRunId = runId;
     const existingWatcher = this.cloudTaskWatchers.get(taskId);
@@ -2497,6 +2565,10 @@ export class SessionService {
         adapter,
       );
       sessionStoreSetters.setSession(session);
+      // Optimistic seeding for the initial task description is deferred
+      // until `hydrateCloudTaskSessionFromLogs` confirms there's no prior
+      // conversation. Otherwise reopening a task with history would flash
+      // the description at top until hydration replaced it.
     } else {
       // Ensure cloud flag and configOptions are set on existing sessions
       const updates: Partial<AgentSession> = {};
@@ -2527,7 +2599,12 @@ export class SessionService {
     );
 
     if (shouldHydrateSession) {
-      this.hydrateCloudTaskSessionFromLogs(taskId, taskRunId, logUrl);
+      this.hydrateCloudTaskSessionFromLogs(
+        taskId,
+        taskRunId,
+        logUrl,
+        taskDescription,
+      );
     }
 
     // Subscribe before starting the main-process watcher so the first replayed
@@ -2595,15 +2672,35 @@ export class SessionService {
     taskId: string,
     taskRunId: string,
     logUrl?: string,
+    taskDescription?: string,
   ): void {
     void (async () => {
       const { rawEntries } = await this.fetchSessionLogs(logUrl, taskRunId);
-      if (rawEntries.length === 0) {
-        return;
-      }
 
       const session = sessionStoreSetters.getSessionByTaskId(taskId);
       if (!session || session.taskRunId !== taskRunId) {
+        return;
+      }
+
+      const events = convertStoredEntriesToEvents(rawEntries);
+      const hasUserPrompt = events.some(
+        (e) =>
+          isJsonRpcRequest(e.message) && e.message.method === "session/prompt",
+      );
+
+      // Seed the optimistic user-message bubble whenever the agent has
+      // not yet recorded an initial `session/prompt` request — covers the
+      // brand-new task case as well as "agent has emitted lifecycle
+      // notifications but hasn't received its first prompt yet".
+      if (!hasUserPrompt && taskDescription?.trim()) {
+        sessionStoreSetters.appendOptimisticItem(taskRunId, {
+          type: "user_message",
+          content: taskDescription,
+          timestamp: Date.now(),
+        });
+      }
+
+      if (rawEntries.length === 0) {
         return;
       }
 
@@ -2616,7 +2713,6 @@ export class SessionService {
         return;
       }
 
-      const events = convertStoredEntriesToEvents(rawEntries);
       sessionStoreSetters.updateSession(taskRunId, {
         events,
         isCloud: true,
@@ -2780,6 +2876,11 @@ export class SessionService {
         localGitState: preflight.localGitState,
       });
       if (!result.success) {
+        if (result.code === GITHUB_AUTHORIZATION_REQUIRED_CODE) {
+          throw new GitHubAuthorizationRequiredForCloudHandoffError(
+            result.error,
+          );
+        }
         throw new Error(result.error ?? "Handoff to cloud failed");
       }
 
@@ -2803,14 +2904,52 @@ export class SessionService {
       log.info("Local-to-cloud handoff complete", { taskId, runId });
     } catch (err) {
       log.error("Handoff to cloud failed", { taskId, err });
-      toast.error(
-        err instanceof Error ? err.message : "Handoff to cloud failed",
-      );
+      if (err instanceof GitHubAuthorizationRequiredForCloudHandoffError) {
+        await this.startGithubReauthForCloudHandoff(auth.projectId);
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : "Handoff to cloud failed",
+        );
+      }
       this.subscribeToChannel(runId);
       sessionStoreSetters.updateSession(runId, {
         handoffInProgress: false,
         status: "disconnected",
       });
+    }
+  }
+
+  private async startGithubReauthForCloudHandoff(
+    projectId: number,
+  ): Promise<void> {
+    const client = await getAuthenticatedClient();
+    if (!client) {
+      toast.error("Sign in before connecting GitHub.");
+      return;
+    }
+
+    try {
+      const { install_url: installUrl } =
+        await client.startGithubUserIntegrationConnect(projectId);
+      const url = installUrl?.trim();
+      if (!url) {
+        toast.error(
+          "GitHub connection did not return a URL. Please try again.",
+        );
+        return;
+      }
+
+      await trpcClient.os.openExternal.mutate({ url });
+      toast.info(
+        "Connect GitHub to continue in cloud",
+        "Complete the authorization in your browser, then click Continue again.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to start GitHub connection",
+      );
     }
   }
 
@@ -3002,20 +3141,13 @@ export class SessionService {
       }
     }
 
-    // Flush queued messages when a cloud turn completes (detected via live log updates)
-    const sessionAfterLogs = sessionStoreSetters.getSessions()[taskRunId];
-    if (
-      sessionAfterLogs &&
-      !sessionAfterLogs.isPromptPending &&
-      sessionAfterLogs.messageQueue.length > 0
-    ) {
-      this.sendQueuedCloudMessages(sessionAfterLogs.taskId).catch((err) => {
-        log.error("Failed to send queued cloud messages after turn complete", {
-          taskId: sessionAfterLogs.taskId,
-          error: err,
-        });
-      });
-    }
+    // NOTE: Don't auto-flush on `!isPromptPending && queue.length > 0` here.
+    // Setup-phase log batches (`_posthog/progress`, `_posthog/console`) stream
+    // in BEFORE the agent emits its initial `session/prompt` request, so
+    // `isPromptPending` is still false during those batches — firing the
+    // dispatcher then races with the agent's initial `clientConnection.prompt`.
+    // The canonical "agent is idle" signal is `_posthog/turn_complete`, which
+    // is handled in `updatePromptStateFromEvents`.
 
     // Update cloud status fields if present
     if (update.kind === "status" || update.kind === "snapshot") {
@@ -3027,23 +3159,10 @@ export class SessionService {
         branch: update.branch,
       });
 
-      // Auto-send queued messages when a resumed run becomes active
-      if (update.status === "in_progress") {
-        const session = sessionStoreSetters.getSessions()[taskRunId];
-        if (session && session.messageQueue.length > 0) {
-          // Clear the pending flag first — resumeCloudRun sets it as a guard
-          // while waiting for the run to start. Now that the run is active,
-          // sendCloudPrompt needs the flag clear to actually send.
-          sessionStoreSetters.updateSession(taskRunId, {
-            isPromptPending: false,
-          });
-          this.sendQueuedCloudMessages(session.taskId).catch(() => {
-            // Retries exhausted — message was re-enqueued by
-            // sendQueuedCloudMessages, future stream-based completion detection
-            // will keep trying
-          });
-        }
-      }
+      // No cloudStatus="in_progress" auto-flush here. `run_started` from
+      // the agent-server is the canonical "agent is ready" trigger and
+      // handles both initial boot and post-restart recovery; firing
+      // earlier would race with `sendInitialTaskMessage`.
 
       if (isTerminalStatus(update.status)) {
         // Clean up any pending resume messages that couldn't be sent

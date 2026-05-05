@@ -46,7 +46,7 @@ import type {
 } from "../types";
 import { resourceLink } from "../utils/acp-content";
 import { AsyncMutex } from "../utils/async-mutex";
-import { getLlmGatewayUrl } from "../utils/gateway";
+import { type GatewayProduct, getLlmGatewayUrl } from "../utils/gateway";
 import { Logger } from "../utils/logger";
 import { logAgentshRuntimeInfo } from "./agentsh-runtime";
 import {
@@ -778,8 +778,6 @@ export class AgentServer {
       name: process.env.HOSTNAME || "cloud-sandbox",
     };
 
-    this.configureEnvironment();
-
     const [preTaskRun, preTask] = await Promise.all([
       this.posthogAPI
         .getTaskRun(payload.task_id, payload.run_id)
@@ -799,6 +797,8 @@ export class AgentServer {
         return null;
       }),
     ]);
+
+    this.configureEnvironment({ isInternal: preTask?.internal === true });
 
     const prUrl = getTaskRunStateString(preTaskRun, "slack_notified_pr_url");
 
@@ -957,6 +957,29 @@ export class AgentServer {
     );
     await logAgentshRuntimeInfo(this.logger);
     this.logger.debug(`Initial permission mode: ${initialPermissionMode}`);
+
+    // Lifecycle handshake: clients gate "agent is ready to accept user
+    // messages" on this notification. Persisted to the session log so
+    // warm reconnects (sandbox restart with snapshot resume) replay it
+    // and see the agent come online again.
+    const runStartedNotification = {
+      jsonrpc: "2.0" as const,
+      method: POSTHOG_NOTIFICATIONS.RUN_STARTED,
+      params: {
+        sessionId: acpSessionId,
+        runId: payload.run_id,
+        taskId: payload.task_id,
+      },
+    };
+    this.broadcastEvent({
+      type: "notification",
+      timestamp: new Date().toISOString(),
+      notification: runStartedNotification,
+    });
+    this.session.logWriter.appendRawLine(
+      payload.run_id,
+      JSON.stringify(runStartedNotification),
+    );
 
     // Signal in_progress so the UI can start polling for updates
     this.posthogAPI
@@ -1582,6 +1605,19 @@ ${attributionInstructions}
     }
 
     if (!this.config.repositoryPath) {
+      const publishInstructions =
+        this.config.createPr === false
+          ? `
+When the user asks for code changes:
+- You may clone a repository and make local edits in that clone
+- Do NOT create branches, commits, push changes, or open pull requests in this run`
+          : `
+When the user explicitly asks to clone or work in a GitHub repository:
+- Clone the repository into /tmp/workspace/repos/<owner>/<repo> using \`gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>\`
+- Work from inside that cloned repository for follow-up code changes
+- If the user explicitly asks you to open or update a pull request, create a branch, commit the requested changes, push it, and open a draft pull request from inside the clone
+- Do NOT create branches, commits, push changes, or open pull requests unless the user explicitly asks for that`;
+
       return `
 # Cloud Task Execution — No Repository Mode
 
@@ -1594,11 +1630,12 @@ When the user asks about analytics, data, metrics, events, funnels, dashboards, 
 
 When the user asks for code changes or software engineering tasks:
 - Let them know you can help but don't have a repository connected for this session
-- Offer to write code snippets, scripts, or provide guidance
+- If they have not specified a repository to clone, offer to write code snippets, scripts, or provide guidance
+${publishInstructions}
 
 Important:
-- Do NOT create branches, commits, or pull requests in this mode.
 - Prefer using MCP tools to answer questions with real data over giving generic advice.
+${attributionInstructions}
 `;
     }
 
@@ -1710,10 +1747,15 @@ ${attributionInstructions}
     }
   }
 
-  private configureEnvironment(): void {
+  private configureEnvironment({
+    isInternal = false,
+  }: {
+    isInternal?: boolean;
+  } = {}): void {
     const { apiKey, apiUrl, projectId } = this.config;
-    const product =
-      this.config.mode === "background" ? "background_agents" : "posthog_code";
+    const product: GatewayProduct = isInternal
+      ? "background_agents"
+      : "posthog_code";
     const gatewayUrl =
       process.env.LLM_GATEWAY_URL || getLlmGatewayUrl(apiUrl, product);
     const openaiBaseUrl = gatewayUrl.endsWith("/v1")

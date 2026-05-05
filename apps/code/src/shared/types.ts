@@ -46,8 +46,10 @@ export interface Task {
   origin_product: string;
   repository?: string | null; // Format: "organization/repository" (e.g., "posthog/posthog-js")
   github_integration?: number | null;
+  github_user_integration?: string | null;
   json_schema?: Record<string, unknown> | null;
   signal_report?: string | null;
+  internal?: boolean;
   latest_run?: TaskRun;
 }
 

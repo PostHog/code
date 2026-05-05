@@ -10,7 +10,6 @@ export type SettingsCategory =
   | "personalization"
   | "claude-code"
   | "shortcuts"
-  | "mcp-servers"
   | "signals"
   | "updates"
   | "advanced";

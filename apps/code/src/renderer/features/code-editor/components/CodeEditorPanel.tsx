@@ -5,21 +5,20 @@ import { EnrichmentPopover } from "@features/code-editor/components/EnrichmentPo
 import { useCloudFileContent } from "@features/code-editor/hooks/useCloudFileContent";
 import { useFileEnrichment } from "@features/code-editor/hooks/useFileEnrichment";
 import { useMarkdownViewerStore } from "@features/code-editor/stores/markdownViewerStore";
-import { getImageMimeType } from "@features/code-editor/utils/imageUtils";
 import { isMarkdownFile } from "@features/code-editor/utils/markdownUtils";
 import { getRelativePath } from "@features/code-editor/utils/pathUtils";
-import { isImageFile } from "@features/message-editor/utils/imageUtils";
 import { usePanelLayoutStore } from "@features/panels";
 import { useFileTreeStore } from "@features/right-sidebar/stores/fileTreeStore";
 import { useCwd } from "@features/sidebar/hooks/useCwd";
 import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
-import { Code, Eye } from "@phosphor-icons/react";
+import { Check, Code, Copy, Eye } from "@phosphor-icons/react";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
+import { getImageMimeType, isImageFile } from "@shared/constants/image";
 import type { Task } from "@shared/types";
 
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -47,6 +46,7 @@ export function CodeEditorPanel({
   );
   const openFileInSplit = usePanelLayoutStore((s) => s.openFileInSplit);
   const expandToFile = useFileTreeStore((s) => s.expandToFile);
+  const [copied, setCopied] = useState(false);
 
   const handleMarkdownLinkClick = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -193,6 +193,12 @@ export function CodeEditorPanel({
   }
 
   if (isMarkdown) {
+    const handleCopySource = () => {
+      navigator.clipboard.writeText(fileContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
       <Flex direction="column" height="100%" className="overflow-hidden">
         <Flex
@@ -208,17 +214,31 @@ export function CodeEditorPanel({
           >
             {filePath}
           </Text>
-          <Tooltip content={preferRendered ? "View source" : "View rendered"}>
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              className="cursor-pointer"
-              onClick={togglePreferRendered}
-            >
-              {preferRendered ? <Code size={14} /> : <Eye size={14} />}
-            </IconButton>
-          </Tooltip>
+          <Flex align="center" gap="1">
+            <Tooltip content={copied ? "Copied" : "Copy source"}>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                className="cursor-pointer"
+                onClick={handleCopySource}
+                aria-label="Copy source"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip content={preferRendered ? "View source" : "View rendered"}>
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                className="cursor-pointer"
+                onClick={togglePreferRendered}
+              >
+                {preferRendered ? <Code size={14} /> : <Eye size={14} />}
+              </IconButton>
+            </Tooltip>
+          </Flex>
         </Flex>
         <Box className="flex-1 overflow-auto">
           {preferRendered ? (

@@ -15,6 +15,7 @@ import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReport
 import { PromptInput } from "@features/message-editor/components/PromptInput";
 import { useTaskInputHistoryStore } from "@features/message-editor/stores/taskInputHistoryStore";
 import type { EditorHandle } from "@features/message-editor/types";
+import { resolveAndAttachDroppedFiles } from "@features/message-editor/utils/persistFile";
 import { DropZoneOverlay } from "@features/sessions/components/DropZoneOverlay";
 import { ReasoningLevelSelector } from "@features/sessions/components/ReasoningLevelSelector";
 import { UnifiedModelSelector } from "@features/sessions/components/UnifiedModelSelector";
@@ -24,9 +25,9 @@ import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
 import { useConnectivity } from "@hooks/useConnectivity";
 import {
-  useGithubBranches,
-  useGithubRepositories,
-  useRepositoryIntegration,
+  useUserGithubBranches,
+  useUserGithubRepositories,
+  useUserRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { X } from "@phosphor-icons/react";
 import { ButtonGroup } from "@posthog/quill";
@@ -40,7 +41,6 @@ import {
   useNavigationStore,
 } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
-import { getFilePath } from "@utils/getFilePath";
 import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
@@ -177,17 +177,18 @@ export function TaskInput({
 
   const {
     repositories,
-    getIntegrationIdForRepo,
+    getInstallationIdForRepo,
+    getUserIntegrationIdForRepo,
     isLoadingRepos,
     isRefreshingRepos,
     refreshRepositories,
-  } = useRepositoryIntegration();
+  } = useUserRepositoryIntegration();
   const {
     repositories: visibleCloudRepositories,
     isPending: cloudRepositoriesLoading,
     hasMore: cloudRepositoriesHasMore,
     loadMore: loadMoreCloudRepositories,
-  } = useGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
+  } = useUserGithubRepositories(cloudRepoSearchQuery, isCloudRepoPickerOpen);
   const [selectedRepository, setSelectedRepository] = useState<string | null>(
     () =>
       initialCloudRepository?.toLowerCase() ??
@@ -202,8 +203,11 @@ export function TaskInput({
   const { currentBranch, branchLoading, defaultBranch } =
     useGitQueries(selectedDirectory);
 
-  const selectedIntegrationId = selectedCloudRepository
-    ? getIntegrationIdForRepo(selectedCloudRepository)
+  const selectedGithubUserIntegrationId = selectedCloudRepository
+    ? getUserIntegrationIdForRepo(selectedCloudRepository)
+    : undefined;
+  const selectedInstallationId = selectedCloudRepository
+    ? getInstallationIdForRepo(selectedCloudRepository)
     : undefined;
 
   const {
@@ -214,8 +218,8 @@ export function TaskInput({
     hasMore: cloudBranchesHasMore,
     loadMore: loadMoreCloudBranches,
     refresh: refreshCloudBranches,
-  } = useGithubBranches(
-    selectedIntegrationId,
+  } = useUserGithubBranches(
+    selectedInstallationId,
     selectedCloudRepository,
     cloudBranchSearchQuery,
     isCloudBranchPickerOpen,
@@ -349,7 +353,18 @@ export function TaskInput({
   }, [lastUsedCloudRepository, selectedRepository]);
 
   useEffect(() => {
-    if (isLoadingRepos || !selectedRepository || selectedCloudRepository) {
+    // Clear `selectedRepository` only when the list has actually loaded AND the
+    // selection is missing from it — i.e. the repo was removed from the user's
+    // integrations. Bail out when `repositories` is empty: that can happen
+    // transiently after `isLoadingRepos` flips false but before the
+    // per-integration queries have produced data, and clearing here would
+    // wipe out a freshly-supplied `initialCloudRepository` prefill.
+    if (
+      isLoadingRepos ||
+      repositories.length === 0 ||
+      !selectedRepository ||
+      selectedCloudRepository
+    ) {
       return;
     }
 
@@ -359,6 +374,7 @@ export function TaskInput({
     }
   }, [
     isLoadingRepos,
+    repositories.length,
     lastUsedCloudRepository,
     selectedCloudRepository,
     selectedRepository,
@@ -428,7 +444,7 @@ export function TaskInput({
     editorRef,
     selectedDirectory,
     selectedRepository: selectedCloudRepository,
-    githubIntegrationId: selectedIntegrationId,
+    githubUserIntegrationId: selectedGithubUserIntegrationId,
     workspaceMode: effectiveWorkspaceMode,
     branch: branchForTaskCreation,
     editorIsEmpty,
@@ -541,18 +557,11 @@ export function TaskInput({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const filePath = getFilePath(file);
-      if (filePath) {
-        editorRef.current?.addAttachment({
-          id: filePath,
-          label: file.name,
-        });
-      }
-    }
-
-    editorRef.current?.focus();
+    resolveAndAttachDroppedFiles(files, (a) =>
+      editorRef.current?.addAttachment(a),
+    )
+      .then(() => editorRef.current?.focus())
+      .catch(() => toast.error("Failed to attach files"));
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
