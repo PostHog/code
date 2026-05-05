@@ -1087,16 +1087,25 @@ export class SessionService {
         isNotification(msg.method, POSTHOG_NOTIFICATIONS.TURN_COMPLETE)
       ) {
         const session = sessionStoreSetters.getSessions()[taskRunId];
-        if (session?.isCloud && session.messageQueue.length > 0) {
-          const taskId = session.taskId;
-          setTimeout(() => {
-            this.sendQueuedCloudMessages(taskId).catch((err) =>
-              log.error("turn_complete-driven cloud queue flush failed", {
-                taskId,
-                error: err,
-              }),
-            );
-          }, 0);
+        if (session?.isCloud) {
+          // Backward compat: treat turn_complete as an implicit run_started
+          // for agents that predate the run_started notification.
+          if (session.status !== "connected") {
+            sessionStoreSetters.updateSession(taskRunId, {
+              status: "connected",
+            });
+          }
+          if (session.messageQueue.length > 0) {
+            const taskId = session.taskId;
+            setTimeout(() => {
+              this.sendQueuedCloudMessages(taskId).catch((err) =>
+                log.error("turn_complete-driven cloud queue flush failed", {
+                  taskId,
+                  error: err,
+                }),
+              );
+            }, 0);
+          }
         }
       }
     }
