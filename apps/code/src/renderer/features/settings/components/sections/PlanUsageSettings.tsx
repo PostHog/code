@@ -297,12 +297,12 @@ export function PlanUsageSettings() {
         ) : usage ? (
           <Flex direction="column" gap="3">
             <UsageMeter
-              label="Sustained"
+              label="Monthly"
               bucket={usage.sustained}
               color={usage.sustained.exceeded ? "red" : undefined}
             />
             <UsageMeter
-              label="Burst"
+              label="Daily"
               bucket={usage.burst}
               color={usage.burst.exceeded ? "red" : undefined}
             />
