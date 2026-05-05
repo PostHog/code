@@ -22,6 +22,7 @@ export function SetupView() {
     wizardFeed,
     isDiscoveryDone,
     isWizardStarted,
+    isWizardDone,
     wizardSkipped,
     discoveredTasks,
     error,
@@ -132,7 +133,7 @@ export function SetupView() {
                   color="blue"
                   currentTool={wizardFeed.currentTool}
                   recentEntries={wizardFeed.recentEntries}
-                  isDone={false}
+                  isDone={isWizardDone}
                   doneLabel="Integration ready"
                 />
               </motion.div>

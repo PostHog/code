@@ -335,7 +335,8 @@ export interface SetupWizardFailedProperties {
     | "unauthenticated_client"
     | "missing_directory"
     | "startup_error"
-    | "already_installed";
+    | "already_installed"
+    | "task_run_terminal";
   error_message?: string;
 }
 
