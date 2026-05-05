@@ -423,6 +423,9 @@ export const ANALYTICS_EVENTS = {
   // Error events
   TASK_CREATION_FAILED: "Task creation failed",
   AGENT_SESSION_ERROR: "Agent session error",
+
+  // Inbox events
+  INBOX_INTEREST_REGISTERED: "Inbox interest registered",
 } as const;
 
 // Event property mapping
@@ -501,4 +504,7 @@ export type EventPropertyMap = {
   // Error events
   [ANALYTICS_EVENTS.TASK_CREATION_FAILED]: TaskCreationFailedProperties;
   [ANALYTICS_EVENTS.AGENT_SESSION_ERROR]: AgentSessionErrorProperties;
+
+  // Inbox events
+  [ANALYTICS_EVENTS.INBOX_INTEREST_REGISTERED]: never;
 };
