@@ -70,8 +70,7 @@ export function GitHubSettings() {
     <Flex direction="column" gap="3">
       <Flex align="center" justify="between" gap="3" wrap="wrap">
         <Text className="text-(--gray-11) text-[13px]">
-          Personal GitHub installations linked to your PostHog account. Cloud
-          task PRs are authored as you using these.
+          Personal GitHub installations linked to your PostHog account.
         </Text>
         <Button
           size="1"

@@ -26,7 +26,7 @@ export function CloudGithubMissingNotice() {
             <Text size="1">
               {hasError
                 ? describeGithubConnectError(error)
-                : "Connect your personal GitHub to create cloud tasks. Cloud PRs are authored as you."}
+                : "Connecting your personal GitHub is required to run cloud tasks."}
             </Text>
           </Callout.Text>
         </Flex>
