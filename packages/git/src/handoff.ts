@@ -677,6 +677,7 @@ export class GitHandoffTracker {
         );
       });
 
+      child.stdin.on("error", () => {});
       child.stdin.end(input);
     });
   }
