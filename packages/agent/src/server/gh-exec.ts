@@ -21,9 +21,12 @@ export function runGh(
   args: string[],
   options: GhExecOptions,
 ): Promise<GhExecResult> {
-  // Binary is pinned here. Callers (incl. the HTTP route) cannot override it —
-  // the body schema strips unknowns and runGh has no binary parameter.
-  return spawnAndCollect("gh", args, options);
+  // Binary resolution is owned by the server process, not request callers:
+  // POSTHOG_GH_BINARY overrides the default for dev/test setups where `gh`
+  // isn't on PATH or a stand-in is needed. The HTTP body schema still strips
+  // unknowns, so untrusted clients can't pick the binary.
+  const binary = process.env.POSTHOG_GH_BINARY ?? "gh";
+  return spawnAndCollect(binary, args, options);
 }
 
 export async function spawnAndCollect(

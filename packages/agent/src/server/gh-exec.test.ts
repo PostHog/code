@@ -1,6 +1,6 @@
 import { tmpdir } from "node:os";
-import { describe, expect, it } from "vitest";
-import { isLoopbackAddress, spawnAndCollect } from "./gh-exec";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { isLoopbackAddress, runGh, spawnAndCollect } from "./gh-exec";
 
 describe("isLoopbackAddress", () => {
   it.each([
@@ -23,9 +23,32 @@ describe("isLoopbackAddress", () => {
   });
 });
 
-// Test the spawn/collect plumbing via spawnAndCollect. runGh is a thin wrapper
-// that pins the binary to "gh" — verified by inspection, not exercised here so
-// tests don't depend on a `gh` install.
+describe("runGh", () => {
+  let previous: string | undefined;
+
+  beforeEach(() => {
+    previous = process.env.POSTHOG_GH_BINARY;
+  });
+
+  afterEach(() => {
+    if (previous === undefined) delete process.env.POSTHOG_GH_BINARY;
+    else process.env.POSTHOG_GH_BINARY = previous;
+  });
+
+  it("uses POSTHOG_GH_BINARY when set, so dev/test can swap the binary", async () => {
+    process.env.POSTHOG_GH_BINARY = process.execPath;
+    const result = await runGh(["-e", "process.stdout.write('via-env');"], {
+      cwd: tmpdir(),
+      timeoutMs: 5_000,
+    });
+
+    expect(result.stdout).toBe("via-env");
+    expect(result.exitCode).toBe(0);
+  });
+});
+
+// Test the spawn/collect plumbing via spawnAndCollect so tests don't depend on
+// a real `gh` install. runGh's default-binary path is verified by inspection.
 describe("spawnAndCollect", () => {
   it("captures stdout, stderr, and a zero exit code", async () => {
     const result = await spawnAndCollect(
