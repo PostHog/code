@@ -90,7 +90,7 @@
     "typescript"
   ],
   "author": "PostHog",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "scripts": {
     "build": "node ../../scripts/rimraf.mjs dist && tsup",
     "dev": "tsup --watch",
