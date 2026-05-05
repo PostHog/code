@@ -22,7 +22,7 @@ import {
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { logger } from "@utils/logger";
-import { getPostHogUrl } from "@utils/urls";
+import { getBillingUrl } from "@utils/urls";
 import { useEffect, useState } from "react";
 
 const log = logger.scope("plan-usage");
@@ -38,7 +38,7 @@ async function openBillingPage(orgId: string | null): Promise<void> {
       log.warn("Failed to switch org before opening billing", err);
     }
   }
-  const url = getPostHogUrl("/organization/billing");
+  const url = getBillingUrl();
   if (url) window.open(url, "_blank");
 }
 
@@ -67,10 +67,8 @@ export function PlanUsageSettings() {
   const { fetchSeat, upgradeToPro, cancelSeat, reactivateSeat, clearError } =
     useSeatStore();
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
-  const billingUrl = getPostHogUrl("/organization/billing", cloudRegion);
-  const redirectFullUrl = redirectUrl
-    ? getPostHogUrl(redirectUrl, cloudRegion)
-    : null;
+  const billingUrl = getBillingUrl(cloudRegion);
+  const redirectFullUrl = redirectUrl ? billingUrl : null;
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;

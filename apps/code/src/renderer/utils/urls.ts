@@ -11,3 +11,9 @@ export function getPostHogUrl(
   const base = getCloudUrlFromRegion(region);
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export function getBillingUrl(
+  regionOverride?: CloudRegion | null,
+): string | null {
+  return getPostHogUrl("/organization/billing/overview", regionOverride);
+}
