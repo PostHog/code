@@ -93,6 +93,11 @@ export interface AgentSession {
   /** Pre-computed conversation summary for commit/PR generation context */
   conversationSummary?: string;
   idleKilled?: boolean;
+  /** Semver of the connected agent process. Populated from the
+   * `_posthog/run_started` notification so that the UI can gate features
+   * against agent capabilities (especially relevant for cloud sandboxes
+   * where the agent version can lag behind the desktop). */
+  agentVersion?: string;
 }
 
 // --- Config Option Helpers ---

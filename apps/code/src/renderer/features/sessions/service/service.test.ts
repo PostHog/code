@@ -1673,6 +1673,61 @@ describe("SessionService", () => {
       });
     });
 
+    it("captures agentVersion from run_started params onto the session", async () => {
+      const service = getSessionService();
+      const hydratedSession = createMockSession({
+        taskRunId: "run-123",
+        taskId: "task-123",
+        status: "disconnected",
+        isCloud: true,
+        events: [],
+      });
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        hydratedSession,
+      );
+      mockSessionStoreSetters.getSessions.mockReturnValue({
+        "run-123": hydratedSession,
+      });
+      mockTrpcLogs.readLocalLogs.query.mockResolvedValue("");
+      mockTrpcLogs.fetchS3Logs.query.mockResolvedValue("{}");
+      mockTrpcLogs.writeLocalLogs.mutate.mockResolvedValue(undefined);
+
+      const runStartedEvent = {
+        type: "acp_message" as const,
+        ts: 1700000000,
+        message: {
+          jsonrpc: "2.0" as const,
+          method: "_posthog/run_started",
+          params: {
+            sessionId: "acp-session",
+            runId: "run-123",
+            taskId: "task-123",
+            agentVersion: "0.42.3",
+          },
+        },
+      };
+      mockConvertStoredEntriesToEvents.mockReturnValueOnce([runStartedEvent]);
+
+      service.watchCloudTask(
+        "task-123",
+        "run-123",
+        "https://api.anthropic.com",
+        123,
+        undefined,
+        "https://logs.example.com/run-123",
+      );
+
+      await vi.waitFor(() => {
+        expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+          "run-123",
+          expect.objectContaining({
+            agentVersion: "0.42.3",
+            status: "connected",
+          }),
+        );
+      });
+    });
+
     it("does not re-flip status when run_started arrives but session is already connected", async () => {
       const service = getSessionService();
       const connectedSession = createMockSession({
