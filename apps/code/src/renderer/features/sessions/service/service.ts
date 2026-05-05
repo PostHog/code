@@ -472,6 +472,7 @@ export class SessionService {
       if (!shouldAutoRetry) return;
 
       let lastRetryMessage = message;
+      let wentOffline = false;
       for (let attempt = 1; attempt <= AUTO_RETRY_MAX_ATTEMPTS; attempt++) {
         log.warn("Auto-retrying failed connection", {
           taskId,
@@ -481,6 +482,14 @@ export class SessionService {
         await new Promise((resolve) =>
           setTimeout(resolve, AUTO_RETRY_DELAY_MS),
         );
+        if (!getIsOnline()) {
+          log.warn("Skipping retry — device went offline", {
+            taskId,
+            attempt,
+          });
+          wentOffline = true;
+          break;
+        }
         try {
           await this.clearSessionError(taskId, repoPath);
           return;
@@ -497,12 +506,14 @@ export class SessionService {
         }
       }
 
-      const currentTaskRunId =
-        sessionStoreSetters.getSessionByTaskId(taskId)?.taskRunId ?? taskRunId;
-      sessionStoreSetters.updateSession(currentTaskRunId, {
-        status: "error",
-        errorTitle: "Failed to connect",
-        errorMessage: lastRetryMessage || message,
+      const currentSession = sessionStoreSetters.getSessionByTaskId(taskId);
+      if (!currentSession) return;
+      sessionStoreSetters.updateSession(currentSession.taskRunId, {
+        status: wentOffline ? "disconnected" : "error",
+        errorTitle: wentOffline ? undefined : "Failed to connect",
+        errorMessage: wentOffline
+          ? "No internet connection. Connect when you're back online."
+          : lastRetryMessage || message,
       });
     }
   }

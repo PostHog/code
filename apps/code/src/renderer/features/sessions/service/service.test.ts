@@ -566,6 +566,148 @@ describe("SessionService", () => {
         }),
       );
     });
+
+    describe("auto-retry on connect failure", () => {
+      const setupFailingConnect = () => {
+        const createTaskRun = vi
+          .fn()
+          .mockRejectedValue(new Error("Internal error"));
+        mockBuildAuthenticatedClient.mockReturnValue({
+          ...mockAuthenticatedClient,
+          createTaskRun,
+          appendTaskRunLog: vi.fn(),
+        });
+        return { createTaskRun };
+      };
+
+      it("parks the session in 'connecting' and auto-retries via clearSessionError", async () => {
+        vi.useFakeTimers();
+        try {
+          setupFailingConnect();
+          const service = getSessionService();
+          const clearSpy = vi
+            .spyOn(service, "clearSessionError")
+            .mockResolvedValue(undefined);
+
+          const promise = service.connectToTask({
+            task: createMockTask(),
+            repoPath: "/repo",
+          });
+
+          await vi.advanceTimersByTimeAsync(0);
+          expect(mockSessionStoreSetters.setSession).toHaveBeenCalledWith(
+            expect.objectContaining({ status: "connecting" }),
+          );
+
+          await vi.advanceTimersByTimeAsync(10_000);
+          await promise;
+
+          expect(clearSpy).toHaveBeenCalledTimes(1);
+          expect(clearSpy).toHaveBeenCalledWith("task-123", "/repo");
+          expect(mockSessionStoreSetters.setSession).not.toHaveBeenCalledWith(
+            expect.objectContaining({ status: "error" }),
+          );
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("flips to error after both auto-retries fail", async () => {
+        vi.useFakeTimers();
+        try {
+          setupFailingConnect();
+          const service = getSessionService();
+          const clearSpy = vi
+            .spyOn(service, "clearSessionError")
+            .mockRejectedValue(new Error("retry failed"));
+          mockSessionStoreSetters.getSessionByTaskId.mockReturnValue({
+            taskRunId: "error-task-123",
+            taskId: "task-123",
+          });
+
+          const promise = service.connectToTask({
+            task: createMockTask(),
+            repoPath: "/repo",
+          });
+
+          await vi.advanceTimersByTimeAsync(25_000);
+          await promise;
+
+          expect(clearSpy).toHaveBeenCalledTimes(2);
+          expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+            "error-task-123",
+            expect.objectContaining({
+              status: "error",
+              errorTitle: "Failed to connect",
+              errorMessage: "retry failed",
+            }),
+          );
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("stops retrying and sets disconnected when device goes offline", async () => {
+        vi.useFakeTimers();
+        try {
+          setupFailingConnect();
+          const service = getSessionService();
+          const clearSpy = vi
+            .spyOn(service, "clearSessionError")
+            .mockResolvedValue(undefined);
+          mockSessionStoreSetters.getSessionByTaskId.mockReturnValue({
+            taskRunId: "error-task-123",
+            taskId: "task-123",
+          });
+
+          const promise = service.connectToTask({
+            task: createMockTask(),
+            repoPath: "/repo",
+          });
+
+          await vi.advanceTimersByTimeAsync(0);
+          mockGetIsOnline.mockReturnValue(false);
+          await vi.advanceTimersByTimeAsync(10_000);
+          await promise;
+
+          expect(clearSpy).not.toHaveBeenCalled();
+          expect(mockSessionStoreSetters.updateSession).toHaveBeenCalledWith(
+            "error-task-123",
+            expect.objectContaining({
+              status: "disconnected",
+              errorMessage: expect.stringContaining("No internet connection"),
+            }),
+          );
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it("skips final update when session was dismissed during retry gap", async () => {
+        vi.useFakeTimers();
+        try {
+          setupFailingConnect();
+          const service = getSessionService();
+          const clearSpy = vi
+            .spyOn(service, "clearSessionError")
+            .mockRejectedValue(new Error("retry failed"));
+          mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(undefined);
+
+          const promise = service.connectToTask({
+            task: createMockTask(),
+            repoPath: "/repo",
+          });
+
+          await vi.advanceTimersByTimeAsync(25_000);
+          await promise;
+
+          expect(clearSpy).toHaveBeenCalled();
+          expect(mockSessionStoreSetters.updateSession).not.toHaveBeenCalled();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
   });
 
   describe("disconnectFromTask", () => {
