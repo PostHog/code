@@ -22,7 +22,7 @@ import {
 import { Tooltip } from "@renderer/components/ui/Tooltip";
 import { PLAN_PRO_ALPHA } from "@shared/types/seat";
 import { logger } from "@utils/logger";
-import { getBillingUrl } from "@utils/urls";
+import { getBillingUrl, getPostHogUrl } from "@utils/urls";
 import { useEffect, useState } from "react";
 
 const log = logger.scope("plan-usage");
@@ -68,7 +68,9 @@ export function PlanUsageSettings() {
     useSeatStore();
   const cloudRegion = useAuthStateValue((state) => state.cloudRegion);
   const billingUrl = getBillingUrl(cloudRegion);
-  const redirectFullUrl = redirectUrl ? billingUrl : null;
+  const redirectFullUrl = redirectUrl
+    ? (getPostHogUrl(redirectUrl, cloudRegion) ?? billingUrl)
+    : null;
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
   const isAlpha = seat?.plan_key === PLAN_PRO_ALPHA;

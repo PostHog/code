@@ -7,35 +7,40 @@ vi.mock("@features/auth/hooks/authQueries", () => ({
 import { getBillingUrl, getPostHogUrl } from "./urls";
 
 describe("getPostHogUrl", () => {
-  it("returns null when no region is available", () => {
+  it("returns null when no region is available and the input is a path", () => {
     expect(getPostHogUrl("/foo")).toBeNull();
   });
 
-  it("joins base and path for us region", () => {
-    expect(getPostHogUrl("/foo", "us")).toBe("https://us.posthog.com/foo");
-  });
+  it.each([
+    ["us", "/foo", "https://us.posthog.com/foo"],
+    ["us", "foo", "https://us.posthog.com/foo"],
+    ["eu", "/foo", "https://eu.posthog.com/foo"],
+  ] as const)(
+    "joins base and path for %s region (path=%s)",
+    (region, path, expected) => {
+      expect(getPostHogUrl(path, region)).toBe(expected);
+    },
+  );
 
-  it("adds a leading slash if missing", () => {
-    expect(getPostHogUrl("foo", "us")).toBe("https://us.posthog.com/foo");
-  });
-
-  it("uses the eu base for eu region", () => {
-    expect(getPostHogUrl("/foo", "eu")).toBe("https://eu.posthog.com/foo");
+  it.each([
+    "https://app.posthog.com/organization/billing",
+    "http://localhost:8000/checkout",
+    "HTTPS://us.posthog.com/foo",
+  ])("passes absolute URLs through unchanged: %s", (url) => {
+    expect(getPostHogUrl(url, "us")).toBe(url);
   });
 });
 
 describe("getBillingUrl", () => {
-  it("points at /organization/billing/overview on us", () => {
-    expect(getBillingUrl("us")).toBe(
-      "https://us.posthog.com/organization/billing/overview",
-    );
-  });
-
-  it("points at /organization/billing/overview on eu", () => {
-    expect(getBillingUrl("eu")).toBe(
-      "https://eu.posthog.com/organization/billing/overview",
-    );
-  });
+  it.each([
+    ["us", "https://us.posthog.com/organization/billing/overview"],
+    ["eu", "https://eu.posthog.com/organization/billing/overview"],
+  ] as const)(
+    "points at /organization/billing/overview on %s",
+    (region, expected) => {
+      expect(getBillingUrl(region)).toBe(expected);
+    },
+  );
 
   it("returns null when no region is available", () => {
     expect(getBillingUrl()).toBeNull();
