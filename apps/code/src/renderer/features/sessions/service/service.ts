@@ -93,6 +93,8 @@ const LOCAL_SESSION_RECOVERY_MESSAGE =
 const LOCAL_SESSION_RECOVERY_FAILED_MESSAGE =
   "Connecting to to the agent has been lost. Retry, or start a new session.";
 const GITHUB_AUTHORIZATION_REQUIRED_CODE = "github_authorization_required";
+const AUTO_RETRY_MAX_ATTEMPTS = 2;
+const AUTO_RETRY_DELAY_MS = 10_000;
 
 class GitHubAuthorizationRequiredForCloudHandoffError extends Error {
   constructor(
@@ -443,13 +445,9 @@ export class SessionService {
 
       const taskRunId = latestRun?.id ?? `error-${taskId}`;
       const session = this.createBaseSession(taskRunId, taskId, taskTitle);
-      session.status = "error";
-      session.errorTitle = "Failed to connect";
-      session.errorMessage = message;
       if (initialPrompt?.length) {
         session.initialPrompt = initialPrompt;
       }
-
       if (latestRun?.log_url) {
         try {
           const { rawEntries } = await this.fetchSessionLogs(
@@ -463,7 +461,49 @@ export class SessionService {
         }
       }
 
+      const shouldAutoRetry = getIsOnline();
+      session.status = shouldAutoRetry ? "connecting" : "error";
+      if (!shouldAutoRetry) {
+        session.errorTitle = "Failed to connect";
+        session.errorMessage = message;
+      }
       sessionStoreSetters.setSession(session);
+
+      if (!shouldAutoRetry) return;
+
+      let lastRetryMessage = message;
+      for (let attempt = 1; attempt <= AUTO_RETRY_MAX_ATTEMPTS; attempt++) {
+        log.warn("Auto-retrying failed connection", {
+          taskId,
+          attempt,
+          delayMs: AUTO_RETRY_DELAY_MS,
+        });
+        await new Promise((resolve) =>
+          setTimeout(resolve, AUTO_RETRY_DELAY_MS),
+        );
+        try {
+          await this.clearSessionError(taskId, repoPath);
+          return;
+        } catch (retryError) {
+          lastRetryMessage =
+            retryError instanceof Error
+              ? retryError.message
+              : String(retryError);
+          log.error("Auto-retry via clearSessionError failed", {
+            taskId,
+            attempt,
+            error: lastRetryMessage,
+          });
+        }
+      }
+
+      const currentTaskRunId =
+        sessionStoreSetters.getSessionByTaskId(taskId)?.taskRunId ?? taskRunId;
+      sessionStoreSetters.updateSession(currentTaskRunId, {
+        status: "error",
+        errorTitle: "Failed to connect",
+        errorMessage: lastRetryMessage || message,
+      });
     }
   }
 
