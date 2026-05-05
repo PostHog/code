@@ -11,6 +11,7 @@ export function useSetupRun() {
   const discoveredTasks = useSetupStore((s) => s.discoveredTasks);
   const wizardTaskId = useSetupStore((s) => s.wizardTaskId);
   const wizardSkipped = useSetupStore((s) => s.wizardSkipped);
+  const wizardCompleted = useSetupStore((s) => s.wizardCompleted);
   const discoveryFeed = useSetupStore((s) => s.discoveryFeed);
   const wizardFeed = useSetupStore((s) => s.wizardFeed);
   const error = useSetupStore((s) => s.error);
@@ -34,6 +35,7 @@ export function useSetupRun() {
     wizardFeed,
     isDiscoveryDone: discoveryStatus === "done",
     isWizardStarted: !!wizardTaskId,
+    isWizardDone: wizardCompleted,
     wizardSkipped,
     discoveredTasks,
     wizardTaskId,
