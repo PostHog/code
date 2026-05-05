@@ -45,6 +45,7 @@ import { FOCUSABLE_SELECTOR } from "@utils/overlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePreviewConfig } from "../hooks/usePreviewConfig";
 import { useTaskCreation } from "../hooks/useTaskCreation";
+import { CloudGithubMissingNotice } from "./CloudGithubMissingNotice";
 import { type WorkspaceMode, WorkspaceModeSelect } from "./WorkspaceModeSelect";
 
 interface TaskInputProps {
@@ -182,6 +183,7 @@ export function TaskInput({
     isLoadingRepos,
     isRefreshingRepos,
     refreshRepositories,
+    hasGithubIntegration,
   } = useUserRepositoryIntegration();
   const {
     repositories: visibleCloudRepositories,
@@ -779,6 +781,13 @@ export function TaskInput({
                 </Tooltip>
               </div>
             )}
+            {effectiveWorkspaceMode === "cloud" &&
+              !isLoadingRepos &&
+              !hasGithubIntegration && (
+                <div className="mx-2 mt-2">
+                  <CloudGithubMissingNotice />
+                </div>
+              )}
           </Flex>
         </Flex>
       </Flex>

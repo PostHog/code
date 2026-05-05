@@ -19,6 +19,7 @@ import {
   CreditCard,
   Folder,
   GearSix,
+  GithubLogo,
   HardDrives,
   Keyboard,
   Palette,
@@ -36,6 +37,7 @@ import { ClaudeCodeSettings } from "./sections/ClaudeCodeSettings";
 import { CloudEnvironmentsSettings } from "./sections/CloudEnvironmentsSettings";
 import { EnvironmentsSettings } from "./sections/environments/EnvironmentsSettings";
 import { GeneralSettings } from "./sections/GeneralSettings";
+import { GitHubSettings } from "./sections/GitHubSettings";
 import { PersonalizationSettings } from "./sections/PersonalizationSettings";
 import { PlanUsageSettings } from "./sections/PlanUsageSettings";
 import { ShortcutsSettings } from "./sections/ShortcutsSettings";
@@ -73,6 +75,7 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
   },
   { id: "claude-code", label: "Claude Code", icon: <Code size={16} /> },
   { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={16} /> },
+  { id: "github", label: "GitHub", icon: <GithubLogo size={16} /> },
 
   {
     id: "signals",
@@ -93,6 +96,7 @@ const CATEGORY_TITLES: Record<SettingsCategory, string> = {
   personalization: "Personalization",
   "claude-code": "Claude Code",
   shortcuts: "Shortcuts",
+  github: "GitHub",
 
   signals: "Signals",
   updates: "Updates",
@@ -109,6 +113,7 @@ const CATEGORY_COMPONENTS: Record<SettingsCategory, React.ComponentType> = {
   personalization: PersonalizationSettings,
   "claude-code": ClaudeCodeSettings,
   shortcuts: ShortcutsSettings,
+  github: GitHubSettings,
 
   signals: SignalSourcesSettings,
   updates: UpdatesSettings,
