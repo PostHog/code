@@ -15,14 +15,15 @@ describe("loadUserClaudeJsonMcpServers", () => {
     fs.rmSync(tmpHome, { recursive: true, force: true });
   });
 
-  it("returns empty when ~/.claude.json is missing", () => {
-    expect(
-      loadUserClaudeJsonMcpServers("/some/cwd", undefined, tmpHome),
-    ).toEqual({});
-  });
-
-  it("returns empty on invalid JSON", () => {
-    fs.writeFileSync(path.join(tmpHome, ".claude.json"), "not json");
+  it.each([
+    { name: "~/.claude.json is missing", setup: () => undefined },
+    {
+      name: "~/.claude.json contains invalid JSON",
+      setup: (home: string) =>
+        fs.writeFileSync(path.join(home, ".claude.json"), "not json"),
+    },
+  ])("returns empty when $name", ({ setup }) => {
+    setup(tmpHome);
     expect(
       loadUserClaudeJsonMcpServers("/some/cwd", undefined, tmpHome),
     ).toEqual({});
