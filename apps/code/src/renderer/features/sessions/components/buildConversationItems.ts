@@ -392,8 +392,6 @@ function handleNotification(
     const params = msg.params as { level?: string; message?: string };
     if (!params?.message) return;
     const level = params.level ?? "info";
-    // Cloud runs downgrade every console log to debug at the source, so this
-    // gate hides the entire stream unless the user flips the debug toggle.
     if (level === "debug" && !options?.showDebugLogs) return;
     if (!b.currentTurn) ensureImplicitTurn(b, ts);
     pushItem(b, {

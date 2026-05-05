@@ -588,7 +588,7 @@ export class AgentServer {
     switch (method) {
       case POSTHOG_NOTIFICATIONS.USER_MESSAGE:
       case "user_message": {
-        this.logger.info("Received user_message command", {
+        this.logger.debug("Received user_message command", {
           hasContent:
             typeof params.content === "string"
               ? params.content.trim().length > 0
@@ -608,7 +608,7 @@ export class AgentServer {
         if (prompt.length === 0) {
           throw new Error("User message cannot be empty");
         }
-        this.logger.info("Built user_message prompt", {
+        this.logger.debug("Built user_message prompt", {
           blockTypes: prompt.map((block) => block.type),
         });
         const promptPreview = promptBlocksToText(prompt);
@@ -718,7 +718,7 @@ export class AgentServer {
           ? params.mcpServers
           : [];
 
-        this.logger.info("Refresh session requested", {
+        this.logger.debug("Refresh session requested", {
           serverCount: mcpServers.length,
         });
 
@@ -1191,7 +1191,7 @@ export class AgentServer {
             this.resumeState.latestGitCheckpoint,
           );
           checkpointApplied = true;
-          this.logger.info("Git checkpoint applied", {
+          this.logger.debug("Git checkpoint applied", {
             branch: this.resumeState.latestGitCheckpoint.branch,
             head: this.resumeState.latestGitCheckpoint.head,
             packBytes: metrics.packBytes,
@@ -1314,7 +1314,7 @@ export class AgentServer {
       taskId: taskRun.task,
       runId: taskRun.id,
     });
-    this.logger.info("Built pending user prompt", {
+    this.logger.debug("Built pending user prompt", {
       hasMessage: typeof message === "string" && message.trim().length > 0,
       requestedArtifactCount: artifactIds.length,
       blockTypes: prompt.map((block) => block.type),
