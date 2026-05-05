@@ -1,6 +1,17 @@
 import { ArrowDown, ArrowUp, X } from "@phosphor-icons/react";
 import { IconButton } from "@radix-ui/themes";
-import { useCallback, useEffect, useRef } from "react";
+import {
+  forwardRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from "react";
+
+export interface ConversationSearchBarHandle {
+  focusAndSelect: () => void;
+}
 
 interface ConversationSearchBarProps {
   query: string;
@@ -12,23 +23,34 @@ interface ConversationSearchBarProps {
   onClose: () => void;
 }
 
-export function ConversationSearchBar({
-  query,
-  currentMatch,
-  totalMatches,
-  onQueryChange,
-  onNext,
-  onPrev,
-  onClose,
-}: ConversationSearchBarProps) {
+export const ConversationSearchBar = forwardRef<
+  ConversationSearchBarHandle,
+  ConversationSearchBarProps
+>(function ConversationSearchBar(
+  { query, currentMatch, totalMatches, onQueryChange, onNext, onPrev, onClose },
+  ref,
+) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusAndSelect: () => {
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        input.select();
+      },
+    }),
+    [],
+  );
+
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
@@ -48,7 +70,10 @@ export function ConversationSearchBar({
   );
 
   return (
-    <div className="absolute top-2 right-6 z-30 flex items-center gap-1 rounded-lg border border-(--gray-6) bg-(--color-background) px-2 py-1 shadow-md">
+    <div
+      data-overlay
+      className="absolute top-2 right-6 z-30 flex items-center gap-1 rounded-lg border border-(--gray-6) bg-(--color-background) px-2 py-1 shadow-md"
+    >
       <input
         ref={inputRef}
         type="text"
@@ -96,4 +121,4 @@ export function ConversationSearchBar({
       </IconButton>
     </div>
   );
-}
+});
