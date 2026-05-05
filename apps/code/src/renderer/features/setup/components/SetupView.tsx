@@ -181,18 +181,18 @@ export function SetupView() {
                   </Text>
                 </Flex>
 
-                <Flex direction="column" gap="1" align="start">
+                <Flex direction="column" gap="2" align="start">
+                  <Text size="1" className="text-(--gray-9)">
+                    Suggested tasks will appear in the sidebar when ready.
+                  </Text>
                   <Button
                     size="2"
-                    variant="ghost"
+                    variant="soft"
                     color="gray"
                     onClick={handleSkipDuringScan}
                   >
                     Start from scratch
                   </Button>
-                  <Text size="1" className="text-(--gray-9)">
-                    Suggested tasks will appear in the sidebar when ready.
-                  </Text>
                 </Flex>
               </Flex>
             </motion.div>
@@ -226,7 +226,7 @@ export function SetupView() {
                 <Box>
                   <Button
                     size="2"
-                    variant="ghost"
+                    variant="soft"
                     color="gray"
                     onClick={handleSkipAfterDone}
                   >
