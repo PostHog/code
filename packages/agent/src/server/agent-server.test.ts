@@ -405,6 +405,15 @@ describe("AgentServer HTTP Mode", () => {
             runId: "test-run-id",
             taskId: "test-task-id",
           });
+          // Agent reports its semver so clients can gate UI features
+          // against agent capabilities (e.g. `>=0.40.1`). The exact value
+          // is whatever the agent's package.json was at build time.
+          expect(typeof runStarted?.notification?.params?.agentVersion).toBe(
+            "string",
+          );
+          expect(
+            (runStarted?.notification?.params?.agentVersion as string).length,
+          ).toBeGreaterThan(0);
         },
         { timeout: 15000, interval: 100 },
       );

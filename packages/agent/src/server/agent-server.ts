@@ -969,6 +969,7 @@ export class AgentServer {
         sessionId: acpSessionId,
         runId: payload.run_id,
         taskId: payload.task_id,
+        agentVersion: this.config.version ?? packageJson.version,
       },
     };
     this.broadcastEvent({

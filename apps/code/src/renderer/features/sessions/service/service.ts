@@ -1074,10 +1074,20 @@ export class SessionService {
         isNotification(msg.method, POSTHOG_NOTIFICATIONS.RUN_STARTED)
       ) {
         const session = sessionStoreSetters.getSessions()[taskRunId];
+        const params = (msg as { params?: { agentVersion?: unknown } }).params;
+        const agentVersion =
+          typeof params?.agentVersion === "string"
+            ? params.agentVersion
+            : undefined;
+        const updates: Partial<AgentSession> = {};
+        if (agentVersion && session?.agentVersion !== agentVersion) {
+          updates.agentVersion = agentVersion;
+        }
         if (session?.isCloud && session.status !== "connected") {
-          sessionStoreSetters.updateSession(taskRunId, {
-            status: "connected",
-          });
+          updates.status = "connected";
+        }
+        if (Object.keys(updates).length > 0) {
+          sessionStoreSetters.updateSession(taskRunId, updates);
         }
       }
       // Canonical "turn boundary" — flush any queued cloud messages now
