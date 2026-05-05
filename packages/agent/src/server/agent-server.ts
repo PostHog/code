@@ -73,6 +73,8 @@ const errorWithClassificationSchema = z.object({
 
 type MessageCallback = (message: unknown) => void;
 
+export const SSE_KEEPALIVE_INTERVAL_MS = 25_000;
+
 class NdJsonTap {
   private decoder = new TextDecoder();
   private buffer = "";
@@ -329,41 +331,73 @@ export class AgentServer {
         );
       }
 
+      let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+      const clearKeepalive = (): void => {
+        if (keepaliveInterval) {
+          clearInterval(keepaliveInterval);
+          keepaliveInterval = null;
+        }
+      };
+
       const stream = new ReadableStream({
         start: async (controller) => {
-          const sseController: SseController = {
+          let sseController: SseController | null = null;
+          const encoder = new TextEncoder();
+          const detachCurrentSseController = (): void => {
+            if (sseController) {
+              this.detachSseController(sseController);
+            }
+          };
+          const enqueueSseFrame = (frame: string): void => {
+            try {
+              controller.enqueue(encoder.encode(frame));
+            } catch {
+              clearKeepalive();
+              detachCurrentSseController();
+            }
+          };
+
+          sseController = {
             send: (data: unknown) => {
-              try {
-                controller.enqueue(
-                  new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
-                );
-              } catch {
-                this.detachSseController(sseController);
-              }
+              enqueueSseFrame(`data: ${JSON.stringify(data)}\n\n`);
             },
             close: () => {
               try {
+                clearKeepalive();
                 controller.close();
               } catch {
-                this.detachSseController(sseController);
+                detachCurrentSseController();
               }
             },
           };
 
-          if (!this.session || this.session.payload.run_id !== payload.run_id) {
-            await this.initializeSession(payload, sseController);
-          } else {
-            this.session.sseController = sseController;
-            this.session.hasDesktopConnected = true;
-            this.replayPendingEvents();
-          }
+          keepaliveInterval = setInterval(() => {
+            enqueueSseFrame(": keepalive\n\n");
+          }, SSE_KEEPALIVE_INTERVAL_MS);
 
-          this.sendSseEvent(sseController, {
-            type: "connected",
-            run_id: payload.run_id,
-          });
+          try {
+            if (
+              !this.session ||
+              this.session.payload.run_id !== payload.run_id
+            ) {
+              await this.initializeSession(payload, sseController);
+            } else {
+              this.session.sseController = sseController;
+              this.session.hasDesktopConnected = true;
+              this.replayPendingEvents();
+            }
+
+            this.sendSseEvent(sseController, {
+              type: "connected",
+              run_id: payload.run_id,
+            });
+          } catch (error) {
+            clearKeepalive();
+            throw error;
+          }
         },
         cancel: () => {
+          clearKeepalive();
           this.logger.debug("SSE connection closed");
           if (this.session?.sseController) {
             this.session.sseController = null;

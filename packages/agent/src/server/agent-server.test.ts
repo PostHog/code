@@ -13,7 +13,7 @@ import {
 import { createTestRepo, type TestRepo } from "../test/fixtures/api";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers";
 import type { TaskRun } from "../types";
-import { AgentServer } from "./agent-server";
+import { AgentServer, SSE_KEEPALIVE_INTERVAL_MS } from "./agent-server";
 import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
@@ -273,6 +273,64 @@ describe("AgentServer HTTP Mode", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/event-stream");
+    }, 20000);
+
+    it("emits transport keepalive comments while idle", async () => {
+      const keepaliveCallback: { current: (() => void) | null } = {
+        current: null,
+      };
+      const setIntervalSpy = vi
+        .spyOn(globalThis, "setInterval")
+        .mockImplementation(
+          (callback: (_: undefined) => void, timeout?: number) => {
+            if (timeout === SSE_KEEPALIVE_INTERVAL_MS) {
+              keepaliveCallback.current = () => callback(undefined);
+            }
+            return setTimeout(() => undefined, 60_000);
+          },
+        );
+
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      try {
+        await createServer().start();
+        const token = createToken();
+
+        const response = await fetch(`http://localhost:${port}/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).not.toBeNull();
+        reader = response.body?.getReader() ?? null;
+        expect(reader).not.toBeNull();
+        if (!reader) {
+          throw new Error("Expected SSE response body reader");
+        }
+
+        await vi.waitFor(() =>
+          expect(keepaliveCallback.current).not.toBeNull(),
+        );
+        const emitKeepalive = keepaliveCallback.current;
+        if (!emitKeepalive) {
+          throw new Error("Expected keepalive callback to be registered");
+        }
+        emitKeepalive();
+
+        const decoder = new TextDecoder();
+        let streamText = "";
+        for (let attempts = 0; attempts < 5; attempts++) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          streamText += decoder.decode(value, { stream: true });
+          if (streamText.includes(": keepalive\n\n")) break;
+        }
+
+        expect(streamText).toContain(": keepalive\n\n");
+        expect(streamText).not.toContain('"type":"keepalive"');
+      } finally {
+        await reader?.cancel();
+        setIntervalSpy.mockRestore();
+      }
     }, 20000);
   });
 
