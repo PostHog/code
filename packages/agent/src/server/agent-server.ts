@@ -73,7 +73,7 @@ const errorWithClassificationSchema = z.object({
 
 type MessageCallback = (message: unknown) => void;
 
-const SSE_KEEPALIVE_INTERVAL_MS = 25_000;
+export const SSE_KEEPALIVE_INTERVAL_MS = 25_000;
 
 class NdJsonTap {
   private decoder = new TextDecoder();
@@ -341,7 +341,23 @@ export class AgentServer {
 
       const stream = new ReadableStream({
         start: async (controller) => {
-          const sseController: SseController = {
+          let sseController: SseController | null = null;
+          const encoder = new TextEncoder();
+          const detachCurrentSseController = (): void => {
+            if (sseController) {
+              this.detachSseController(sseController);
+            }
+          };
+          const enqueueSseFrame = (frame: string): void => {
+            try {
+              controller.enqueue(encoder.encode(frame));
+            } catch {
+              clearKeepalive();
+              detachCurrentSseController();
+            }
+          };
+
+          sseController = {
             send: (data: unknown) => {
               enqueueSseFrame(`data: ${JSON.stringify(data)}\n\n`);
             },
@@ -350,19 +366,9 @@ export class AgentServer {
                 clearKeepalive();
                 controller.close();
               } catch {
-                this.detachSseController(sseController);
+                detachCurrentSseController();
               }
             },
-          };
-
-          const encoder = new TextEncoder();
-          const enqueueSseFrame = (frame: string): void => {
-            try {
-              controller.enqueue(encoder.encode(frame));
-            } catch {
-              clearKeepalive();
-              this.detachSseController(sseController);
-            }
           };
 
           keepaliveInterval = setInterval(() => {

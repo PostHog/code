@@ -13,7 +13,7 @@ import {
 import { createTestRepo, type TestRepo } from "../test/fixtures/api";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers";
 import type { TaskRun } from "../types";
-import { AgentServer } from "./agent-server";
+import { AgentServer, SSE_KEEPALIVE_INTERVAL_MS } from "./agent-server";
 import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
@@ -283,7 +283,7 @@ describe("AgentServer HTTP Mode", () => {
         .spyOn(globalThis, "setInterval")
         .mockImplementation(
           (callback: (_: undefined) => void, timeout?: number) => {
-            if (timeout === 25_000) {
+            if (timeout === SSE_KEEPALIVE_INTERVAL_MS) {
               keepaliveCallback.current = () => callback(undefined);
             }
             return setTimeout(() => undefined, 60_000);
