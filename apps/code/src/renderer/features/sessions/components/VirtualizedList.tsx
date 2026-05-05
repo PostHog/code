@@ -124,16 +124,19 @@ function VirtualizedListInner<T>(
         keepMounted={keepMounted}
         className="flex-1"
       >
-        {items.map((item, index) => (
-          <div
-            key={getItemKey ? getItemKey(item, index) : index}
-            className={itemClassName}
-            style={itemStyle}
-            data-conversation-item={index}
-          >
-            {renderItem(item, index)}
-          </div>
-        ))}
+        {items.map((item, index) => {
+          const key = getItemKey ? getItemKey(item, index) : index;
+          return (
+            <div
+              key={key}
+              className={itemClassName}
+              style={itemStyle}
+              data-conversation-item-id={key}
+            >
+              {renderItem(item, index)}
+            </div>
+          );
+        })}
         {footer && (
           <div className={itemClassName} style={itemStyle}>
             {footer}
