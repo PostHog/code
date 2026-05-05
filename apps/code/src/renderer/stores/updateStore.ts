@@ -118,12 +118,17 @@ export function initializeUpdateStore() {
       trpcClient.updates.check
         .mutate()
         .then((result) => {
-          if (!result.success && result.errorCode === "disabled") {
-            menuCheckPending = false;
-            toast.error(result.errorMessage ?? "Updates not available");
+          if (!result.success) {
+            if (result.errorCode === "disabled") {
+              menuCheckPending = false;
+              toast.error(result.errorMessage ?? "Updates not available");
+            } else if (result.errorCode !== "already_checking") {
+              // Unknown/future error code — reset the flag so it never gets stuck.
+              menuCheckPending = false;
+            }
+            // For "already_checking", keep the flag so the in-flight check
+            // surfaces the toast when it resolves.
           }
-          // For "already_checking", keep the flag so the in-flight check
-          // surfaces the toast when it resolves.
         })
         .catch((error: unknown) => {
           menuCheckPending = false;
