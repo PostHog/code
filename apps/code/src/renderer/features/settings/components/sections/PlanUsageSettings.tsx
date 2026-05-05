@@ -213,7 +213,7 @@ export function PlanUsageSettings() {
                     : undefined
               }
               action={
-                isOrgPro && !isAlpha ? (
+                isAlpha ? null : isOrgPro ? (
                   isCanceling ? (
                     <Button
                       size="1"
@@ -277,7 +277,9 @@ export function PlanUsageSettings() {
             <Text className="font-medium text-sm">Extended Alpha Plan</Text>
             <Text className="text-(--gray-11) text-sm">
               You're on the free Pro plan with full Pro features until June 4,
-              2026.
+              2026. After that date, you'll be moved to the free plan
+              automatically. To keep using PostHog Code without interruption,
+              upgrade to the Pro plan before then.
             </Text>
           </Flex>
         </Flex>
