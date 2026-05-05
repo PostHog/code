@@ -353,8 +353,13 @@ export function PlanUsageSettings() {
         <Dialog.Content maxWidth="420px" size="2">
           <Dialog.Title className="text-base">Upgrade to Pro</Dialog.Title>
           <Dialog.Description color="gray" className="text-sm">
-            You are about to subscribe to the Pro plan. Your organization will
-            be charged $200/month starting immediately.
+            {seat?.organization_name ? (
+              <Text weight="medium">{seat.organization_name}</Text>
+            ) : (
+              "Your organization"
+            )}{" "}
+            will be charged $200/month using the payment method on file in
+            PostHog.
           </Dialog.Description>
           <Flex direction="column" gap="2" mt="3">
             <Flex align="center" gap="2">
@@ -369,6 +374,19 @@ export function PlanUsageSettings() {
               <Check size={14} weight="bold" className="text-(--accent-9)" />
               <Text className="text-sm">All Claude and Codex models</Text>
             </Flex>
+          </Flex>
+          <Flex
+            align="start"
+            gap="2"
+            mt="3"
+            p="3"
+            className="rounded-(--radius-2) bg-(--gray-2)"
+          >
+            <Info size={14} className="mt-[2px] shrink-0 text-(--gray-9)" />
+            <Text className="text-(--gray-11) text-[13px]">
+              Your first charge is prorated for the remainder of the current
+              billing cycle, then $200/month thereafter.
+            </Text>
           </Flex>
           <Flex justify="end" gap="3" mt="4">
             <Dialog.Close>
