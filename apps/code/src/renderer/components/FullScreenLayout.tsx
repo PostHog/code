@@ -1,8 +1,6 @@
 import { UpdateBanner } from "@features/sidebar/components/UpdateBanner";
 import { Lifebuoy } from "@phosphor-icons/react";
 import { Button, Flex, Theme } from "@radix-ui/themes";
-import phWordmark from "@renderer/assets/images/wordmark.svg";
-import phWordmarkWhite from "@renderer/assets/images/wordmark-white.svg";
 import { trpcClient } from "@renderer/trpc/client";
 import { useThemeStore } from "@stores/themeStore";
 import { EXTERNAL_LINKS } from "@utils/links";
@@ -44,12 +42,6 @@ export function FullScreenLayout({
           flexGrow="1"
           className="relative z-[1] min-h-0 w-full"
         >
-          <img
-            src={isDarkMode ? phWordmarkWhite : phWordmark}
-            alt="PostHog"
-            className="mt-[clamp(24px,6vh,80px)] ml-8 h-10 shrink-0 self-start object-contain"
-          />
-
           <Flex
             direction="column"
             flexGrow="1"

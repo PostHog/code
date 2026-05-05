@@ -34,6 +34,7 @@ interface SetupStoreState {
   discoveryTaskRunId: string | null;
   wizardTaskId: string | null;
   wizardSkipped: boolean;
+  wizardCompleted: boolean;
   discoveryFeed: AgentFeedState;
   wizardFeed: AgentFeedState;
   error: string | null;
@@ -49,6 +50,7 @@ interface SetupStoreActions {
   selectDiscoveredTask: (taskId: string | null) => void;
   setWizardTaskId: (taskId: string) => void;
   skipWizard: () => void;
+  completeWizard: () => void;
   pushDiscoveryActivity: (entry: ActivityEntry) => void;
   pushWizardActivity: (entry: ActivityEntry) => void;
   /** Wipes all setup state — discovered tasks, wizard, feeds, selection. */
@@ -64,6 +66,7 @@ const initialState: SetupStoreState = {
   discoveryTaskRunId: null,
   wizardTaskId: null,
   wizardSkipped: false,
+  wizardCompleted: false,
   discoveryFeed: EMPTY_FEED,
   wizardFeed: EMPTY_FEED,
   error: null,
@@ -161,6 +164,11 @@ export const useSetupStore = create<SetupStore>()(
       skipWizard: () => {
         log.info("Wizard skipped (PostHog already installed)");
         set({ wizardSkipped: true });
+      },
+
+      completeWizard: () => {
+        log.info("Wizard task reached terminal status");
+        set({ wizardCompleted: true });
       },
 
       pushDiscoveryActivity: (entry) => {

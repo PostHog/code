@@ -106,6 +106,7 @@ export type ToolUpdateMeta = {
     toolName: string;
     toolResponse?: unknown;
     parentToolCallId?: string;
+    bashCommand?: string;
   };
   terminal_info?: TerminalInfo;
   terminal_output?: TerminalOutput;

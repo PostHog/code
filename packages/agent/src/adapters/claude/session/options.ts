@@ -24,6 +24,7 @@ import {
 import type { CodeExecutionMode } from "../tools";
 import type { EffortLevel } from "../types";
 import { APPENDED_INSTRUCTIONS } from "./instructions";
+import { loadUserClaudeJsonMcpServers } from "./mcp-config";
 import { DEFAULT_MODEL } from "./models";
 import type { SettingsManager } from "./settings";
 
@@ -91,8 +92,10 @@ export function buildSystemPrompt(
 function buildMcpServers(
   userServers: Record<string, McpServerConfig> | undefined,
   acpServers: Record<string, McpServerConfig>,
+  projectScopedServers: Record<string, McpServerConfig>,
 ): Record<string, McpServerConfig> {
   return {
+    ...projectScopedServers,
     ...(userServers || {}),
     ...acpServers,
   };
@@ -330,6 +333,7 @@ export function buildSessionOptions(params: BuildOptionsParams): Options {
     mcpServers: buildMcpServers(
       params.userProvidedOptions?.mcpServers,
       params.mcpServers,
+      loadUserClaudeJsonMcpServers(params.cwd, params.logger),
     ),
     env: buildEnvironment(),
     hooks: buildHooks(

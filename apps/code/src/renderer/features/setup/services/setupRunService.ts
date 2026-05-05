@@ -346,10 +346,11 @@ export class SetupRunService {
   }
 
   private subscribeToWizardEvents(taskId: string, signal: AbortSignal): void {
-    const checkForRun = async () => {
+    const run = async () => {
       const client = await getAuthenticatedClient();
       if (!client || signal.aborted) return;
 
+      let runId: string | null = null;
       for (let i = 0; i < 30; i++) {
         try {
           await sleep(2000, signal);
@@ -359,41 +360,78 @@ export class SetupRunService {
         try {
           const taskData = (await client.getTask(taskId)) as unknown as Task;
           if (signal.aborted) return;
-          const runId = taskData.latest_run?.id;
-          if (runId) {
-            log.debug("Wizard run found, subscribing", { taskId, runId });
-            const sub = trpcClient.agent.onSessionEvent.subscribe(
-              { taskRunId: runId },
-              {
-                onData: (payload: unknown) => {
-                  handleSessionUpdate(payload, (entry) => {
-                    useSetupStore.getState().pushWizardActivity(entry);
-                  });
-                },
-                onError: (err) => {
-                  log.error("Wizard subscription error", { error: err });
-                },
-              },
-            );
-            this.wizardSubscription = sub;
-            signal.addEventListener(
-              "abort",
-              () => {
-                sub.unsubscribe();
-                if (this.wizardSubscription === sub) {
-                  this.wizardSubscription = null;
-                }
-              },
-              { once: true },
-            );
-            return;
+          if (taskData.latest_run?.id) {
+            runId = taskData.latest_run.id;
+            break;
           }
         } catch {
           // keep polling
         }
       }
+
+      if (!runId || signal.aborted) return;
+
+      log.debug("Wizard run found, subscribing", { taskId, runId });
+      const sub = trpcClient.agent.onSessionEvent.subscribe(
+        { taskRunId: runId },
+        {
+          onData: (payload: unknown) => {
+            handleSessionUpdate(payload, (entry) => {
+              useSetupStore.getState().pushWizardActivity(entry);
+            });
+          },
+          onError: (err) => {
+            log.error("Wizard subscription error", { error: err });
+          },
+        },
+      );
+      this.wizardSubscription = sub;
+      signal.addEventListener(
+        "abort",
+        () => {
+          sub.unsubscribe();
+          if (this.wizardSubscription === sub) {
+            this.wizardSubscription = null;
+          }
+        },
+        { once: true },
+      );
+
+      const POLL_INTERVAL_MS = 5000;
+      const MAX_ATTEMPTS = 360; // 30 minutes
+      for (let i = 0; i < MAX_ATTEMPTS; i++) {
+        try {
+          await sleep(POLL_INTERVAL_MS, signal);
+        } catch {
+          return; // aborted
+        }
+        if (useSetupStore.getState().wizardCompleted) return;
+        try {
+          const taskRun = await client.getTaskRun(taskId, runId);
+          if (signal.aborted) return;
+          if (isTerminalStatus(taskRun.status)) {
+            log.info("Wizard task reached terminal status", {
+              taskId,
+              runId,
+              status: taskRun.status,
+            });
+            if (taskRun.status === "completed") {
+              useSetupStore.getState().completeWizard();
+            } else {
+              useSetupStore.getState().skipWizard();
+              track(ANALYTICS_EVENTS.SETUP_WIZARD_FAILED, {
+                reason: "task_run_terminal",
+                error_message: taskRun.status,
+              });
+            }
+            return;
+          }
+        } catch (err) {
+          log.warn("Failed to poll wizard task run", { error: err });
+        }
+      }
     };
-    checkForRun().catch((err) =>
+    run().catch((err) =>
       log.error("Wizard event subscribe failed", { error: err }),
     );
   }

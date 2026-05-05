@@ -13,7 +13,7 @@ import {
 import { createTestRepo, type TestRepo } from "../test/fixtures/api";
 import { createPostHogHandlers } from "../test/mocks/msw-handlers";
 import type { TaskRun } from "../types";
-import { AgentServer } from "./agent-server";
+import { AgentServer, SSE_KEEPALIVE_INTERVAL_MS } from "./agent-server";
 import { type JwtPayload, SANDBOX_CONNECTION_AUDIENCE } from "./jwt";
 
 interface TestableServer {
@@ -274,6 +274,64 @@ describe("AgentServer HTTP Mode", () => {
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/event-stream");
     }, 20000);
+
+    it("emits transport keepalive comments while idle", async () => {
+      const keepaliveCallback: { current: (() => void) | null } = {
+        current: null,
+      };
+      const setIntervalSpy = vi
+        .spyOn(globalThis, "setInterval")
+        .mockImplementation(
+          (callback: (_: undefined) => void, timeout?: number) => {
+            if (timeout === SSE_KEEPALIVE_INTERVAL_MS) {
+              keepaliveCallback.current = () => callback(undefined);
+            }
+            return setTimeout(() => undefined, 60_000);
+          },
+        );
+
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      try {
+        await createServer().start();
+        const token = createToken();
+
+        const response = await fetch(`http://localhost:${port}/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body).not.toBeNull();
+        reader = response.body?.getReader() ?? null;
+        expect(reader).not.toBeNull();
+        if (!reader) {
+          throw new Error("Expected SSE response body reader");
+        }
+
+        await vi.waitFor(() =>
+          expect(keepaliveCallback.current).not.toBeNull(),
+        );
+        const emitKeepalive = keepaliveCallback.current;
+        if (!emitKeepalive) {
+          throw new Error("Expected keepalive callback to be registered");
+        }
+        emitKeepalive();
+
+        const decoder = new TextDecoder();
+        let streamText = "";
+        for (let attempts = 0; attempts < 5; attempts++) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          streamText += decoder.decode(value, { stream: true });
+          if (streamText.includes(": keepalive\n\n")) break;
+        }
+
+        expect(streamText).toContain(": keepalive\n\n");
+        expect(streamText).not.toContain('"type":"keepalive"');
+      } finally {
+        await reader?.cancel();
+        setIntervalSpy.mockRestore();
+      }
+    }, 20000);
   });
 
   describe("POST /command", () => {
@@ -405,6 +463,15 @@ describe("AgentServer HTTP Mode", () => {
             runId: "test-run-id",
             taskId: "test-task-id",
           });
+          // Agent reports its semver so clients can gate UI features
+          // against agent capabilities (e.g. `>=0.40.1`). The exact value
+          // is whatever the agent's package.json was at build time.
+          expect(typeof runStarted?.notification?.params?.agentVersion).toBe(
+            "string",
+          );
+          expect(
+            (runStarted?.notification?.params?.agentVersion as string).length,
+          ).toBeGreaterThan(0);
         },
         { timeout: 15000, interval: 100 },
       );
@@ -558,7 +625,7 @@ describe("AgentServer HTTP Mode", () => {
   });
 
   describe("detectedPrUrl tracking", () => {
-    it("stores PR URL when detectAndAttachPrUrl finds a match", () => {
+    it("stores PR URL when gh pr create produces it", () => {
       const s = createServer();
       const payload = {
         task_id: "test-task-id",
@@ -568,6 +635,7 @@ describe("AgentServer HTTP Mode", () => {
         _meta: {
           claudeCode: {
             toolName: "Bash",
+            bashCommand: 'gh pr create --title "x" --body "y"',
             toolResponse: {
               stdout:
                 "https://github.com/PostHog/posthog/pull/42\nCreating pull request...",
@@ -592,7 +660,73 @@ describe("AgentServer HTTP Mode", () => {
         _meta: {
           claudeCode: {
             toolName: "Bash",
+            bashCommand: "gh pr create",
             toolResponse: { stdout: "just some output" },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when the bash command is gh pr view", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            bashCommand: "gh pr view 42 --json url",
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when the bash command is gh search prs", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            bashCommand: 'gh search prs "fix login"',
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
+          },
+        },
+      };
+
+      (s as unknown as TestableServer).detectAndAttachPrUrl(payload, update);
+      expect((s as unknown as TestableServer).detectedPrUrl).toBeNull();
+    });
+
+    it("does not attach PR URL when bashCommand is missing", () => {
+      const s = createServer();
+      const payload = {
+        task_id: "test-task-id",
+        run_id: "test-run-id",
+      };
+      const update = {
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            toolResponse: {
+              stdout: "https://github.com/PostHog/posthog/pull/42",
+            },
           },
         },
       };
