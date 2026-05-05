@@ -1121,10 +1121,20 @@ button,
 
 ::highlight(search-match) {
   background-color: #ffff00;
-  color: inherit;
+  color: black;
 }
 
 ::highlight(search-match-active) {
   background-color: #ff9632;
-  color: inherit;
+  color: black;
+}
+
+.dark ::highlight(search-match) {
+  background-color: rgba(250, 204, 21, 0.45);
+  color: white;
+}
+
+.dark ::highlight(search-match-active) {
+  background-color: rgba(249, 115, 22, 0.7);
+  color: white;
 }

@@ -293,34 +293,41 @@ export function ConversationView({
           if (itemIdx === targetItem) {
             if (occInItem === targetOccInItem) {
               CSS.highlights.set("search-match-active", new Highlight(range));
-              return range;
+              return;
             }
             occInItem++;
           }
         }
       }
-
-      return null;
     }
 
-    // Run immediately, then always retry after short delays so the
-    // active highlight appears even when the virtualized list is still
+    // Run immediately, then retry after short delays so the active
+    // highlight appears even when the virtualized list is still
     // scrolling/rendering the target item into view.
     applyHighlights();
-    if (activeMatch) {
-      let cancelled = false;
-      const retryDelays = [50, 150, 300];
-      const timeouts = retryDelays.map((ms) =>
-        setTimeout(() => {
-          if (!cancelled) applyHighlights();
-        }, ms),
-      );
-      return () => {
-        cancelled = true;
-        for (const id of timeouts) clearTimeout(id);
-      };
-    }
-    return undefined;
+    let cancelled = false;
+    const retryDelays = activeMatch ? [50, 150, 300] : [];
+    const timeouts = retryDelays.map((ms) =>
+      setTimeout(() => {
+        if (!cancelled) applyHighlights();
+      }, ms),
+    );
+
+    // Reapply highlights on scroll since the virtualized list recycles
+    // DOM nodes — items entering the viewport need fresh highlights.
+    const onScroll = () => {
+      if (!cancelled) applyHighlights();
+    };
+    container.addEventListener("scroll", onScroll, {
+      passive: true,
+      capture: true,
+    });
+
+    return () => {
+      cancelled = true;
+      for (const id of timeouts) clearTimeout(id);
+      container.removeEventListener("scroll", onScroll, { capture: true });
+    };
   }, [searchQuery, searchMatches, currentMatchIndex]);
 
   // Cmd+F keyboard shortcut
@@ -328,7 +335,7 @@ export function ConversationView({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         setSearchOpen(true);
       }
     };
