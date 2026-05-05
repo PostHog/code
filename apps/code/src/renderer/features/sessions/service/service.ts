@@ -1660,6 +1660,15 @@ export class SessionService {
     }
 
     if (isTerminalStatus(session.cloudStatus)) {
+      // If the agent never booted (no `run_started`), resuming spins another
+      // sandbox that hits the same provisioning failure — surface the error
+      // instead of looping.
+      if (session.cloudStatus === "failed" && session.status !== "connected") {
+        throw new Error(
+          session.cloudErrorMessage ??
+            "Cloud run couldn't start. Check that GitHub is connected for this project, then try again.",
+        );
+      }
       return this.resumeCloudRun(session, prompt);
     }
 

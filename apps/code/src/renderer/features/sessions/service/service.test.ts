@@ -2649,6 +2649,96 @@ describe("SessionService", () => {
       );
     });
 
+    const mockPreBootFailedSession = (overrides: Partial<AgentSession> = {}) =>
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "failed",
+          status: "disconnected",
+          ...overrides,
+        }),
+      );
+
+    it("refuses to resume when the previous run failed before the agent booted", async () => {
+      const service = getSessionService();
+      mockPreBootFailedSession({
+        cloudErrorMessage: "Sandbox could not be provisioned",
+      });
+
+      await expect(service.sendPrompt("task-123", "retry?")).rejects.toThrow(
+        "Sandbox could not be provisioned",
+      );
+      expect(mockAuthenticatedClient.runTaskInCloud).not.toHaveBeenCalled();
+    });
+
+    it("falls back to a generic message when the failed run has no error", async () => {
+      const service = getSessionService();
+      mockPreBootFailedSession();
+
+      await expect(service.sendPrompt("task-123", "retry?")).rejects.toThrow(
+        /Cloud run couldn't start/,
+      );
+      expect(mockAuthenticatedClient.runTaskInCloud).not.toHaveBeenCalled();
+    });
+
+    it("still resumes when a previously running agent failed mid-execution", async () => {
+      const service = getSessionService();
+      mockSessionStoreSetters.getSessionByTaskId.mockReturnValue(
+        createMockSession({
+          isCloud: true,
+          cloudStatus: "failed",
+          status: "connected",
+          cloudBranch: "feature/mid-run",
+        }),
+      );
+      mockAuthenticatedClient.getTaskRun.mockResolvedValue({
+        id: "run-123",
+        task: "task-123",
+        team: 123,
+        branch: "feature/mid-run",
+        runtime_adapter: "claude",
+        model: "claude-sonnet-4-20250514",
+        reasoning_effort: null,
+        environment: "cloud",
+        status: "failed",
+        log_url: "https://example.com/logs/run-123",
+        error_message: "agent crashed",
+        output: {},
+        state: {},
+        created_at: "2026-04-14T00:00:00Z",
+        updated_at: "2026-04-14T00:00:00Z",
+        completed_at: "2026-04-14T00:05:00Z",
+      });
+      mockAuthenticatedClient.getTask.mockResolvedValue(createMockTask());
+      mockAuthenticatedClient.runTaskInCloud.mockResolvedValue(
+        createMockTask({
+          latest_run: {
+            id: "run-456",
+            task: "task-123",
+            team: 123,
+            branch: "feature/mid-run",
+            runtime_adapter: "claude",
+            model: "claude-sonnet-4-20250514",
+            reasoning_effort: null,
+            environment: "cloud",
+            status: "queued",
+            log_url: "https://example.com/logs/run-456",
+            error_message: null,
+            output: {},
+            state: {},
+            created_at: "2026-04-14T00:06:00Z",
+            updated_at: "2026-04-14T00:06:00Z",
+            completed_at: null,
+          },
+        }),
+      );
+
+      const result = await service.sendPrompt("task-123", "try again");
+
+      expect(result.stopReason).toBe("queued");
+      expect(mockAuthenticatedClient.runTaskInCloud).toHaveBeenCalledTimes(1);
+    });
+
     it("attempts automatic recovery on fatal error", async () => {
       const service = getSessionService();
       const mockSession = createMockSession({
