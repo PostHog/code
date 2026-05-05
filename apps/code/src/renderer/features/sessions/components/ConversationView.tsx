@@ -1,5 +1,6 @@
 import { CHAT_CONTENT_MAX_WIDTH } from "@features/sessions/constants";
 import { useContextUsage } from "@features/sessions/hooks/useContextUsage";
+import { useConversationSearch } from "@features/sessions/hooks/useConversationSearch";
 import {
   sessionStoreSetters,
   useOptimisticItemsForTask,
@@ -20,6 +21,7 @@ import {
   type ConversationItem,
   type TurnContext,
 } from "./buildConversationItems";
+import { ConversationSearchBar } from "./ConversationSearchBar";
 import { GitActionMessage } from "./GitActionMessage";
 import { GitActionResult } from "./GitActionResult";
 import { mergeConversationItems } from "./mergeConversationItems";
@@ -150,6 +152,9 @@ export function ConversationView({
     return indices;
   }, [items]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const search = useConversationSearch({ items, containerRef, listRef });
+
   const handleScrollStateChange = useCallback((isAtBottom: boolean) => {
     isAtBottomRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
@@ -241,11 +246,23 @@ export function ConversationView({
       poolOptions={DIFFS_POOL_OPTIONS}
       highlighterOptions={DIFFS_HIGHLIGHTER_OPTIONS}
     >
-      <div className="relative flex-1">
+      <div ref={containerRef} className="relative flex-1">
         <div
           id="fullscreen-portal"
           className="pointer-events-none absolute inset-0 z-20"
         />
+        {search.open && (
+          <ConversationSearchBar
+            ref={search.searchBarRef}
+            query={search.query}
+            currentMatch={search.currentIndex}
+            totalMatches={search.totalMatches}
+            onQueryChange={search.setQuery}
+            onNext={search.next}
+            onPrev={search.prev}
+            onClose={search.close}
+          />
+        )}
 
         <VirtualizedList
           ref={listRef}
