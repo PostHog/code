@@ -1605,6 +1605,19 @@ ${attributionInstructions}
     }
 
     if (!this.config.repositoryPath) {
+      const publishInstructions =
+        this.config.createPr === false
+          ? `
+When the user asks for code changes:
+- You may clone a repository and make local edits in that clone
+- Do NOT create branches, commits, push changes, or open pull requests in this run`
+          : `
+When the user explicitly asks to clone or work in a GitHub repository:
+- Clone the repository into /tmp/workspace/repos/<owner>/<repo> using \`gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>\`
+- Work from inside that cloned repository for follow-up code changes
+- If the user explicitly asks you to open or update a pull request, create a branch, commit the requested changes, push it, and open a draft pull request from inside the clone
+- Do NOT create branches, commits, push changes, or open pull requests unless the user explicitly asks for that`;
+
       return `
 # Cloud Task Execution — No Repository Mode
 
@@ -1617,11 +1630,12 @@ When the user asks about analytics, data, metrics, events, funnels, dashboards, 
 
 When the user asks for code changes or software engineering tasks:
 - Let them know you can help but don't have a repository connected for this session
-- Offer to write code snippets, scripts, or provide guidance
+- If they have not specified a repository to clone, offer to write code snippets, scripts, or provide guidance
+${publishInstructions}
 
 Important:
-- Do NOT create branches, commits, or pull requests in this mode.
 - Prefer using MCP tools to answer questions with real data over giving generic advice.
+${attributionInstructions}
 `;
     }
 

@@ -639,6 +639,49 @@ describe("AgentServer HTTP Mode", () => {
       expect(prompt).toContain("stop with local changes ready for review");
     });
 
+    it.each([
+      {
+        label: "createPr unset",
+        config: { repositoryPath: undefined },
+        shouldContain: [
+          "Cloud Task Execution — No Repository Mode",
+          "Clone the repository into /tmp/workspace/repos/<owner>/<repo>",
+          "gh repo clone <owner>/<repo> /tmp/workspace/repos/<owner>/<repo>",
+          "If the user explicitly asks you to open or update a pull request",
+          "open a draft pull request",
+          "unless the user explicitly asks",
+          "Generated-By: PostHog Code",
+          "Task-Id: test-task-id",
+        ],
+        shouldNotContain: [],
+      },
+      {
+        label: "createPr false",
+        config: { repositoryPath: undefined, createPr: false },
+        shouldContain: [
+          "Cloud Task Execution — No Repository Mode",
+          "You may clone a repository and make local edits in that clone",
+          "Do NOT create branches, commits, push changes, or open pull requests in this run",
+        ],
+        shouldNotContain: ["open a draft pull request", "gh pr create --draft"],
+      },
+    ])(
+      "returns no-repository prompt for $label",
+      ({ config, shouldContain, shouldNotContain }) => {
+        const s = createServer(config);
+        const prompt = (
+          s as unknown as TestableServer
+        ).buildCloudSystemPrompt();
+
+        for (const text of shouldContain) {
+          expect(prompt).toContain(text);
+        }
+        for (const text of shouldNotContain) {
+          expect(prompt).not.toContain(text);
+        }
+      },
+    );
+
     it("returns auto-PR prompt for Slack-origin runs", () => {
       process.env.POSTHOG_CODE_INTERACTION_ORIGIN = "slack";
       const s = createServer();
