@@ -354,13 +354,12 @@ export function PlanUsageSettings() {
           <Dialog.Title className="text-base">Upgrade to Pro</Dialog.Title>
           <Dialog.Description color="gray" className="text-sm">
             {seat?.organization_name ? (
-              <>
-                <Text weight="medium">{seat.organization_name}</Text> will be
-                charged $200/month using the payment method on file in PostHog.
-              </>
+              <Text weight="medium">{seat.organization_name}</Text>
             ) : (
-              "Your organization will be charged $200/month using the payment method on file in PostHog."
-            )}
+              "Your organization"
+            )}{" "}
+            will be charged $200/month using the payment method on file in
+            PostHog.
           </Dialog.Description>
           <Flex direction="column" gap="2" mt="3">
             <Flex align="center" gap="2">
