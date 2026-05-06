@@ -1,5 +1,10 @@
 // Analytics event types and properties
 
+import type {
+  PromptHistoryOpenedProperties,
+  PromptHistorySelectedProperties,
+} from "@features/message-editor/analytics";
+
 type ExecutionType = "cloud" | "local";
 type RepositoryProvider = "github" | "gitlab" | "local" | "none";
 type TaskCreatedFrom = "cli" | "command-menu";
@@ -426,6 +431,10 @@ export const ANALYTICS_EVENTS = {
 
   // Inbox events
   INBOX_INTEREST_REGISTERED: "Inbox interest registered",
+
+  // Prompt history events
+  PROMPT_HISTORY_OPENED: "Prompt history opened",
+  PROMPT_HISTORY_SELECTED: "Prompt history selected",
 } as const;
 
 // Event property mapping
@@ -507,4 +516,8 @@ export type EventPropertyMap = {
 
   // Inbox events
   [ANALYTICS_EVENTS.INBOX_INTEREST_REGISTERED]: never;
+
+  // Prompt history events
+  [ANALYTICS_EVENTS.PROMPT_HISTORY_OPENED]: PromptHistoryOpenedProperties;
+  [ANALYTICS_EVENTS.PROMPT_HISTORY_SELECTED]: PromptHistorySelectedProperties;
 };
