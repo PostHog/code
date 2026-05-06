@@ -7,8 +7,8 @@ import { useSetupStore } from "@features/setup/stores/setupStore";
 import type { DiscoveredTask } from "@features/setup/types";
 import { buildDiscoveredTaskPrompt } from "@features/setup/utils/buildDiscoveredTaskPrompt";
 import { useSetHeaderContent } from "@hooks/useSetHeaderContent";
-import { MagicWand, Robot, Rocket } from "@phosphor-icons/react";
-import { Box, Button, Flex, ScrollArea, Text } from "@radix-ui/themes";
+import { ArrowRight, MagicWand, Robot, Rocket } from "@phosphor-icons/react";
+import { Button, Flex, ScrollArea, Text } from "@radix-ui/themes";
 import explorerHog from "@renderer/assets/images/hedgehogs/explorer-hog.png";
 import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import { useNavigationStore } from "@stores/navigationStore";
@@ -182,14 +182,15 @@ export function SetupView() {
                   </Text>
                 </Flex>
 
-                <Flex direction="column" gap="1" align="start">
+                <Flex direction="column" gap="2" align="center">
                   <Button
                     size="2"
-                    variant="ghost"
+                    variant="soft"
                     color="gray"
                     onClick={handleSkipDuringScan}
                   >
                     Start from scratch
+                    <ArrowRight size={14} />
                   </Button>
                   <Text size="1" className="text-(--gray-9)">
                     Suggested tasks will appear in the sidebar when ready.
@@ -224,16 +225,17 @@ export function SetupView() {
                   </Flex>
                 )}
 
-                <Box>
+                <Flex justify="center">
                   <Button
                     size="2"
-                    variant="ghost"
+                    variant="soft"
                     color="gray"
                     onClick={handleSkipAfterDone}
                   >
                     Start from scratch
+                    <ArrowRight size={14} />
                   </Button>
-                </Box>
+                </Flex>
               </Flex>
             </motion.div>
           )}
