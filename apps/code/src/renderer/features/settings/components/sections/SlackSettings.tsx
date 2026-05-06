@@ -1,7 +1,7 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
-import { openUrlInBrowser } from "@features/integrations/hooks/useGithubUserConnect";
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
-import { Button, Flex, Text } from "@radix-ui/themes";
+import { Button, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { openUrlInBrowser } from "@utils/browser";
 import { getPostHogUrl } from "@utils/urls";
 
 export function SlackSettings() {
@@ -15,6 +15,19 @@ export function SlackSettings() {
       )
     : null;
 
+  const button = (
+    <Button
+      size="1"
+      disabled={!slackSettingsUrl}
+      onClick={() => {
+        if (slackSettingsUrl) void openUrlInBrowser(slackSettingsUrl);
+      }}
+    >
+      <ArrowSquareOutIcon size={12} />
+      Manage in PostHog Web
+    </Button>
+  );
+
   return (
     <Flex direction="column" gap="3">
       <Text className="text-(--gray-11) text-[13px]">
@@ -22,16 +35,13 @@ export function SlackSettings() {
         directly from Slack.
       </Text>
       <Flex>
-        <Button
-          size="1"
-          disabled={!slackSettingsUrl}
-          onClick={() => {
-            if (slackSettingsUrl) void openUrlInBrowser(slackSettingsUrl);
-          }}
-        >
-          <ArrowSquareOutIcon size={12} />
-          Manage in PostHog Web
-        </Button>
+        {slackSettingsUrl ? (
+          button
+        ) : (
+          <Tooltip content="Sign in to a PostHog project to manage the Slack integration">
+            {button}
+          </Tooltip>
+        )}
       </Flex>
     </Flex>
   );
