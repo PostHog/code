@@ -237,9 +237,12 @@ export class FoldersService {
     folderPath: string,
     overrideRemoteUrl: string | undefined,
   ): Promise<string | null> {
-    const overrideKey = parseGitHubUrl(overrideRemoteUrl)?.path;
-    if (overrideKey) return overrideKey;
-    if (overrideRemoteUrl) return normalizeRepoKey(overrideRemoteUrl);
+    if (overrideRemoteUrl) {
+      return (
+        parseGitHubUrl(overrideRemoteUrl)?.path ??
+        normalizeRepoKey(overrideRemoteUrl)
+      );
+    }
     const localRemoteUrl = await getRemoteUrl(folderPath);
     return parseGitHubUrl(localRemoteUrl)?.path ?? null;
   }
