@@ -89,6 +89,7 @@ export function TaskInput({
     getLastUsedEnvironment,
     defaultInitialTaskMode,
     lastUsedInitialTaskMode,
+    setLastUsedReasoningEffort,
   } = useSettingsStore();
 
   const editorRef = useRef<EditorHandle>(null);
@@ -493,9 +494,10 @@ export function TaskInput({
     (value: string) => {
       if (thoughtOption) {
         setConfigOption(thoughtOption.id, value);
+        setLastUsedReasoningEffort(value);
       }
     },
-    [thoughtOption, setConfigOption],
+    [thoughtOption, setConfigOption, setLastUsedReasoningEffort],
   );
 
   const { isOnline } = useConnectivity();
