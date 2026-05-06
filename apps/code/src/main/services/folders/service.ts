@@ -2,21 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { getRemoteUrl, isGitRepository } from "@posthog/git/queries";
 import { InitRepositorySaga } from "@posthog/git/sagas/init";
-
-import { normalizeRepoKey } from "@shared/utils/repo";
-
-function extractRepoKey(url: string): string | null {
-  const httpsMatch = url.match(/github\.com\/([^/]+\/[^/]+)/);
-  if (httpsMatch) return normalizeRepoKey(httpsMatch[1]);
-
-  const sshMatch = url.match(/github\.com:([^/]+\/[^/]+)/);
-  if (sshMatch) return normalizeRepoKey(sshMatch[1]);
-
-  return null;
-}
-
+import { extractRepoKey } from "@posthog/git/utils";
 import { WorktreeManager } from "@posthog/git/worktree";
 import type { IDialog } from "@posthog/platform/dialog";
+import { normalizeRepoKey } from "@shared/utils/repo";
 import { inject, injectable } from "inversify";
 import type {
   IRepositoryRepository,

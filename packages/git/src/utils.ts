@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import gitUrlParse from "git-url-parse";
 
 export interface GitHubRepo {
   organization: string;
@@ -165,38 +166,23 @@ export function parsePrUrl(prUrl: string): GitHubPr | null {
 }
 
 export function parseGitHubUrl(url: string): GitHubRepo | null {
-  const trimmedUrl = url.trim();
-  const isGitHubHost = (host: string) => /(?:^|\.)github\.com$/i.test(host);
-  const stripGitSuffix = (segment: string) => segment.replace(/\.git$/, "");
-
-  // SCP-like SSH: git@host:org/repo[.git] (not a parseable URL)
-  const scpMatch = trimmedUrl.match(
-    /^[^@\s]+@([^:\s]+):([^/\s]+)\/([^/\s]+?)(\.git)?$/,
-  );
-  if (scpMatch && isGitHubHost(scpMatch[1])) {
-    return {
-      organization: scpMatch[2],
-      repository: stripGitSuffix(scpMatch[3]),
-    };
+  let parsed: ReturnType<typeof gitUrlParse>;
+  try {
+    parsed = gitUrlParse(url.trim());
+  } catch {
+    return null;
   }
+  if (parsed.source !== "github.com") return null;
+  const segments = parsed.full_name.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  return {
+    organization: segments[0],
+    repository: segments[1].replace(/\.git$/, ""),
+  };
+}
 
-  // URL-style (https://, ssh://, git://, ssh over 443, etc.). Use URL parser so
-  // ports and credentials don't pollute the path segments.
-  if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(trimmedUrl)) {
-    let parsed: URL;
-    try {
-      parsed = new URL(trimmedUrl);
-    } catch {
-      return null;
-    }
-    if (!isGitHubHost(parsed.hostname)) return null;
-    const segments = parsed.pathname.split("/").filter(Boolean);
-    if (segments.length !== 2) return null;
-    return {
-      organization: segments[0],
-      repository: stripGitSuffix(segments[1]),
-    };
-  }
-
-  return null;
+export function extractRepoKey(url: string): string | null {
+  const parsed = parseGitHubUrl(url);
+  if (!parsed) return null;
+  return `${parsed.organization}/${parsed.repository}`;
 }

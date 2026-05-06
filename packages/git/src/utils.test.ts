@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { forceRemove, parseGitHubUrl } from "./utils";
+import { extractRepoKey, forceRemove, parseGitHubUrl } from "./utils";
 
 async function fileExists(p: string): Promise<boolean> {
   try {
@@ -71,15 +71,30 @@ describe("parseGitHubUrl", () => {
   it.each([
     ["https://github.com/PostHog/code.git", "PostHog", "code"],
     ["https://github.com/PostHog/code", "PostHog", "code"],
+    ["https://github.com/PostHog/code/", "PostHog", "code"],
+    ["https://github.com/PostHog/code.git/", "PostHog", "code"],
     ["http://github.com/PostHog/code.git", "PostHog", "code"],
     ["https://user:token@github.com/PostHog/code.git", "PostHog", "code"],
     ["git@github.com:PostHog/code.git", "PostHog", "code"],
     ["git@github.com:PostHog/code", "PostHog", "code"],
     ["ssh://git@github.com/PostHog/code.git", "PostHog", "code"],
     ["ssh://git@ssh.github.com:443/PostHog/code.git", "PostHog", "code"],
+    [
+      "ssh://git@ssh.github.com:443/buildingapplications/bilt-landing.git",
+      "buildingapplications",
+      "bilt-landing",
+    ],
     ["ssh://git@github.com:22/PostHog/code.git", "PostHog", "code"],
     ["git://github.com/PostHog/code.git", "PostHog", "code"],
+    ["git+https://github.com/PostHog/code.git", "PostHog", "code"],
+    ["git+ssh://git@github.com/PostHog/code.git", "PostHog", "code"],
     ["  https://github.com/PostHog/code.git\n", "PostHog", "code"],
+    ["PostHog/code", "PostHog", "code"],
+    ["https://github.com/PostHog/code/blob/main/README.md", "PostHog", "code"],
+    ["https://github.com/PostHog/code/tree/main", "PostHog", "code"],
+    ["https://github.com/PostHog/code/issues/12", "PostHog", "code"],
+    ["https://github.com/PostHog/code/commit/abc123", "PostHog", "code"],
+    ["https://github.com/PostHog/code/pull/42", "PostHog", "code"],
   ])("parses %s", (url, organization, repository) => {
     expect(parseGitHubUrl(url)).toEqual({ organization, repository });
   });
@@ -91,9 +106,38 @@ describe("parseGitHubUrl", () => {
     "https://example.com/PostHog/code.git",
     "git@gitlab.com:PostHog/code.git",
     "https://github.com/PostHog",
-    "https://github.com/PostHog/code/extra",
     "git@my-alias:PostHog/code.git",
   ])("returns null for %s", (url) => {
     expect(parseGitHubUrl(url)).toBeNull();
+  });
+});
+
+describe("extractRepoKey", () => {
+  it.each([
+    ["https://github.com/PostHog/code.git", "PostHog/code"],
+    ["git@github.com:PostHog/code.git", "PostHog/code"],
+    ["ssh://git@github.com/PostHog/code.git", "PostHog/code"],
+    ["ssh://git@ssh.github.com:443/PostHog/code.git", "PostHog/code"],
+    [
+      "ssh://git@ssh.github.com:443/buildingapplications/bilt-landing.git",
+      "buildingapplications/bilt-landing",
+    ],
+    ["ssh://git@github.com:22/PostHog/code.git", "PostHog/code"],
+    ["git://github.com/PostHog/code.git", "PostHog/code"],
+    ["git+https://github.com/PostHog/code.git", "PostHog/code"],
+    ["PostHog/code", "PostHog/code"],
+    ["https://github.com/PostHog/code/pull/42", "PostHog/code"],
+  ])("returns %s key for %s", (url, key) => {
+    expect(extractRepoKey(url)).toBe(key);
+  });
+
+  it.each([
+    "",
+    "not-a-url",
+    "https://gitlab.com/PostHog/code.git",
+    "git@gitlab.com:PostHog/code.git",
+    "https://github.com/PostHog",
+  ])("returns null for %s", (url) => {
+    expect(extractRepoKey(url)).toBeNull();
   });
 });
