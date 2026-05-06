@@ -89,6 +89,7 @@ const mockSessionStoreSetters = vi.hoisted(() => ({
   clearAll: vi.fn(),
   appendOptimisticItem: vi.fn(),
   clearOptimisticItems: vi.fn(),
+  clearTailOptimisticItems: vi.fn(),
   replaceOptimisticWithEvent: vi.fn(),
 }));
 
@@ -2376,7 +2377,7 @@ describe("SessionService", () => {
       );
       mockTrpcCloudTask.sendCommand.mutate.mockResolvedValue({
         success: true,
-        result: { stopReason: "end_turn" },
+        result: { queued: true },
       });
       mockTrpcFs.readFileAsBase64.query.mockResolvedValue("aGVsbG8=");
       mockAuthenticatedClient.prepareTaskRunArtifactUploads.mockResolvedValue([
@@ -2424,8 +2425,16 @@ describe("SessionService", () => {
 
       const result = await service.sendPrompt("task-123", prompt);
 
-      expect(result.stopReason).toBe("end_turn");
+      expect(result.stopReason).toBe("queued");
       expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledTimes(1);
+      expect(mockSessionStoreSetters.appendOptimisticItem).toHaveBeenCalledWith(
+        "run-123",
+        expect.objectContaining({
+          type: "user_message",
+          content: "read this\n\nAttached files: test.txt",
+          pinToTop: false,
+        }),
+      );
 
       expect(mockTrpcCloudTask.sendCommand.mutate).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -531,7 +531,7 @@ describe("CloudTaskService", () => {
     ]);
   });
 
-  it("stops watching after clean stream completion even when the run remains active", async () => {
+  it("reconnects after clean stream completion when the run remains active", async () => {
     vi.useFakeTimers();
 
     const updates: unknown[] = [];
@@ -564,7 +564,9 @@ describe("CloudTaskService", () => {
       );
     });
 
-    mockStreamFetch.mockResolvedValueOnce(createSseResponse(""));
+    mockStreamFetch
+      .mockResolvedValueOnce(createSseResponse(""))
+      .mockResolvedValueOnce(createOpenSseResponse(""));
 
     service.watch({
       taskId: "task-1",
@@ -574,14 +576,8 @@ describe("CloudTaskService", () => {
     });
 
     await waitFor(() => mockStreamFetch.mock.calls.length === 1);
-    await waitFor(
-      () =>
-        !(
-          service as unknown as {
-            watchers: Map<string, unknown>;
-          }
-        ).watchers.has("task-1:run-1"),
-    );
+    await vi.advanceTimersByTimeAsync(2_000);
+    await waitFor(() => mockStreamFetch.mock.calls.length === 2);
 
     expect(updates).toContainEqual(
       expect.objectContaining({
@@ -592,9 +588,13 @@ describe("CloudTaskService", () => {
       }),
     );
 
-    await vi.advanceTimersByTimeAsync(70_000);
-
-    expect(mockStreamFetch).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        service as unknown as {
+          watchers: Map<string, unknown>;
+        }
+      ).watchers.has("task-1:run-1"),
+    ).toBe(true);
   });
 
   it("emits a retryable cloud error after repeated stream failures", async () => {

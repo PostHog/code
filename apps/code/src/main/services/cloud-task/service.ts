@@ -655,7 +655,7 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
         return;
       }
 
-      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: false });
+      await this.handleStreamCompletion(key, { reconnectIfNonTerminal: true });
     } catch (error) {
       this.flushLogBatch(key);
 
@@ -1034,9 +1034,21 @@ export class CloudTaskService extends TypedEventEmitter<CloudTaskEvents> {
       return;
     }
 
-    this.applyTaskRunState(watcher, run);
+    const stateChanged = this.applyTaskRunState(watcher, run);
 
     if (!isTerminalStatus(watcher.lastStatus) && reconnectIfNonTerminal) {
+      if (stateChanged) {
+        this.emit(CloudTaskEvent.Update, {
+          taskId: watcher.taskId,
+          runId: watcher.runId,
+          kind: "status",
+          status: watcher.lastStatus ?? undefined,
+          stage: watcher.lastStage,
+          output: watcher.lastOutput,
+          errorMessage: watcher.lastErrorMessage,
+          branch: watcher.lastBranch,
+        });
+      }
       log.warn("Cloud task stream ended before terminal status", {
         key,
         status: watcher.lastStatus,
