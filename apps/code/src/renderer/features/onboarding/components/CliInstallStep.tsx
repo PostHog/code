@@ -10,10 +10,9 @@ import {
   Copy,
   GitBranch,
   GithubLogo,
-  Terminal,
   Warning,
 } from "@phosphor-icons/react";
-import { Box, Button, Code, Flex, IconButton, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, IconButton, Text } from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,11 +32,20 @@ function CommandLine({ command }: { command: string }) {
   }, [command]);
 
   return (
-    <Flex align="center" gap="2">
-      <Terminal size={14} className="shrink-0 text-(--gray-9)" />
-      <Code variant="soft" className="text-sm">
-        {command}
-      </Code>
+    <Flex
+      align="center"
+      justify="between"
+      gap="2"
+      className="rounded-(--radius-2) border border-(--gray-a3) bg-(--gray-2) py-[6px] pr-2 pl-3"
+    >
+      <Flex align="center" gap="2" className="min-w-0">
+        <Text className="select-none font-[var(--code-font-family)] text-(--gray-9) text-sm">
+          $
+        </Text>
+        <Text className="truncate font-[var(--code-font-family)] text-(--gray-12) text-sm">
+          {command}
+        </Text>
+      </Flex>
       <Tooltip content={copied ? "Copied!" : "Copy command"}>
         <IconButton
           size="1"
@@ -46,7 +54,7 @@ function CommandLine({ command }: { command: string }) {
           onClick={() => void handleCopy()}
           aria-label="Copy command"
         >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? <Check size={14} /> : <Copy size={14} />}
         </IconButton>
       </Tooltip>
     </Flex>
@@ -171,10 +179,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           <CommandLine command="brew install git" />
                           <CommandLine command="xcode-select --install" />
                         </Flex>
-                        <Flex align="center" gap="3">
+                        <Flex align="center" justify="between" gap="3">
                           <Button
                             size="1"
-                            variant="soft"
+                            variant="ghost"
                             color="gray"
                             onClick={() =>
                               trpcClient.os.openExternal.mutate({
@@ -188,6 +196,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           <Button
                             size="1"
                             variant="soft"
+                            color="gray"
                             onClick={() => void handleCheckGit()}
                             loading={isCheckingGit}
                           >
@@ -262,10 +271,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           Install with Homebrew:
                         </Text>
                         <CommandLine command="brew install gh" />
-                        <Flex align="center" gap="3">
+                        <Flex align="center" justify="between" gap="3">
                           <Button
                             size="1"
-                            variant="soft"
+                            variant="ghost"
                             color="gray"
                             onClick={() =>
                               trpcClient.os.openExternal.mutate({
@@ -279,6 +288,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           <Button
                             size="1"
                             variant="soft"
+                            color="gray"
                             onClick={() => void handleCheckGh()}
                             loading={isCheckingGh}
                           >
@@ -294,16 +304,18 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           Run this in your terminal to log in:
                         </Text>
                         <CommandLine command="gh auth login" />
-                        <Button
-                          size="1"
-                          variant="soft"
-                          onClick={() => void handleCheckGh()}
-                          loading={isCheckingGh}
-                          className="self-start"
-                        >
-                          <ArrowsClockwise size={12} />
-                          Check again
-                        </Button>
+                        <Flex justify="end">
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            onClick={() => void handleCheckGh()}
+                            loading={isCheckingGh}
+                          >
+                            <ArrowsClockwise size={12} />
+                            Check again
+                          </Button>
+                        </Flex>
                       </Flex>
                     )}
                   </Flex>
