@@ -171,7 +171,7 @@ export function parsePrUrl(prUrl: string | null | undefined): GitHubPr | null {
   if (parsed.source.toLowerCase() !== "github.com" || !parsed.full_name) {
     return null;
   }
-  const [owner, repo, kind, num] = parsed.full_name.split("/").filter(Boolean);
+  const [owner, repo, kind, num] = parsed.full_name.split("/");
   if (!owner || !repo || kind !== "pull") return null;
   const number = Number(num);
   if (!Number.isInteger(number) || number <= 0) return null;
@@ -189,10 +189,12 @@ export function parseGitHubUrl(
     return null;
   }
   if (parsed.source.toLowerCase() !== "github.com") return null;
+  // git-url-parse stuffs unhandled path segments into owner (e.g. wiki, actions,
+  // releases pages), so reject anything that didn't cleanly split into org/repo.
   if (!parsed.owner || !parsed.name || parsed.owner.includes("/")) return null;
   return {
     organization: parsed.owner,
     repository: parsed.name,
-    path: parsed.full_name,
+    path: `${parsed.owner}/${parsed.name}`,
   };
 }

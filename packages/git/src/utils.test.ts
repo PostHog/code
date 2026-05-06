@@ -138,6 +138,8 @@ describe("parseGitHubUrl", () => {
     "https://gitlab.com/PostHog/code.git",
     "https://example.com/PostHog/code.git",
     "git@gitlab.com:PostHog/code.git",
+    // SSH host alias (e.g. ~/.ssh/config Host github-personal). The remote may
+    // resolve to GitHub at connect time, but we can't know that statically.
     "git@my-alias:PostHog/code.git",
     "https://raw.githubusercontent.com/PostHog/code/main/README.md",
     "file:///path/to/repo",
@@ -232,6 +234,10 @@ describe("parsePrUrl", () => {
     "https://github.com/PostHog/code/pull/42.5",
     "https://github.com/PostHog/code/pull/",
     "https://github.com/PostHog/code/pull",
+    // Double / leading slashes in the path
+    "https://github.com/PostHog/code//pull/42",
+    "https://github.com/PostHog/code/pull//42",
+    "https://github.com//PostHog/code/pull/42",
     // Wrong host
     "https://gitlab.com/PostHog/code/pull/42",
     "https://api.github.com/repos/PostHog/code/pulls/42",
