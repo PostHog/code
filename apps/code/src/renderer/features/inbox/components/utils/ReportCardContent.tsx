@@ -62,7 +62,9 @@ export function ReportCardContent({
           className="min-w-0 flex-1"
         >
           {prependBadges}
-          {!isReady && <SignalReportStatusBadge status={report.status} />}
+          {!(isReady || report.status === "pending_input") && (
+            <SignalReportStatusBadge status={report.status} />
+          )}
           <SignalReportPriorityBadge priority={report.priority} />
           <SignalReportActionabilityBadge
             actionability={report.actionability}

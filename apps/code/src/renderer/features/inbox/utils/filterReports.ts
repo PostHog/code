@@ -56,7 +56,7 @@ export function buildSignalReportListOrdering(
   direction: "asc" | "desc",
 ): string {
   const fieldKey = direction === "desc" ? `-${field}` : field;
-  return `status,-is_suggested_reviewer,${fieldKey}`;
+  return `-is_suggested_reviewer,status,${fieldKey}`;
 }
 
 export function buildSuggestedReviewerFilterParam(

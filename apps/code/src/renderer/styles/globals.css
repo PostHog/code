@@ -1036,6 +1036,17 @@ button,
   color: var(--gray-12) !important;
 }
 
+.rt-BaseMenuItem[data-highlighted][data-variant="destructive"],
+[role="menuitem"][data-highlighted][data-variant="destructive"] {
+  background-color: var(--red-3) !important;
+  color: var(--red-11) !important;
+}
+
+.rt-BaseMenuItem[data-highlighted][data-variant="destructive"] svg,
+[role="menuitem"][data-highlighted][data-variant="destructive"] svg {
+  color: var(--red-11) !important;
+}
+
 /* Select/Menu dropdown background matches theme */
 .rt-SelectContent,
 .rt-BaseMenuContent {

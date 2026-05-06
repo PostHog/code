@@ -42,8 +42,8 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
     <Tooltip
       content={
         signalCount && signalCount > 0
-          ? `${signalCount} actionable report${signalCount === 1 ? "" : "s"} assigned to you`
-          : "No actionable reports assigned to you yet"
+          ? `${signalCount} auto pull request${signalCount === 1 ? "" : "s"} assigned to you`
+          : "No auto pull requests assigned to you yet"
       }
       shortcut={formatHotkey(SHORTCUTS.INBOX)}
       side="right"
@@ -55,20 +55,17 @@ export function InboxItem({ isActive, onClick, signalCount }: InboxItemProps) {
             <EnvelopeSimple size={16} weight={isActive ? "fill" : "regular"} />
           }
           label={
-            <>
-              Inbox
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 truncate">Inbox</span>
               {signalCount && signalCount > 0 ? (
                 <span
-                  className="ml-2 inline-flex shrink-0 items-center justify-center rounded-full bg-(--red-9) p-1 font-medium text-[10px] leading-none"
-                  style={{
-                    color: "white",
-                  }}
+                  className="!text-[#fff] inline-flex h-[16px] min-w-[16px] shrink-0 items-center justify-center rounded-full bg-(--red-9) px-1 font-medium text-[10px] leading-none"
                   title={`${signalCount} actionable reports for you`}
                 >
                   {formatSignalCount(signalCount)}
                 </span>
               ) : null}
-            </>
+            </span>
           }
           isActive={isActive}
           onClick={onClick}

@@ -344,7 +344,7 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           )}
 
           {/* ── Description ─────────────────────────────────────── */}
-          {report.status !== "ready" ? (
+          {report.status !== "ready" && report.status !== "pending_input" ? (
             <Tooltip content="This is a preliminary description. A full researched summary will replace it when the research agent completes its work.">
               <div className="cursor-help">
                 <SignalReportSummaryMarkdown

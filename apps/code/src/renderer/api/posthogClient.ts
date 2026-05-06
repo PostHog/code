@@ -257,6 +257,17 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** Accepts string ids; some serializers may emit other primitives in edge cases. */
+function optionalArtefactId(value: unknown): string | null {
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
 type AnyArtefact =
   | SignalReportArtefact
   | PriorityJudgmentArtefact
@@ -269,13 +280,17 @@ const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);
 function normalizePriorityJudgmentArtefact(
   value: Record<string, unknown>,
 ): PriorityJudgmentArtefact | null {
-  const id = optionalString(value.id);
+  const id = optionalArtefactId(value.id);
   if (!id) return null;
 
   const contentValue = isObjectRecord(value.content) ? value.content : null;
   if (!contentValue) return null;
 
-  const priority = optionalString(contentValue.priority);
+  const rawPriority = optionalString(contentValue.priority);
+  const priority =
+    rawPriority && /^p[0-4]$/i.test(rawPriority)
+      ? rawPriority.toUpperCase()
+      : rawPriority;
   if (!priority || !PRIORITY_VALUES.has(priority)) return null;
 
   return {
@@ -298,7 +313,7 @@ const ACTIONABILITY_VALUES = new Set([
 function normalizeActionabilityJudgmentArtefact(
   value: Record<string, unknown>,
 ): ActionabilityJudgmentArtefact | null {
-  const id = optionalString(value.id);
+  const id = optionalArtefactId(value.id);
   if (!id) return null;
 
   const contentValue = isObjectRecord(value.content) ? value.content : null;
@@ -329,7 +344,7 @@ function normalizeActionabilityJudgmentArtefact(
 function normalizeSignalFindingArtefact(
   value: Record<string, unknown>,
 ): SignalFindingArtefact | null {
-  const id = optionalString(value.id);
+  const id = optionalArtefactId(value.id);
   if (!id) return null;
 
   const contentValue = isObjectRecord(value.content) ? value.content : null;
@@ -383,7 +398,27 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
     return normalizePriorityJudgmentArtefact(value);
   }
 
-  const id = optionalString(value.id);
+  // Infer structured artefacts when `type` is missing or does not match the API
+  // (shape matches; enums are still validated inside each normalizer).
+  const contentForInfer = isObjectRecord(value.content) ? value.content : null;
+  if (contentForInfer) {
+    if (optionalString(contentForInfer.signal_id)) {
+      const inferredFinding = normalizeSignalFindingArtefact(value);
+      if (inferredFinding) {
+        return inferredFinding;
+      }
+    }
+    const inferredPriority = normalizePriorityJudgmentArtefact(value);
+    if (inferredPriority) {
+      return inferredPriority;
+    }
+    const inferredActionability = normalizeActionabilityJudgmentArtefact(value);
+    if (inferredActionability) {
+      return inferredActionability;
+    }
+  }
+
+  const id = optionalArtefactId(value.id);
   if (!id) {
     return null;
   }
@@ -393,13 +428,16 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
     optionalString(value.created_at) ?? new Date(0).toISOString();
 
   // suggested_reviewers: content is an array of reviewer objects
-  if (type === "suggested_reviewers" && Array.isArray(value.content)) {
-    return {
-      id,
-      type: "suggested_reviewers" as const,
-      created_at,
-      content: value.content as SuggestedReviewersArtefact["content"],
-    };
+  if (type === "suggested_reviewers") {
+    if (Array.isArray(value.content)) {
+      return {
+        id,
+        type: "suggested_reviewers" as const,
+        created_at,
+        content: value.content as SuggestedReviewersArtefact["content"],
+      };
+    }
+    return null;
   }
 
   // video_segment and other artefacts with object content
@@ -413,7 +451,22 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
 
   // The backend may return empty content objects when binary decode fails.
   if (!content && !sessionId) {
-    return null;
+    return {
+      id,
+      type,
+      created_at,
+      content: {
+        session_id: "",
+        start_time: optionalString(contentValue.start_time) ?? "",
+        end_time: optionalString(contentValue.end_time) ?? "",
+        distinct_id: optionalString(contentValue.distinct_id) ?? "",
+        content: "",
+        distance_to_centroid:
+          typeof contentValue.distance_to_centroid === "number"
+            ? contentValue.distance_to_centroid
+            : null,
+      },
+    };
   }
 
   return {
@@ -436,6 +489,7 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
 
 function parseSignalReportArtefactsPayload(
   value: unknown,
+  debugContext?: { teamId: number; reportId: string },
 ): SignalReportArtefactsResponse {
   const payload = isObjectRecord(value) ? value : null;
   const rawResults = Array.isArray(payload?.results)
@@ -451,6 +505,30 @@ function parseSignalReportArtefactsPayload(
     typeof payload?.count === "number" ? payload.count : results.length;
 
   if (rawResults.length > 0 && results.length === 0) {
+    if (debugContext) {
+      const sample = rawResults.slice(0, 5).map((item) => {
+        if (!isObjectRecord(item)) {
+          return { shape: typeof item };
+        }
+        const t = optionalString(item.type);
+        const content = item.content;
+        return {
+          type: t ?? "(missing)",
+          idKind: typeof item.id,
+          contentKind: Array.isArray(content)
+            ? "array"
+            : isObjectRecord(content)
+              ? "object"
+              : typeof content,
+        };
+      });
+      log.warn("Signal report artefacts payload did not match schema", {
+        teamId: debugContext.teamId,
+        reportId: debugContext.reportId,
+        rawCount: rawResults.length,
+        sample: sample,
+      });
+    }
     return {
       results: [],
       count: 0,
@@ -1961,14 +2039,10 @@ export class PostHogAPIClient {
       }
 
       const data = (await response.json()) as unknown;
-      const parsed = parseSignalReportArtefactsPayload(data);
-
-      if (parsed.unavailableReason) {
-        log.warn("Signal report artefacts payload did not match schema", {
-          teamId,
-          reportId,
-        });
-      }
+      const parsed = parseSignalReportArtefactsPayload(data, {
+        teamId,
+        reportId,
+      });
 
       return parsed;
     } catch (error) {

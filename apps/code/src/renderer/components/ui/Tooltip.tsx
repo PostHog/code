@@ -43,11 +43,11 @@ export function Tooltip({
             side={side}
             align={align}
             sideOffset={sideOffset}
-            className="dark flex items-center gap-[8px] rounded-[6px] border border-(--gray-4) bg-(--gray-2) px-[10px] py-[6px] text-(--gray-12) text-xs leading-[1.4]"
+            className="dark z-[200000] flex items-center gap-[8px] rounded-[6px] border border-(--gray-4) bg-(--gray-2) px-[10px] py-[6px] text-(--gray-12) text-xs leading-[1.4]"
             style={{
               whiteSpace: isSimpleContent ? "nowrap" : "normal",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
-              zIndex: 9999,
+              zIndex: 200000,
               animationDuration: "150ms",
               animationTimingFunction: "ease-out",
               willChange: "transform, opacity",
