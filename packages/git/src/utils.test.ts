@@ -69,17 +69,17 @@ describe("forceRemove", () => {
 
 describe("parseGitHubUrl", () => {
   it.each([
-    ["https://github.com/posthog/posthog.git", "posthog", "posthog"],
-    ["https://github.com/posthog/posthog", "posthog", "posthog"],
-    ["http://github.com/posthog/posthog.git", "posthog", "posthog"],
-    ["https://user:token@github.com/posthog/posthog.git", "posthog", "posthog"],
-    ["git@github.com:posthog/posthog.git", "posthog", "posthog"],
-    ["git@github.com:posthog/posthog", "posthog", "posthog"],
-    ["ssh://git@github.com/posthog/posthog.git", "posthog", "posthog"],
-    ["ssh://git@ssh.github.com:443/posthog/posthog.git", "posthog", "posthog"],
-    ["ssh://git@github.com:22/posthog/posthog.git", "posthog", "posthog"],
-    ["git://github.com/posthog/posthog.git", "posthog", "posthog"],
-    ["  https://github.com/posthog/posthog.git\n", "posthog", "posthog"],
+    ["https://github.com/PostHog/code.git", "PostHog", "code"],
+    ["https://github.com/PostHog/code", "PostHog", "code"],
+    ["http://github.com/PostHog/code.git", "PostHog", "code"],
+    ["https://user:token@github.com/PostHog/code.git", "PostHog", "code"],
+    ["git@github.com:PostHog/code.git", "PostHog", "code"],
+    ["git@github.com:PostHog/code", "PostHog", "code"],
+    ["ssh://git@github.com/PostHog/code.git", "PostHog", "code"],
+    ["ssh://git@ssh.github.com:443/PostHog/code.git", "PostHog", "code"],
+    ["ssh://git@github.com:22/PostHog/code.git", "PostHog", "code"],
+    ["git://github.com/PostHog/code.git", "PostHog", "code"],
+    ["  https://github.com/PostHog/code.git\n", "PostHog", "code"],
   ])("parses %s", (url, organization, repository) => {
     expect(parseGitHubUrl(url)).toEqual({ organization, repository });
   });
@@ -87,12 +87,12 @@ describe("parseGitHubUrl", () => {
   it.each([
     "",
     "not-a-url",
-    "https://gitlab.com/posthog/posthog.git",
-    "https://example.com/posthog/posthog.git",
-    "git@gitlab.com:posthog/posthog.git",
-    "https://github.com/posthog",
-    "https://github.com/posthog/posthog/extra",
-    "git@my-alias:posthog/posthog.git",
+    "https://gitlab.com/PostHog/code.git",
+    "https://example.com/PostHog/code.git",
+    "git@gitlab.com:PostHog/code.git",
+    "https://github.com/PostHog",
+    "https://github.com/PostHog/code/extra",
+    "git@my-alias:PostHog/code.git",
   ])("returns null for %s", (url) => {
     expect(parseGitHubUrl(url)).toBeNull();
   });
