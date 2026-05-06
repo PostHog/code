@@ -228,11 +228,19 @@ export function ActionSelector({
           />
         )}
 
-        {title && (
-          <Text className="font-medium text-[13px] text-primary" title={title}>
-            {compactHomePath(title)}
-          </Text>
-        )}
+        {title &&
+          (typeof title === "string" ? (
+            <Text
+              className="font-medium text-[13px] text-primary"
+              title={title}
+            >
+              {compactHomePath(title)}
+            </Text>
+          ) : (
+            <Text className="font-medium text-[13px] text-primary">
+              {title}
+            </Text>
+          ))}
 
         {pendingAction && <Box>{pendingAction}</Box>}
 
