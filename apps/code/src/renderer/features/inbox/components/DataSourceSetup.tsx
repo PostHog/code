@@ -136,8 +136,10 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
         try {
           if (!client) return;
           // Trigger a refetch of integrations
-          const integrations =
-            await client.getIntegrationsForProject(projectId);
+          const integrations = await client.getIntegrationsForProject(
+            projectId,
+            "github",
+          );
           const hasGithub = integrations.some(
             (i: { kind: string }) => i.kind === "github",
           );
