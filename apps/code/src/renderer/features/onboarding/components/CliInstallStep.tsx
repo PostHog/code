@@ -1,16 +1,19 @@
+import { Tooltip } from "@components/ui/Tooltip";
 import {
   ArrowLeft,
   ArrowRight,
   ArrowSquareOut,
   ArrowsClockwise,
+  Check,
   CheckCircle,
   CircleNotch,
+  Copy,
   GitBranch,
   GithubLogo,
   Terminal,
   Warning,
 } from "@phosphor-icons/react";
-import { Box, Button, Code, Flex, Text } from "@radix-ui/themes";
+import { Box, Button, Code, Flex, IconButton, Text } from "@radix-ui/themes";
 import builderHog from "@renderer/assets/images/hedgehogs/builder-hog-03.png";
 import { trpcClient, useTRPC } from "@renderer/trpc/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +22,36 @@ import { motion } from "framer-motion";
 import { useCallback, useState } from "react";
 import { OnboardingHogTip } from "./OnboardingHogTip";
 import { StepActions } from "./StepActions";
+
+function CommandLine({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [command]);
+
+  return (
+    <Flex align="center" gap="2">
+      <Terminal size={14} className="shrink-0 text-(--gray-9)" />
+      <Code variant="soft" className="text-sm">
+        {command}
+      </Code>
+      <Tooltip content={copied ? "Copied!" : "Copy command"}>
+        <IconButton
+          size="1"
+          variant="ghost"
+          color="gray"
+          onClick={() => void handleCopy()}
+          aria-label="Copy command"
+        >
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+        </IconButton>
+      </Tooltip>
+    </Flex>
+  );
+}
 
 interface CliInstallStepProps {
   onNext: () => void;
@@ -135,24 +168,8 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           Install with Homebrew or Xcode Command Line Tools:
                         </Text>
                         <Flex direction="column" gap="2">
-                          <Flex align="center" gap="2">
-                            <Terminal
-                              size={14}
-                              className="shrink-0 text-(--gray-9)"
-                            />
-                            <Code variant="soft" className="text-sm">
-                              brew install git
-                            </Code>
-                          </Flex>
-                          <Flex align="center" gap="2">
-                            <Terminal
-                              size={14}
-                              className="shrink-0 text-(--gray-9)"
-                            />
-                            <Code variant="soft" className="text-sm">
-                              xcode-select --install
-                            </Code>
-                          </Flex>
+                          <CommandLine command="brew install git" />
+                          <CommandLine command="xcode-select --install" />
                         </Flex>
                         <Flex align="center" gap="3">
                           <Button
@@ -171,7 +188,6 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           <Button
                             size="1"
                             variant="soft"
-                            color="gray"
                             onClick={() => void handleCheckGit()}
                             loading={isCheckingGit}
                           >
@@ -245,15 +261,7 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                         <Text className="text-(--gray-11) text-sm">
                           Install with Homebrew:
                         </Text>
-                        <Flex align="center" gap="2">
-                          <Terminal
-                            size={14}
-                            className="shrink-0 text-(--gray-9)"
-                          />
-                          <Code variant="soft" className="text-sm">
-                            brew install gh
-                          </Code>
-                        </Flex>
+                        <CommandLine command="brew install gh" />
                         <Flex align="center" gap="3">
                           <Button
                             size="1"
@@ -271,7 +279,6 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                           <Button
                             size="1"
                             variant="soft"
-                            color="gray"
                             onClick={() => void handleCheckGh()}
                             loading={isCheckingGh}
                           >
@@ -286,19 +293,10 @@ export function CliInstallStep({ onNext, onBack }: CliInstallStepProps) {
                         <Text className="text-(--gray-11) text-sm">
                           Run this in your terminal to log in:
                         </Text>
-                        <Flex align="center" gap="2">
-                          <Terminal
-                            size={14}
-                            className="shrink-0 text-(--gray-9)"
-                          />
-                          <Code variant="soft" className="text-sm">
-                            gh auth login
-                          </Code>
-                        </Flex>
+                        <CommandLine command="gh auth login" />
                         <Button
                           size="1"
                           variant="soft"
-                          color="gray"
                           onClick={() => void handleCheckGh()}
                           loading={isCheckingGh}
                           className="self-start"

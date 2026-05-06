@@ -158,7 +158,12 @@ function App() {
         log.warn(
           `Foreign branch checkout detected: ${focusedBranch} -> ${foreignBranch}. Auto-unfocusing.`,
         );
-        await useFocusStore.getState().disableFocus();
+        const result = await useFocusStore.getState().disableFocus();
+        if (!result.success && result.error) {
+          toast.error("Could not unfocus workspace", {
+            description: result.error,
+          });
+        }
       },
     }),
   );
