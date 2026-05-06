@@ -53,9 +53,13 @@ export function GitHubSettings() {
   const { reposByInstallationId, failedInstallationIds, isLoadingRepos } =
     useUserRepositoryIntegration();
 
-  const { state, error, connect, reset } = useGithubUserConnect({ projectId });
-  const isConnecting = state === "connecting";
-  const hasConnectError = state === "error";
+  const {
+    error,
+    isConnecting,
+    hasError: hasConnectError,
+    connect,
+    reset,
+  } = useGithubUserConnect({ projectId });
   const canConnect = projectId != null && cloudRegion != null && !isConnecting;
 
   const handleConnect = () => {

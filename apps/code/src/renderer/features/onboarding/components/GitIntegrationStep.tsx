@@ -84,14 +84,13 @@ export function GitIntegrationStep({
   }, [manuallySelectedProjectId, currentProjectId, projects]);
 
   const {
-    state: connectState,
     error: connectError,
+    isConnecting,
+    isTimedOut: timedOut,
+    hasError: hasConnectError,
     connect: handleConnectGitHub,
     reset: resetConnect,
   } = useGithubUserConnect({ projectId: selectedProjectId });
-  const isConnecting = connectState === "connecting";
-  const timedOut = connectState === "timed-out";
-  const hasConnectError = connectState === "error";
   const canTakeAction = !isConnecting && !timedOut && !hasConnectError;
   const defaultPanelMessage = hasConnectError
     ? describeGithubConnectError(connectError)

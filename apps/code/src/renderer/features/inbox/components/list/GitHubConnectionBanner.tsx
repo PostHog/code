@@ -24,9 +24,13 @@ export function GitHubConnectionBanner() {
   const projectId = useAuthStateValue((s) => s.projectId);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
 
-  const { state, error, connect, reset } = useGithubUserConnect({ projectId });
-  const connecting = state === "connecting";
-  const hasConnectError = state === "error";
+  const {
+    error,
+    isConnecting: connecting,
+    hasError: hasConnectError,
+    connect,
+    reset,
+  } = useGithubUserConnect({ projectId });
   const canConnectCloud = projectId != null && cloudRegion != null;
 
   if (loginLoading) {
