@@ -22,7 +22,6 @@ import {
   getLatestCommit,
   getRemoteUrl,
   getStagedDiff,
-  getStatus,
   getSyncStatus,
   getUnstagedDiff,
   fetch as gitFetch,
@@ -304,13 +303,7 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     const result = await saga.run({ baseDir: directoryPath, branchName });
     if (result.success) return result.data;
 
-    const status = await getStatus(directoryPath).catch(() => null);
-    const hasLocalChanges =
-      !!status &&
-      (status.staged.length > 0 ||
-        status.modified.length > 0 ||
-        status.deleted.length > 0);
-    if (hasLocalChanges) {
+    if (/would be overwritten by checkout/i.test(result.error)) {
       throw new TRPCError({
         code: "PRECONDITION_FAILED",
         message: "Working tree has uncommitted changes",
