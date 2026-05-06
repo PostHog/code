@@ -63,7 +63,7 @@ export const MCP_CATEGORIES = [
 export type McpCategory = Schemas.CategoryEnum;
 export type McpApprovalState =
   Schemas.MCPServerInstallationToolApprovalStateEnum;
-export type McpAuthType = Schemas.AuthType9cbEnum;
+export type McpAuthType = Schemas.MCPAuthTypeEnum;
 export type McpRecommendedServer = Schemas.MCPServerTemplate;
 export type McpServerInstallation = Schemas.MCPServerInstallation;
 export type McpInstallationTool = Schemas.MCPServerInstallationTool;
@@ -783,7 +783,7 @@ export class PostHogAPIClient {
       "/api/projects/{project_id}/external_data_sources/",
       {
         path: { project_id: projectId.toString() },
-        body: payload as unknown as Schemas.ExternalDataSourceSerializers,
+        body: payload as unknown as Schemas.ExternalDataSourceCreate,
         withResponse: true,
         throwOnStatusError: false,
       },
@@ -859,6 +859,40 @@ export class PostHogAPIClient {
     });
 
     return data.results ?? [];
+  }
+
+  async getTaskSummaries(ids: string[]) {
+    if (ids.length === 0) return [];
+    const TASK_SUMMARIES_MAX_PAGES = 50;
+    const teamId = await this.getTeamId();
+    const all: Schemas.TaskSummary[] = [];
+    let urlPath: string = `/api/projects/${teamId}/tasks/summaries/`;
+    for (let i = 0; i < TASK_SUMMARIES_MAX_PAGES; i++) {
+      const url = new URL(`${this.api.baseUrl}${urlPath}`);
+      const response = await this.api.fetcher.fetch({
+        method: "post",
+        url,
+        path: urlPath,
+        overrides: {
+          body: JSON.stringify({ ids } satisfies Schemas.TaskSummariesRequest),
+        },
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch task summaries: ${response.statusText}`,
+        );
+      }
+      const page = (await response.json()) as Schemas.PaginatedTaskSummaryList;
+      all.push(...page.results);
+      if (!page.next) return all;
+      const nextUrl = new URL(page.next);
+      urlPath = `${nextUrl.pathname}${nextUrl.search}`;
+    }
+    log.warn(
+      `getTaskSummaries hit MAX_PAGES (${TASK_SUMMARIES_MAX_PAGES}); returning partial results`,
+      { ids: ids.length, returned: all.length },
+    );
+    return all;
   }
 
   async getTask(taskId: string) {

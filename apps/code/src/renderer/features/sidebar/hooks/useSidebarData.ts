@@ -2,8 +2,9 @@ import { useArchivedTaskIds } from "@features/archive/hooks/useArchivedTaskIds";
 import { useProvisioningStore } from "@features/provisioning/stores/provisioningStore";
 import { useSessions } from "@features/sessions/stores/sessionStore";
 import { useSuspendedTaskIds } from "@features/suspension/hooks/useSuspendedTaskIds";
-import { useTasks } from "@features/tasks/hooks/useTasks";
+import { useTaskSummaries, useTasks } from "@features/tasks/hooks/useTasks";
 import { useWorkspaces } from "@features/workspace/hooks/useWorkspace";
+import type { Schemas } from "@renderer/api/generated";
 import type { Task, TaskRunStatus } from "@shared/types";
 import { useEffect, useMemo, useRef } from "react";
 import { useSidebarStore } from "../stores/sidebarStore";
@@ -14,6 +15,7 @@ import {
   groupByRepository,
   type TaskRepositoryInfo,
 } from "../utils/groupTasks";
+import { computeSummaryIds } from "../utils/summaryIds";
 import { usePinnedTasks } from "./usePinnedTasks";
 import { useTaskViewed } from "./useTaskViewed";
 
@@ -89,15 +91,75 @@ export function useSidebarData({
 }: UseSidebarDataProps): SidebarData {
   const showAllUsers = useSidebarStore((state) => state.showAllUsers);
   const showInternal = useSidebarStore((state) => state.showInternal);
-  const { data: rawTasks = [], isFetched: isTasksFetched } = useTasks({
-    showAllUsers,
-    showInternal,
-  });
   const { data: workspaces, isFetched: isWorkspacesFetched } = useWorkspaces();
   const archivedTaskIds = useArchivedTaskIds();
   const suspendedTaskIds = useSuspendedTaskIds();
   const provisioningTaskIds = useProvisioningStore((s) => s.activeTasks);
-  const isLoading = !isTasksFetched || !isWorkspacesFetched;
+  const sessions = useSessions();
+  const { timestamps } = useTaskViewed();
+  const historyVisibleCount = useSidebarStore(
+    (state) => state.historyVisibleCount,
+  );
+  const { pinnedTaskIds } = usePinnedTasks();
+
+  const summaryIds = useMemo(
+    () =>
+      showAllUsers
+        ? []
+        : computeSummaryIds({
+            workspaceIds: workspaces ? Object.keys(workspaces) : [],
+            pinnedTaskIds,
+            provisioningTaskIds,
+            archivedTaskIds,
+          }),
+    [
+      showAllUsers,
+      workspaces,
+      pinnedTaskIds,
+      provisioningTaskIds,
+      archivedTaskIds,
+    ],
+  );
+
+  const { data: summaryTasks = [], isLoading: isSummariesLoading } =
+    useTaskSummaries(summaryIds, { enabled: !showAllUsers });
+  // showAllUsers stays on the heavy /tasks/ list endpoint until that path gets
+  // its own optimization (e.g. server-side recency pagination). The mapping
+  // below narrows full Task → TaskSummary so downstream sidebar code stays uniform.
+  const { data: fullTasks = [], isLoading: isTasksLoading } = useTasks(
+    { showAllUsers, showInternal },
+    { enabled: showAllUsers },
+  );
+
+  type SidebarTask = Schemas.TaskSummary & {
+    latest_run:
+      | (Schemas.TaskSummary["latest_run"] & {
+          output?: { pr_url?: unknown } | null;
+        })
+      | null;
+  };
+
+  const rawTasks: SidebarTask[] = useMemo(() => {
+    if (!showAllUsers) return summaryTasks;
+    return fullTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      repository: t.repository ?? null,
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+      latest_run: t.latest_run
+        ? {
+            status: t.latest_run.status,
+            environment: t.latest_run.environment ?? null,
+            output: t.latest_run.output ?? null,
+          }
+        : null,
+    }));
+  }, [showAllUsers, summaryTasks, fullTasks]);
+
+  const isPrimaryLoading = showAllUsers ? isTasksLoading : isSummariesLoading;
+  const isLoading = isPrimaryLoading || !isWorkspacesFetched;
+
   const allTasks = useMemo(
     () =>
       rawTasks.filter(
@@ -117,12 +179,6 @@ export function useSidebarData({
       provisioningTaskIds,
     ],
   );
-  const sessions = useSessions();
-  const { timestamps } = useTaskViewed();
-  const historyVisibleCount = useSidebarStore(
-    (state) => state.historyVisibleCount,
-  );
-  const { pinnedTaskIds } = usePinnedTasks();
   const organizeMode = useSidebarStore((state) => state.organizeMode);
   const sortMode = useSidebarStore((state) => state.sortMode);
   const folderOrder = useSidebarStore((state) => state.folderOrder);
@@ -182,8 +238,9 @@ export function useSidebarData({
         needsPermission: (session?.pendingPermissions?.size ?? 0) > 0,
         repository: getRepositoryInfo(task, workspace?.folderPath),
         folderId: workspace?.folderId || undefined,
-        taskRunStatus: session?.cloudStatus ?? task.latest_run?.status,
-        taskRunEnvironment: task.latest_run?.environment,
+        taskRunStatus:
+          session?.cloudStatus ?? task.latest_run?.status ?? undefined,
+        taskRunEnvironment: task.latest_run?.environment ?? undefined,
         folderPath: workspace?.folderPath ?? null,
         cloudPrUrl,
         branchName: workspace?.branchName ?? null,
