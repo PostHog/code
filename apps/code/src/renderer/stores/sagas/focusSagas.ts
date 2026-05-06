@@ -69,13 +69,7 @@ async function toRelativePath(
 async function checkout(repoPath: string, branch: string): Promise<void> {
   const result = await trpcClient.focus.checkout.mutate({ repoPath, branch });
   if (!result.success) {
-    const error = result.error ?? `Failed to checkout ${branch}`;
-    if (/would be overwritten by checkout/i.test(error)) {
-      throw new Error(
-        `Can't switch to ${branch}: uncommitted changes would be overwritten. Commit or stash them first.`,
-      );
-    }
-    throw new Error(error);
+    throw new Error(result.error ?? `Failed to checkout ${branch}`);
   }
 }
 

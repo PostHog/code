@@ -22,6 +22,7 @@ import {
   getLatestCommit,
   getRemoteUrl,
   getStagedDiff,
+  getStatus,
   getSyncStatus,
   getUnstagedDiff,
   fetch as gitFetch,
@@ -36,6 +37,7 @@ import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
 import { parseGitHubUrl, parsePrUrl } from "@posthog/git/utils";
+import { TRPCError } from "@trpc/server";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -300,8 +302,21 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
   ): Promise<{ previousBranch: string; currentBranch: string }> {
     const saga = new SwitchBranchSaga();
     const result = await saga.run({ baseDir: directoryPath, branchName });
-    if (!result.success) throw new Error(result.error);
-    return result.data;
+    if (result.success) return result.data;
+
+    const status = await getStatus(directoryPath).catch(() => null);
+    const hasLocalChanges =
+      !!status &&
+      (status.staged.length > 0 ||
+        status.modified.length > 0 ||
+        status.deleted.length > 0);
+    if (hasLocalChanges) {
+      throw new TRPCError({
+        code: "PRECONDITION_FAILED",
+        message: "Working tree has uncommitted changes",
+      });
+    }
+    throw new Error(result.error);
   }
 
   public async getChangedFilesHead(
