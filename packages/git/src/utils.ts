@@ -7,6 +7,7 @@ import gitUrlParse from "git-url-parse";
 export interface GitHubRepo {
   organization: string;
   repository: string;
+  path: string;
 }
 
 export async function safeSymlink(
@@ -160,9 +161,18 @@ export interface GitHubPr {
 }
 
 export function parsePrUrl(prUrl: string): GitHubPr | null {
-  const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-  if (!match) return null;
-  return { owner: match[1], repo: match[2], number: Number(match[3]) };
+  let parsed: ReturnType<typeof gitUrlParse>;
+  try {
+    parsed = gitUrlParse(prUrl.trim());
+  } catch {
+    return null;
+  }
+  if (parsed.source !== "github.com") return null;
+  const [owner, repo, kind, num] = parsed.full_name.split("/").filter(Boolean);
+  if (!owner || !repo || kind !== "pull") return null;
+  const number = Number(num);
+  if (!Number.isInteger(number) || number <= 0) return null;
+  return { owner, repo, number };
 }
 
 export function parseGitHubUrl(url: string): GitHubRepo | null {
@@ -173,16 +183,10 @@ export function parseGitHubUrl(url: string): GitHubRepo | null {
     return null;
   }
   if (parsed.source !== "github.com") return null;
-  const segments = parsed.full_name.split("/").filter(Boolean);
-  if (segments.length < 2) return null;
+  if (!parsed.owner || !parsed.name || parsed.owner.includes("/")) return null;
   return {
-    organization: segments[0],
-    repository: segments[1].replace(/\.git$/, ""),
+    organization: parsed.owner,
+    repository: parsed.name,
+    path: parsed.full_name,
   };
-}
-
-export function extractRepoKey(url: string): string | null {
-  const parsed = parseGitHubUrl(url);
-  if (!parsed) return null;
-  return `${parsed.organization}/${parsed.repository}`;
 }

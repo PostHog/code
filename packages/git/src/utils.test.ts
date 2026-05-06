@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { extractRepoKey, forceRemove, parseGitHubUrl } from "./utils";
+import { forceRemove, parseGitHubUrl, parsePrUrl } from "./utils";
 
 async function fileExists(p: string): Promise<boolean> {
   try {
@@ -94,9 +94,12 @@ describe("parseGitHubUrl", () => {
     ["https://github.com/PostHog/code/tree/main", "PostHog", "code"],
     ["https://github.com/PostHog/code/issues/12", "PostHog", "code"],
     ["https://github.com/PostHog/code/commit/abc123", "PostHog", "code"],
-    ["https://github.com/PostHog/code/pull/42", "PostHog", "code"],
   ])("parses %s", (url, organization, repository) => {
-    expect(parseGitHubUrl(url)).toEqual({ organization, repository });
+    expect(parseGitHubUrl(url)).toEqual({
+      organization,
+      repository,
+      path: `${organization}/${repository}`,
+    });
   });
 
   it.each([
@@ -112,32 +115,30 @@ describe("parseGitHubUrl", () => {
   });
 });
 
-describe("extractRepoKey", () => {
+describe("parsePrUrl", () => {
   it.each([
-    ["https://github.com/PostHog/code.git", "PostHog/code"],
-    ["git@github.com:PostHog/code.git", "PostHog/code"],
-    ["ssh://git@github.com/PostHog/code.git", "PostHog/code"],
-    ["ssh://git@ssh.github.com:443/PostHog/code.git", "PostHog/code"],
+    ["https://github.com/PostHog/code/pull/42", "PostHog", "code", 42],
+    ["http://github.com/PostHog/code/pull/1", "PostHog", "code", 1],
     [
-      "ssh://git@ssh.github.com:443/buildingapplications/bilt-landing.git",
-      "buildingapplications/bilt-landing",
+      "https://github.com/buildingapplications/bilt-landing/pull/123",
+      "buildingapplications",
+      "bilt-landing",
+      123,
     ],
-    ["ssh://git@github.com:22/PostHog/code.git", "PostHog/code"],
-    ["git://github.com/PostHog/code.git", "PostHog/code"],
-    ["git+https://github.com/PostHog/code.git", "PostHog/code"],
-    ["PostHog/code", "PostHog/code"],
-    ["https://github.com/PostHog/code/pull/42", "PostHog/code"],
-  ])("returns %s key for %s", (url, key) => {
-    expect(extractRepoKey(url)).toBe(key);
+    ["  https://github.com/PostHog/code/pull/7\n", "PostHog", "code", 7],
+  ])("parses %s", (url, owner, repo, number) => {
+    expect(parsePrUrl(url)).toEqual({ owner, repo, number });
   });
 
   it.each([
     "",
     "not-a-url",
-    "https://gitlab.com/PostHog/code.git",
-    "git@gitlab.com:PostHog/code.git",
-    "https://github.com/PostHog",
+    "https://github.com/PostHog/code",
+    "https://github.com/PostHog/code/issues/42",
+    "https://github.com/PostHog/code/pull/abc",
+    "https://github.com/PostHog/code/pull/0",
+    "https://gitlab.com/PostHog/code/pull/42",
   ])("returns null for %s", (url) => {
-    expect(extractRepoKey(url)).toBeNull();
+    expect(parsePrUrl(url)).toBeNull();
   });
 });

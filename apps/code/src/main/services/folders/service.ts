@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { getRemoteUrl, isGitRepository } from "@posthog/git/queries";
 import { InitRepositorySaga } from "@posthog/git/sagas/init";
-import { extractRepoKey } from "@posthog/git/utils";
+import { parseGitHubUrl } from "@posthog/git/utils";
 import { WorktreeManager } from "@posthog/git/worktree";
 import type { IDialog } from "@posthog/platform/dialog";
 import { normalizeRepoKey } from "@shared/utils/repo";
@@ -238,12 +238,14 @@ export class FoldersService {
     overrideRemoteUrl: string | undefined,
   ): Promise<string | null> {
     if (overrideRemoteUrl) {
-      const overrideKey = extractRepoKey(overrideRemoteUrl);
+      const overrideKey = parseGitHubUrl(overrideRemoteUrl)?.path;
       if (overrideKey) return overrideKey;
       return normalizeRepoKey(overrideRemoteUrl);
     }
     const localRemoteUrl = await getRemoteUrl(folderPath);
-    return localRemoteUrl ? extractRepoKey(localRemoteUrl) : null;
+    return localRemoteUrl
+      ? (parseGitHubUrl(localRemoteUrl)?.path ?? null)
+      : null;
   }
 
   getRepositoryByRemoteUrl(
