@@ -100,6 +100,20 @@ export function identifyUser(
   posthog.identify(userId, properties);
 }
 
+type GroupProperties = Record<string, string | number | boolean | null>;
+
+export function setUserGroup(
+  groupType: "project" | "organization",
+  groupKey: string,
+  properties?: GroupProperties,
+) {
+  if (!isInitialized) {
+    return;
+  }
+
+  posthog.group(groupType, groupKey, properties);
+}
+
 export function resetUser() {
   if (!isInitialized) {
     return;

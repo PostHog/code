@@ -6,7 +6,7 @@ import { ANALYTICS_EVENTS } from "@shared/types/analytics";
 import type { CloudRegion } from "@shared/types/regions";
 import { getCloudUrlFromRegion } from "@shared/utils/urls";
 import { useNavigationStore } from "@stores/navigationStore";
-import { identifyUser, resetUser, track } from "@utils/analytics";
+import { identifyUser, resetUser, setUserGroup, track } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { create } from "zustand";
@@ -164,6 +164,22 @@ async function syncAuthState(): Promise<void> {
         project_id: authState.projectId?.toString() ?? "",
         region: authState.cloudRegion ?? "",
       });
+
+      if (user.team) {
+        setUserGroup("project", user.team.uuid, {
+          id: user.team.id,
+          uuid: user.team.uuid,
+          name: user.team.name,
+        });
+      }
+
+      if (user.organization) {
+        setUserGroup("organization", user.organization.id, {
+          id: user.organization.id,
+          name: user.organization.name,
+          slug: user.organization.slug,
+        });
+      }
 
       trpcClient.analytics.setUserId.mutate({
         userId: distinctId,
