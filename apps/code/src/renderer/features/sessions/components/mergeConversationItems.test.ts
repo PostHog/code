@@ -110,4 +110,17 @@ describe("mergeConversationItems", () => {
     });
     expect(result.map((i) => i.id)).toEqual(["setup", "opt"]);
   });
+
+  it("cloud: does not dedupe historical messages against tail follow-up optimistics", () => {
+    const result = mergeConversationItems({
+      conversationItems: [
+        userMessage("old", "repeat"),
+        userMessage("setup", "setup"),
+      ],
+      optimisticItems: [userMessage("opt", "repeat", false)],
+      queuedItems: [],
+      isCloud: true,
+    });
+    expect(result.map((i) => i.id)).toEqual(["old", "setup", "opt"]);
+  });
 });

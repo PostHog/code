@@ -564,9 +564,9 @@ describe("CloudTaskService", () => {
       );
     });
 
-    mockStreamFetch
-      .mockResolvedValueOnce(createSseResponse(""))
-      .mockResolvedValueOnce(createOpenSseResponse(""));
+    mockStreamFetch.mockImplementation(() =>
+      Promise.resolve(createSseResponse("")),
+    );
 
     service.watch({
       taskId: "task-1",
@@ -576,8 +576,7 @@ describe("CloudTaskService", () => {
     });
 
     await waitFor(() => mockStreamFetch.mock.calls.length === 1);
-    await vi.advanceTimersByTimeAsync(2_000);
-    await waitFor(() => mockStreamFetch.mock.calls.length === 2);
+    await waitFor(() => mockStreamFetch.mock.calls.length >= 7, 20_000);
 
     expect(updates).toContainEqual(
       expect.objectContaining({
@@ -587,6 +586,14 @@ describe("CloudTaskService", () => {
         output: { pr_url: prUrl },
       }),
     );
+    expect(
+      updates.some(
+        (update) =>
+          typeof update === "object" &&
+          update !== null &&
+          (update as { kind?: string }).kind === "error",
+      ),
+    ).toBe(false);
 
     expect(
       (

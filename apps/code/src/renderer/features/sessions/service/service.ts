@@ -2586,7 +2586,9 @@ export class SessionService {
       existingWatcher.apiHost === apiHost &&
       existingWatcher.teamId === teamId
     ) {
-      existingWatcher.onStatusChange = onStatusChange;
+      if (onStatusChange) {
+        existingWatcher.onStatusChange = onStatusChange;
+      }
       // Ensure configOptions is populated on revisit
       const existing = sessionStoreSetters.getSessionByTaskId(taskId);
       if (existing) {

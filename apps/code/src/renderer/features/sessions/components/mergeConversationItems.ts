@@ -35,8 +35,8 @@ export function mergeConversationItems({
   const tailOptimisticItems = optimisticItems.filter(
     (item) => item.type === "user_message" && item.pinToTop === false,
   );
-  const optimisticUserContents = new Set(
-    optimisticItems
+  const pinnedOptimisticUserContents = new Set(
+    pinnedOptimisticItems
       .filter(
         (item): item is Extract<typeof item, { type: "user_message" }> =>
           item.type === "user_message",
@@ -44,11 +44,11 @@ export function mergeConversationItems({
       .map((item) => item.content),
   );
   const dedupedConversation =
-    optimisticUserContents.size === 0
+    pinnedOptimisticUserContents.size === 0
       ? conversationItems
       : conversationItems.filter((item) => {
           if (item.type !== "user_message") return true;
-          return !optimisticUserContents.has(item.content);
+          return !pinnedOptimisticUserContents.has(item.content);
         });
   const result: ConversationItem[] = [
     ...pinnedOptimisticItems,
