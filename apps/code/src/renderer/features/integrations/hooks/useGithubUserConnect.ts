@@ -1,5 +1,4 @@
 import { useOptionalAuthenticatedClient } from "@features/auth/hooks/authClient";
-import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { useGitHubIntegrationCallback } from "@features/integrations/hooks/useGitHubIntegrationCallback";
 import { trpcClient } from "@renderer/trpc/client";
 import { IS_DEV } from "@shared/constants/environment";
@@ -64,6 +63,9 @@ interface Options {
 interface Result {
   state: GithubUserConnectState;
   error: GithubUserConnectError | null;
+  isConnecting: boolean;
+  isTimedOut: boolean;
+  hasError: boolean;
   connect: () => Promise<void>;
   reset: () => void;
 }
@@ -96,7 +98,6 @@ export async function openUrlInBrowser(url: string): Promise<void> {
 
 export function useGithubUserConnect({ projectId }: Options): Result {
   const client = useOptionalAuthenticatedClient();
-  const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
   const queryClient = useQueryClient();
   const [state, setState] = useState<GithubUserConnectState>("idle");
   const [error, setError] = useState<GithubUserConnectError | null>(null);
@@ -153,7 +154,7 @@ export function useGithubUserConnect({ projectId }: Options): Result {
 
   const connect = useCallback(async () => {
     if (stateRef.current === "connecting") return;
-    if (!cloudRegion || projectId === null || !client) return;
+    if (projectId === null || !client) return;
     stopPolling();
     setError(null);
     setState("connecting");
@@ -184,7 +185,7 @@ export function useGithubUserConnect({ projectId }: Options): Result {
         code: null,
       });
     }
-  }, [client, cloudRegion, projectId, invalidate, stopPolling]);
+  }, [client, projectId, invalidate, stopPolling]);
 
   const reset = useCallback(() => {
     stopPolling();
@@ -192,5 +193,13 @@ export function useGithubUserConnect({ projectId }: Options): Result {
     setState("idle");
   }, [stopPolling]);
 
-  return { state, error, connect, reset };
+  return {
+    state,
+    error,
+    isConnecting: state === "connecting",
+    isTimedOut: state === "timed-out",
+    hasError: state === "error",
+    connect,
+    reset,
+  };
 }

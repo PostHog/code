@@ -9,10 +9,8 @@ import { Button, Callout, Flex, Spinner, Text } from "@radix-ui/themes";
 export function CloudGithubMissingNotice() {
   const projectId = useAuthStateValue((s) => s.projectId);
   const cloudRegion = useAuthStateValue((s) => s.cloudRegion);
-  const { state, error, connect, reset } = useGithubUserConnect({ projectId });
-
-  const isConnecting = state === "connecting";
-  const hasError = state === "error";
+  const { error, isConnecting, hasError, connect, reset } =
+    useGithubUserConnect({ projectId });
   const canConnect = projectId != null && cloudRegion != null;
 
   return (
