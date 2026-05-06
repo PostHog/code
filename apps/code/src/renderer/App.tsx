@@ -158,17 +158,10 @@ function App() {
         log.warn(
           `Foreign branch checkout detected: ${focusedBranch} -> ${foreignBranch}. Auto-unfocusing.`,
         );
-        try {
-          const result = await useFocusStore.getState().disableFocus();
-          if (!result.success && result.error) {
-            toast.error("Could not unfocus workspace", {
-              description: result.error,
-            });
-          }
-        } catch (err) {
-          log.error("Failed to disable focus on foreign checkout", err);
+        const result = await useFocusStore.getState().disableFocus();
+        if (!result.success && result.error) {
           toast.error("Could not unfocus workspace", {
-            description: err instanceof Error ? err.message : String(err),
+            description: result.error,
           });
         }
       },

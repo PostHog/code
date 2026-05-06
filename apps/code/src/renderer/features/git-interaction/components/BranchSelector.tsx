@@ -125,16 +125,15 @@ export function BranchSelector({
         if (repoPath) invalidateGitBranchQueries(repoPath);
       },
       onError: (error, { branchName }) => {
-        const code = (error as { data?: { code?: string } }).data?.code;
-        if (code === "PRECONDITION_FAILED") {
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        if (/would be overwritten by checkout/i.test(message)) {
           toast.error(`Can't switch to ${branchName}`, {
             description:
               "You have uncommitted changes that would be overwritten. Commit or stash them first.",
           });
           return;
         }
-        const message =
-          error instanceof Error ? error.message : "Unknown error occurred";
         toast.error(`Failed to checkout ${branchName}`, {
           description: message,
         });
