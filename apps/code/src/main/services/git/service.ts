@@ -22,6 +22,7 @@ import {
   getLatestCommit,
   getRemoteUrl,
   getStagedDiff,
+  getStatus,
   getSyncStatus,
   getUnstagedDiff,
   fetch as gitFetch,
@@ -36,7 +37,6 @@ import { DiscardFileChangesSaga } from "@posthog/git/sagas/discard";
 import { PullSaga } from "@posthog/git/sagas/pull";
 import { PushSaga } from "@posthog/git/sagas/push";
 import { parseGitHubUrl, parsePrUrl } from "@posthog/git/utils";
-import { TRPCError } from "@trpc/server";
 import { inject, injectable } from "inversify";
 import { MAIN_TOKENS } from "../../di/tokens";
 import { logger } from "../../utils/logger";
@@ -124,6 +124,13 @@ function toUnifiedDiffPatch(
   const fromPath = status === "added" ? "/dev/null" : `a/${oldPath}`;
   const toPath = status === "deleted" ? "/dev/null" : `b/${filename}`;
   return `diff --git a/${oldPath} b/${filename}\n--- ${fromPath}\n+++ ${toPath}\n${rawPatch}`;
+}
+
+export class WorkingTreeDirtyError extends Error {
+  constructor() {
+    super("Working tree has uncommitted changes");
+    this.name = "WorkingTreeDirtyError";
+  }
 }
 
 @injectable()
@@ -299,17 +306,19 @@ export class GitService extends TypedEventEmitter<GitServiceEvents> {
     directoryPath: string,
     branchName: string,
   ): Promise<{ previousBranch: string; currentBranch: string }> {
+    const status = await getStatus(directoryPath);
+    if (
+      status.staged.length > 0 ||
+      status.modified.length > 0 ||
+      status.deleted.length > 0
+    ) {
+      throw new WorkingTreeDirtyError();
+    }
+
     const saga = new SwitchBranchSaga();
     const result = await saga.run({ baseDir: directoryPath, branchName });
-    if (result.success) return result.data;
-
-    if (/would be overwritten by checkout/i.test(result.error)) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "Working tree has uncommitted changes",
-      });
-    }
-    throw new Error(result.error);
+    if (!result.success) throw new Error(result.error);
+    return result.data;
   }
 
   public async getChangedFilesHead(

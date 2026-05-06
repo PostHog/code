@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { container } from "../../di/container";
 import { MAIN_TOKENS } from "../../di/tokens";
@@ -82,7 +83,11 @@ import {
   validateRepoInput,
   validateRepoOutput,
 } from "../../services/git/schemas";
-import { type GitService, GitServiceEvent } from "../../services/git/service";
+import {
+  type GitService,
+  GitServiceEvent,
+  WorkingTreeDirtyError,
+} from "../../services/git/service";
 import { publicProcedure, router } from "../trpc";
 
 const getService = () => container.get<GitService>(MAIN_TOKENS.GitService);
@@ -139,9 +144,22 @@ export const gitRouter = router({
   checkoutBranch: publicProcedure
     .input(checkoutBranchInput)
     .output(checkoutBranchOutput)
-    .mutation(({ input }) =>
-      getService().checkoutBranch(input.directoryPath, input.branchName),
-    ),
+    .mutation(async ({ input }) => {
+      try {
+        return await getService().checkoutBranch(
+          input.directoryPath,
+          input.branchName,
+        );
+      } catch (error) {
+        if (error instanceof WorkingTreeDirtyError) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            cause: error,
+          });
+        }
+        throw error;
+      }
+    }),
 
   // File change operations
   getChangedFilesHead: publicProcedure
