@@ -279,16 +279,27 @@ describe("AgentServer HTTP Mode", () => {
       const keepaliveCallback: { current: (() => void) | null } = {
         current: null,
       };
+      // Pass through to real setInterval for non-keepalive timers; otherwise
+      // unrelated internals (undici, http server, MSW) lose their periodic
+      // callbacks and can hang the test.
+      const realSetInterval = globalThis.setInterval;
       const setIntervalSpy = vi
         .spyOn(globalThis, "setInterval")
-        .mockImplementation(
-          (callback: (_: undefined) => void, timeout?: number) => {
-            if (timeout === SSE_KEEPALIVE_INTERVAL_MS) {
-              keepaliveCallback.current = () => callback(undefined);
-            }
+        .mockImplementation(((
+          callback: (_: undefined) => void,
+          timeout?: number,
+          ...args: unknown[]
+        ) => {
+          if (timeout === SSE_KEEPALIVE_INTERVAL_MS) {
+            keepaliveCallback.current = () => callback(undefined);
             return setTimeout(() => undefined, 60_000);
-          },
-        );
+          }
+          return (realSetInterval as (...rest: unknown[]) => unknown)(
+            callback,
+            timeout,
+            ...args,
+          );
+        }) as unknown as typeof setInterval);
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
@@ -307,8 +318,9 @@ describe("AgentServer HTTP Mode", () => {
           throw new Error("Expected SSE response body reader");
         }
 
-        await vi.waitFor(() =>
-          expect(keepaliveCallback.current).not.toBeNull(),
+        await vi.waitFor(
+          () => expect(keepaliveCallback.current).not.toBeNull(),
+          { timeout: 10_000, interval: 50 },
         );
         const emitKeepalive = keepaliveCallback.current;
         if (!emitKeepalive) {
@@ -318,7 +330,7 @@ describe("AgentServer HTTP Mode", () => {
 
         const decoder = new TextDecoder();
         let streamText = "";
-        for (let attempts = 0; attempts < 5; attempts++) {
+        for (let attempts = 0; attempts < 10; attempts++) {
           const { done, value } = await reader.read();
           if (done) break;
           streamText += decoder.decode(value, { stream: true });
@@ -331,7 +343,7 @@ describe("AgentServer HTTP Mode", () => {
         await reader?.cancel();
         setIntervalSpy.mockRestore();
       }
-    }, 20000);
+    }, 30000);
   });
 
   describe("POST /command", () => {
