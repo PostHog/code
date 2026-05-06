@@ -477,6 +477,57 @@ export const Default: Story = {
   },
 };
 
+function buildMcpToolCallData(
+  mcpToolName: string,
+  rawInput: Record<string, unknown>,
+) {
+  return {
+    toolCallId: `story-${Date.now()}`,
+    title: mcpToolName.split("__").slice(2).join("__") || mcpToolName,
+    kind: "other" as const,
+    rawInput,
+    content: [],
+    _meta: { claudeCode: { toolName: mcpToolName } },
+  };
+}
+
+const posthogExecInput = {
+  command: 'call execute-sql {"query":"select 1"}',
+};
+export const McpPostHogExec: Story = {
+  args: {
+    toolCall: buildMcpToolCallData("mcp__posthog__exec", posthogExecInput),
+    options: buildPermissionOptions("mcp__posthog__exec", posthogExecInput),
+  },
+};
+
+const githubIssueInput = {
+  owner: "PostHog",
+  repo: "posthog",
+  title: "Investigate intermittent flake in foo test",
+  body: "Seen on CI runs 12345 and 67890 — appears related to fixture cleanup ordering.",
+  labels: ["bug", "ci"],
+};
+export const McpGithubCreateIssue: Story = {
+  args: {
+    toolCall: buildMcpToolCallData(
+      "mcp__github__create_issue",
+      githubIssueInput,
+    ),
+    options: buildPermissionOptions(
+      "mcp__github__create_issue",
+      githubIssueInput,
+    ),
+  },
+};
+
+export const McpNoArgs: Story = {
+  args: {
+    toolCall: buildMcpToolCallData("mcp__example__ping", {}),
+    options: buildPermissionOptions("mcp__example__ping", {}),
+  },
+};
+
 const exitPlanModeInput = {
   plan: `# Add Dark Mode Support
 
