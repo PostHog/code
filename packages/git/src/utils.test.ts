@@ -102,7 +102,7 @@ describe("parseGitHubUrl", () => {
     });
   });
 
-  it.each([
+  it.each<string | null | undefined>([
     "",
     "not-a-url",
     "https://gitlab.com/PostHog/code.git",
@@ -110,13 +110,10 @@ describe("parseGitHubUrl", () => {
     "git@gitlab.com:PostHog/code.git",
     "https://github.com/PostHog",
     "git@my-alias:PostHog/code.git",
+    null,
+    undefined,
   ])("returns null for %s", (url) => {
     expect(parseGitHubUrl(url)).toBeNull();
-  });
-
-  it("returns null for null/undefined input", () => {
-    expect(parseGitHubUrl(null)).toBeNull();
-    expect(parseGitHubUrl(undefined)).toBeNull();
   });
 });
 
@@ -135,7 +132,7 @@ describe("parsePrUrl", () => {
     expect(parsePrUrl(url)).toEqual({ owner, repo, number });
   });
 
-  it.each([
+  it.each<string | null | undefined>([
     "",
     "not-a-url",
     "https://github.com/PostHog/code",
@@ -143,12 +140,9 @@ describe("parsePrUrl", () => {
     "https://github.com/PostHog/code/pull/abc",
     "https://github.com/PostHog/code/pull/0",
     "https://gitlab.com/PostHog/code/pull/42",
+    null,
+    undefined,
   ])("returns null for %s", (url) => {
     expect(parsePrUrl(url)).toBeNull();
-  });
-
-  it("returns null for null/undefined input", () => {
-    expect(parsePrUrl(null)).toBeNull();
-    expect(parsePrUrl(undefined)).toBeNull();
   });
 });
