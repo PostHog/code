@@ -365,6 +365,34 @@ export interface SuggestedReviewersArtefact {
   created_at: string;
 }
 
+/** Why a user dismissed (suppressed) a report. Stored as the `reason` field of a dismissal artefact's content. */
+export type DismissalReason =
+  | "already_fixed"
+  | "analysis_wrong"
+  | "wontfix_intentional"
+  | "wontfix_irrelevant"
+  | "wrong_reviewer"
+  | "other";
+
+/** Artefact with `type: "dismissal"` — captures the user's rationale when suppressing a report. */
+export interface DismissalArtefact {
+  id: string;
+  type: "dismissal";
+  content: DismissalContent;
+  created_at: string;
+}
+
+export interface DismissalContent {
+  /** May be null for legacy artefacts where only a free-form note was provided. */
+  reason: DismissalReason | null;
+  /** Optional free-form detail provided alongside the reason. */
+  note: string;
+  /** PostHog numeric user id of the dismisser, when available. */
+  user_id: number | null;
+  /** PostHog UUID of the dismisser, when available. */
+  user_uuid: string | null;
+}
+
 export interface SuggestedReviewerCommit {
   sha: string;
   url: string;
@@ -444,6 +472,7 @@ export interface SignalReportArtefactsResponse {
     | ActionabilityJudgmentArtefact
     | SignalFindingArtefact
     | SuggestedReviewersArtefact
+    | DismissalArtefact
   )[];
   count: number;
   unavailableReason?:

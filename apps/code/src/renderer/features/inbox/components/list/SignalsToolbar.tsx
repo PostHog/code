@@ -21,8 +21,9 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IS_DEV } from "@shared/constants/environment";
-import type { SignalReport } from "@shared/types";
+import type { DismissalReason, SignalReport } from "@shared/types";
 import { useState } from "react";
+import { SuppressDialog } from "../SuppressDialog";
 import { FilterSortMenu } from "./FilterSortMenu";
 import { SuggestedReviewerFilterMenu } from "./SuggestedReviewerFilterMenu";
 
@@ -127,8 +128,11 @@ export function SignalsToolbar({
   const pipelineHint =
     pipelineHintParts.length > 0 ? pipelineHintParts.join(" · ") : null;
 
-  const handleConfirmSuppress = async () => {
-    const ok = await suppressSelected();
+  const handleConfirmSuppress = async (dismissal: {
+    reason: DismissalReason;
+    note: string;
+  }) => {
+    const ok = await suppressSelected(dismissal);
     if (ok) {
       setShowSuppressConfirm(false);
     }
@@ -335,47 +339,13 @@ export function SignalsToolbar({
         </Flex>
       </Flex>
 
-      <AlertDialog.Root
+      <SuppressDialog
         open={showSuppressConfirm}
         onOpenChange={setShowSuppressConfirm}
-      >
-        <AlertDialog.Content maxWidth="420px">
-          <AlertDialog.Title>
-            <Flex align="center" gap="2">
-              <EyeSlashIcon size={18} />
-              <Text className="font-bold">Suppress reports</Text>
-            </Flex>
-          </AlertDialog.Title>
-          <AlertDialog.Description className="text-sm">
-            <Text className="text-[13px]">
-              Suppressing a report causes all future signals matched to that
-              report to be ignored. Are you sure?
-            </Text>
-          </AlertDialog.Description>
-          <Flex gap="3" mt="4" justify="end">
-            <AlertDialog.Cancel>
-              <Button variant="soft" color="gray">
-                Cancel
-              </Button>
-            </AlertDialog.Cancel>
-            <AlertDialog.Action>
-              <Button
-                variant="solid"
-                color="orange"
-                onClick={() => void handleConfirmSuppress()}
-                disabled={isSuppressing}
-              >
-                {isSuppressing ? (
-                  <Spinner size="1" />
-                ) : (
-                  <EyeSlashIcon size={14} />
-                )}
-                Suppress
-              </Button>
-            </AlertDialog.Action>
-          </Flex>
-        </AlertDialog.Content>
-      </AlertDialog.Root>
+        reportCount={selectedCount}
+        isSubmitting={isSuppressing}
+        onConfirm={(result) => void handleConfirmSuppress(result)}
+      />
 
       <AlertDialog.Root
         open={showDeleteConfirm}

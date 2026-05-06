@@ -1,10 +1,15 @@
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { inboxStatusLabel } from "@features/inbox/utils/inboxSort";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
-import type { SignalReport } from "@shared/types";
+import type { DismissalReason, SignalReport } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
+
+interface SuppressDismissal {
+  reason: DismissalReason;
+  note: string;
+}
 
 type BulkActionName = "suppress" | "snooze" | "delete" | "reingest";
 
@@ -162,10 +167,21 @@ export function useInboxBulkActions(
   }, [queryClient]);
 
   const suppressMutation = useAuthenticatedMutation(
-    async (client, reportIds: string[]) => {
+    async (
+      client,
+      input: { reportIds: string[]; dismissal?: SuppressDismissal },
+    ) => {
       const results = await Promise.allSettled(
-        reportIds.map((reportId) =>
-          client.updateSignalReportState(reportId, { state: "suppressed" }),
+        input.reportIds.map((reportId) =>
+          client.updateSignalReportState(reportId, {
+            state: "suppressed",
+            ...(input.dismissal
+              ? {
+                  dismissal_reason: input.dismissal.reason,
+                  dismissal_note: input.dismissal.note,
+                }
+              : {}),
+          }),
         ),
       );
 
@@ -300,18 +316,24 @@ export function useInboxBulkActions(
     },
   );
 
-  const suppressSelected = useCallback(async () => {
-    if (eligibility.suppressDisabledReason !== null) {
-      return false;
-    }
+  const suppressSelected = useCallback(
+    async (dismissal?: SuppressDismissal) => {
+      if (eligibility.suppressDisabledReason !== null) {
+        return false;
+      }
 
-    await suppressMutation.mutateAsync(eligibility.selectedIds);
-    return true;
-  }, [
-    eligibility.suppressDisabledReason,
-    eligibility.selectedIds,
-    suppressMutation,
-  ]);
+      await suppressMutation.mutateAsync({
+        reportIds: eligibility.selectedIds,
+        dismissal,
+      });
+      return true;
+    },
+    [
+      eligibility.suppressDisabledReason,
+      eligibility.selectedIds,
+      suppressMutation,
+    ],
+  );
 
   const snoozeSelected = useCallback(async () => {
     if (eligibility.snoozeDisabledReason !== null) {

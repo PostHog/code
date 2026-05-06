@@ -1,4 +1,6 @@
 import { Badge } from "@components/ui/Badge";
+import { Button } from "@components/ui/Button";
+import { useInboxBulkActions } from "@features/inbox/hooks/useInboxBulkActions";
 import {
   useInboxReportArtefacts,
   useInboxReportSignals,
@@ -11,17 +13,26 @@ import {
   CaretDownIcon,
   CaretRightIcon,
   EyeIcon,
+  EyeSlashIcon,
   LinkSimpleIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Box, Flex, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
+import {
+  Box,
+  Flex,
+  ScrollArea,
+  Spinner,
+  Text,
+  Tooltip,
+} from "@radix-ui/themes";
 import { useTRPC } from "@renderer/trpc";
 import { EXTERNAL_LINKS } from "@renderer/utils/links";
 import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
+  DismissalReason,
   PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReport,
@@ -34,6 +45,7 @@ import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { SuppressDialog } from "../SuppressDialog";
 import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
@@ -229,6 +241,21 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
       report.actionability === "immediately_actionable" &&
       report.already_addressed !== true);
 
+  // ── Suppress action ─────────────────────────────────────────────────────
+  const [suppressDialogOpen, setSuppressDialogOpen] = useState(false);
+  const { suppressDisabledReason, isSuppressing, suppressSelected } =
+    useInboxBulkActions([report], [report.id]);
+  const handleConfirmSuppress = useCallback(
+    async (result: { reason: DismissalReason; note: string }) => {
+      const ok = await suppressSelected(result);
+      if (ok) {
+        setSuppressDialogOpen(false);
+        onClose();
+      }
+    },
+    [suppressSelected, onClose],
+  );
+
   const handleCreateImplementationTask = useCallback(() => {
     if (!canCreateImplementationPr) return;
     navigateToTaskInput({
@@ -264,7 +291,20 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
             {report.title ?? "Untitled signal"}
           </Text>
         </Flex>
-        <Flex align="center" gap="1" className="shrink-0">
+        <Flex align="center" gap="2" className="shrink-0">
+          <Button
+            size="1"
+            variant="soft"
+            color="red"
+            className="text-[12px]"
+            tooltipContent="Suppress this report and tell PostHog why"
+            disabledReason={suppressDisabledReason}
+            disabled={suppressDisabledReason !== null || isSuppressing}
+            onClick={() => setSuppressDialogOpen(true)}
+          >
+            {isSuppressing ? <Spinner size="1" /> : <EyeSlashIcon size={12} />}
+            Suppress
+          </Button>
           <Tooltip content="Copy link to this report">
             <button
               type="button"
@@ -540,6 +580,14 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         onCreateImplementationTask={
           canCreateImplementationPr ? handleCreateImplementationTask : undefined
         }
+      />
+
+      <SuppressDialog
+        open={suppressDialogOpen}
+        onOpenChange={setSuppressDialogOpen}
+        reportCount={1}
+        isSubmitting={isSuppressing}
+        onConfirm={(result) => void handleConfirmSuppress(result)}
       />
     </>
   );
