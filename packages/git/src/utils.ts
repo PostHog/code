@@ -165,14 +165,38 @@ export function parsePrUrl(prUrl: string): GitHubPr | null {
 }
 
 export function parseGitHubUrl(url: string): GitHubRepo | null {
-  // Trim whitespace/newlines that git commands may include
   const trimmedUrl = url.trim();
+  const isGitHubHost = (host: string) => /(?:^|\.)github\.com$/i.test(host);
+  const stripGitSuffix = (segment: string) => segment.replace(/\.git$/, "");
 
-  const match =
-    trimmedUrl.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/) ||
-    trimmedUrl.match(/git@github\.com:(.+?)\/(.+?)(\.git)?$/);
+  // SCP-like SSH: git@host:org/repo[.git] (not a parseable URL)
+  const scpMatch = trimmedUrl.match(
+    /^[^@\s]+@([^:\s]+):([^/\s]+)\/([^/\s]+?)(\.git)?$/,
+  );
+  if (scpMatch && isGitHubHost(scpMatch[1])) {
+    return {
+      organization: scpMatch[2],
+      repository: stripGitSuffix(scpMatch[3]),
+    };
+  }
 
-  if (!match) return null;
+  // URL-style (https://, ssh://, git://, ssh over 443, etc.). Use URL parser so
+  // ports and credentials don't pollute the path segments.
+  if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(trimmedUrl)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmedUrl);
+    } catch {
+      return null;
+    }
+    if (!isGitHubHost(parsed.hostname)) return null;
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (segments.length !== 2) return null;
+    return {
+      organization: segments[0],
+      repository: stripGitSuffix(segments[1]),
+    };
+  }
 
-  return { organization: match[1], repository: match[2].replace(/\.git$/, "") };
+  return null;
 }
