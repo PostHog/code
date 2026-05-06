@@ -12,7 +12,7 @@ import { useSeatStore } from "@features/billing/stores/seatStore";
 import { useFeatureFlag } from "@hooks/useFeatureFlag";
 import { trpcClient } from "@renderer/trpc/client";
 import { BILLING_FLAG } from "@shared/constants";
-import { identifyUser, resetUser, setUserGroup } from "@utils/analytics";
+import { identifyUser, resetUser, setUserGroups } from "@utils/analytics";
 import { logger } from "@utils/logger";
 import { queryClient } from "@utils/queryClient";
 import { useEffect } from "react";
@@ -72,21 +72,7 @@ function useAuthAnalyticsIdentity(
       region: authState.cloudRegion ?? "",
     });
 
-    if (currentUser.team) {
-      setUserGroup("project", currentUser.team.uuid, {
-        id: currentUser.team.id,
-        uuid: currentUser.team.uuid,
-        name: currentUser.team.name,
-      });
-    }
-
-    if (currentUser.organization) {
-      setUserGroup("organization", currentUser.organization.id, {
-        id: currentUser.organization.id,
-        name: currentUser.organization.name,
-        slug: currentUser.organization.slug,
-      });
-    }
+    setUserGroups(currentUser);
 
     void trpcClient.analytics.setUserId.mutate({
       userId: distinctId,

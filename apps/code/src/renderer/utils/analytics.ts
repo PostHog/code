@@ -100,18 +100,31 @@ export function identifyUser(
   posthog.identify(userId, properties);
 }
 
-type GroupProperties = Record<string, string | number | boolean | null>;
+type UserWithGroups = {
+  team?: { id: number; uuid: string; name: string } | null;
+  organization?: { id: string; name: string; slug: string } | null;
+};
 
-export function setUserGroup(
-  groupType: "project" | "organization",
-  groupKey: string,
-  properties?: GroupProperties,
-) {
+export function setUserGroups(user: UserWithGroups) {
   if (!isInitialized) {
     return;
   }
 
-  posthog.group(groupType, groupKey, properties);
+  if (user.team) {
+    posthog.group("project", user.team.uuid, {
+      id: user.team.id,
+      uuid: user.team.uuid,
+      name: user.team.name,
+    });
+  }
+
+  if (user.organization) {
+    posthog.group("organization", user.organization.id, {
+      id: user.organization.id,
+      name: user.organization.name,
+      slug: user.organization.slug,
+    });
+  }
 }
 
 export function resetUser() {
