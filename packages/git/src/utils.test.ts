@@ -113,6 +113,11 @@ describe("parseGitHubUrl", () => {
   ])("returns null for %s", (url) => {
     expect(parseGitHubUrl(url)).toBeNull();
   });
+
+  it("returns null for null/undefined input", () => {
+    expect(parseGitHubUrl(null)).toBeNull();
+    expect(parseGitHubUrl(undefined)).toBeNull();
+  });
 });
 
 describe("parsePrUrl", () => {
@@ -140,5 +145,10 @@ describe("parsePrUrl", () => {
     "https://gitlab.com/PostHog/code/pull/42",
   ])("returns null for %s", (url) => {
     expect(parsePrUrl(url)).toBeNull();
+  });
+
+  it("returns null for null/undefined input", () => {
+    expect(parsePrUrl(null)).toBeNull();
+    expect(parsePrUrl(undefined)).toBeNull();
   });
 });

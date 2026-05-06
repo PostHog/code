@@ -160,7 +160,8 @@ export interface GitHubPr {
   number: number;
 }
 
-export function parsePrUrl(prUrl: string): GitHubPr | null {
+export function parsePrUrl(prUrl: string | null | undefined): GitHubPr | null {
+  if (!prUrl) return null;
   let parsed: ReturnType<typeof gitUrlParse>;
   try {
     parsed = gitUrlParse(prUrl.trim());
@@ -175,7 +176,10 @@ export function parsePrUrl(prUrl: string): GitHubPr | null {
   return { owner, repo, number };
 }
 
-export function parseGitHubUrl(url: string): GitHubRepo | null {
+export function parseGitHubUrl(
+  url: string | null | undefined,
+): GitHubRepo | null {
+  if (!url) return null;
   let parsed: ReturnType<typeof gitUrlParse>;
   try {
     parsed = gitUrlParse(url.trim());
