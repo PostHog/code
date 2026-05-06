@@ -1,7 +1,7 @@
 import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import {
   describeGithubConnectError,
-  useGithubUserConnect,
+  useGithubConnect,
 } from "@features/integrations/hooks/useGithubUserConnect";
 import { useRepositoryIntegration } from "@hooks/useIntegrations";
 import {
@@ -25,7 +25,10 @@ export function GitHubIntegrationSection({
     isTimedOut: timedOut,
     hasError: hasConnectError,
     connect: handleConnect,
-  } = useGithubUserConnect({ projectId });
+  } = useGithubConnect({
+    projectId,
+    projectHasTeamIntegration: hasGithubIntegration,
+  });
 
   return (
     <Flex

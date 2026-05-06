@@ -5,7 +5,7 @@ import { FolderPicker } from "@features/folder-picker/components/FolderPicker";
 import {
   describeGithubConnectError,
   invalidateGithubQueries,
-  useGithubUserConnect,
+  useGithubConnect,
 } from "@features/integrations/hooks/useGithubUserConnect";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
 import {
@@ -83,6 +83,11 @@ export function GitIntegrationStep({
     return currentProjectId ?? projects[0]?.id ?? null;
   }, [manuallySelectedProjectId, currentProjectId, projects]);
 
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId),
+    [projects, selectedProjectId],
+  );
+
   const {
     error: connectError,
     isConnecting,
@@ -90,7 +95,10 @@ export function GitIntegrationStep({
     hasError: hasConnectError,
     connect: handleConnectGitHub,
     reset: resetConnect,
-  } = useGithubUserConnect({ projectId: selectedProjectId });
+  } = useGithubConnect({
+    projectId: selectedProjectId,
+    projectHasTeamIntegration: selectedProject?.hasGithubIntegration ?? null,
+  });
   const canTakeAction = !isConnecting && !timedOut && !hasConnectError;
   const defaultPanelMessage = hasConnectError
     ? describeGithubConnectError(connectError)
@@ -99,11 +107,6 @@ export function GitIntegrationStep({
       : isConnecting
         ? "Waiting for GitHub..."
         : "Optional. Unlocks cloud agents and pull request workflows.";
-
-  const selectedProject = useMemo(
-    () => projects.find((p) => p.id === selectedProjectId),
-    [projects, selectedProjectId],
-  );
 
   const {
     data: githubUserIntegrations = [],

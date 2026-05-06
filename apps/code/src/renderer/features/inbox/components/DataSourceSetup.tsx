@@ -3,7 +3,7 @@ import { useAuthStateValue } from "@features/auth/hooks/authQueries";
 import { GitHubRepoPicker } from "@features/folder-picker/components/GitHubRepoPicker";
 import {
   describeGithubConnectError,
-  useGithubUserConnect,
+  useGithubConnect,
 } from "@features/integrations/hooks/useGithubUserConnect";
 import {
   useGithubRepositories,
@@ -86,7 +86,10 @@ function GitHubSetup({ onComplete, onCancel }: SetupFormProps) {
     isTimedOut: timedOut,
     hasError: hasConnectError,
     connect: handleConnectGitHub,
-  } = useGithubUserConnect({ projectId });
+  } = useGithubConnect({
+    projectId,
+    projectHasTeamIntegration: hasGithubIntegration,
+  });
   const selectedIntegrationId = repo
     ? getIntegrationIdForRepo(repo)
     : undefined;
