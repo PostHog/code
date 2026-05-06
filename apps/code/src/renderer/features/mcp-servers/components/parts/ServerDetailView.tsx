@@ -252,35 +252,58 @@ export function ServerDetailView({
               <Text color="gray" className="text-[13px]">
                 Set all:
               </Text>
-              <Tooltip content="Approve all">
+              <Tooltip
+                content={toolSearch ? "Approve filtered" : "Approve all"}
+              >
                 <IconButton
                   variant="soft"
                   color="green"
                   size="1"
-                  disabled={bulkPending || tools.length === 0}
-                  onClick={() => setBulkApproval("approved")}
+                  disabled={bulkPending || filteredTools.length === 0}
+                  onClick={() =>
+                    setBulkApproval(
+                      "approved",
+                      toolSearch ? filteredTools : undefined,
+                    )
+                  }
                 >
                   <Check size={12} weight="bold" />
                 </IconButton>
               </Tooltip>
-              <Tooltip content="Require approval for all">
+              <Tooltip
+                content={
+                  toolSearch
+                    ? "Require approval for filtered"
+                    : "Require approval for all"
+                }
+              >
                 <IconButton
                   variant="soft"
                   color="amber"
                   size="1"
-                  disabled={bulkPending || tools.length === 0}
-                  onClick={() => setBulkApproval("needs_approval")}
+                  disabled={bulkPending || filteredTools.length === 0}
+                  onClick={() =>
+                    setBulkApproval(
+                      "needs_approval",
+                      toolSearch ? filteredTools : undefined,
+                    )
+                  }
                 >
                   <Shield size={12} weight="bold" />
                 </IconButton>
               </Tooltip>
-              <Tooltip content="Block all">
+              <Tooltip content={toolSearch ? "Block filtered" : "Block all"}>
                 <IconButton
                   variant="soft"
                   color="red"
                   size="1"
-                  disabled={bulkPending || tools.length === 0}
-                  onClick={() => setBulkApproval("do_not_use")}
+                  disabled={bulkPending || filteredTools.length === 0}
+                  onClick={() =>
+                    setBulkApproval(
+                      "do_not_use",
+                      toolSearch ? filteredTools : undefined,
+                    )
+                  }
                 >
                   <Prohibit size={12} weight="bold" />
                 </IconButton>
