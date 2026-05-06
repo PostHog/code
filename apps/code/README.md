@@ -32,6 +32,33 @@ pnpm run make
 pnpm run check:write       # Linting & typecheck
 ```
 
+### CLI
+
+A small `posthog-code` CLI ships with this package. It builds a `posthog-code://new?...` deep link and hands it to the OS so the running app receives it via its registered protocol handler.
+
+```bash
+# From any repo directory
+node apps/code/bin/posthog-code.mjs "fix the login redirect"
+
+# Override the repo, force auto-create with explicit options
+node apps/code/bin/posthog-code.mjs \
+  --repo /path/to/repo \
+  --auto \
+  --workspace worktree \
+  --model claude-opus-4-7 \
+  --effort high \
+  "rename foo to bar"
+
+# Help / version
+node apps/code/bin/posthog-code.mjs --help
+```
+
+Without `--auto`, the running app navigates to the new-task screen with the prompt and repo prefilled so you can review and submit. With `--auto`, the task is created immediately using your last-used defaults plus any flags you pass.
+
+For dev builds, set `POSTHOG_CODE_DEV=1` (or pass `--dev`) so the CLI uses the `posthog-code-dev://` scheme.
+
+After installing PostHog Code from the DMG, open the **PostHog Code** menu and click **Install 'posthog-code' Command in PATH** to symlink the CLI at `/usr/local/bin/posthog-code`. macOS will prompt for your password if `/usr/local/bin` isn't user-writable. From then on, you can run `posthog-code` from any terminal.
+
 ### Liquid Glass Icon (macOS 26+)
 
 The app supports macOS liquid glass icons for a modern, layered appearance. The icon configuration is in `build/icon.icon/`.

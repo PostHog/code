@@ -151,7 +151,10 @@ const config: ForgeConfig = {
     icon: "./build/app-icon", // Forge adds .icns/.ico/.png based on platform
     appBundleId: "com.posthog.array",
     appCategoryType: "public.app-category.productivity",
-    extraResource: existsSync("build/Assets.car") ? ["build/Assets.car"] : [],
+    extraResource: [
+      "bin",
+      ...(existsSync("build/Assets.car") ? ["build/Assets.car"] : []),
+    ],
     extendInfo: existsSync("build/Assets.car")
       ? {
           CFBundleIconName: "Icon",

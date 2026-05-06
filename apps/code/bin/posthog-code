@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# posthog-code — start a task in the running PostHog Code app.
+#
+# This is a thin wrapper around posthog-code.mjs. It runs the JS via:
+#   1. The bundled Electron binary acting as Node, when invoked from inside an
+#      installed .app bundle (production / DMG install).
+#   2. System `node`, when invoked from a dev checkout where there's no
+#      Electron binary near the script.
+#
+# Run `posthog-code --help` for usage.
+
+set -e
+
+# Resolve symlinks so we find the real script location when the user invokes
+# this through /usr/local/bin/posthog-code (a symlink into the .app).
+script_path="${BASH_SOURCE[0]}"
+while [ -L "$script_path" ]; do
+  link_dir="$(cd -P "$(dirname "$script_path")" && pwd)"
+  script_path="$(readlink "$script_path")"
+  case "$script_path" in
+    /*) ;;
+    *) script_path="$link_dir/$script_path" ;;
+  esac
+done
+script_dir="$(cd -P "$(dirname "$script_path")" && pwd)"
+js_script="$script_dir/posthog-code.mjs"
+
+if [ ! -f "$js_script" ]; then
+  echo "error: posthog-code.mjs not found next to $script_path" >&2
+  exit 1
+fi
+
+# When bundled inside a macOS .app, the script lives at:
+#   <App>.app/Contents/Resources/bin/posthog-code
+# So <App>.app/Contents/MacOS/PostHog Code is two levels up + Contents/MacOS.
+app_macos_dir="$(cd "$script_dir/../MacOS" 2>/dev/null && pwd || true)"
+if [ -n "$app_macos_dir" ]; then
+  for candidate in "$app_macos_dir"/*; do
+    if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+      ELECTRON_RUN_AS_NODE=1 exec "$candidate" "$js_script" "$@"
+    fi
+  done
+fi
+
+# Fall back to system Node (dev workflow, or non-darwin builds).
+if command -v node >/dev/null 2>&1; then
+  exec node "$js_script" "$@"
+fi
+
+echo "error: no Node interpreter available — install Node.js or run posthog-code from inside an installed PostHog Code build" >&2
+exit 1

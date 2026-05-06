@@ -9,6 +9,7 @@ out/
 .turbo/
 storybook-static
 bin/
+!apps/code/bin/
 
 # Environment
 .env

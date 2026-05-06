@@ -13,11 +13,17 @@ import {
 import { container } from "./di/container";
 import { MAIN_TOKENS } from "./di/tokens";
 import type { AuthService } from "./services/auth/service";
+import type {
+  CliInstallService,
+  InstallResult,
+} from "./services/cli-install/service";
 import type { McpAppsService } from "./services/mcp-apps/service";
 import type { UIService } from "./services/ui/service";
 import type { UpdatesService } from "./services/updates/service";
 import { isDevBuild } from "./utils/env";
 import { getLogFilePath } from "./utils/logger";
+
+type InstallFailure = Extract<InstallResult, { success: false }>;
 
 function findLatestCrashDump(): string | null {
   const pendingDir = path.join(app.getPath("crashDumps"), "pending");
@@ -122,9 +128,53 @@ function buildAppMenu(): MenuItemConstructorOptions {
       { role: "hideOthers" as const },
       { role: "unhide" as const },
       { type: "separator" as const },
+      ...(process.platform === "darwin"
+        ? [
+            {
+              label: "Install 'posthog-code' Command in PATH",
+              click: () => {
+                void installCliCommand();
+              },
+            },
+            { type: "separator" as const },
+          ]
+        : []),
       { role: "quit" as const },
     ],
   };
+}
+
+async function installCliCommand(): Promise<void> {
+  const service = container.get<CliInstallService>(
+    MAIN_TOKENS.CliInstallService,
+  );
+  const result = await service.install().catch(
+    (error: unknown): InstallFailure => ({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }),
+  );
+
+  if (result.success) {
+    await dialog.showMessageBox({
+      type: "info",
+      title: "Command installed",
+      message: "The 'posthog-code' command is now available in your PATH.",
+      detail: `Symlink created at ${result.target}.\n\nRun 'posthog-code --help' from a terminal to get started.`,
+    });
+    return;
+  }
+
+  if (result.canceled) {
+    return;
+  }
+
+  await dialog.showMessageBox({
+    type: "error",
+    title: "Could not install command",
+    message: "Failed to install the 'posthog-code' command.",
+    detail: result.error,
+  });
 }
 
 function buildFileMenu(): MenuItemConstructorOptions {

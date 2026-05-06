@@ -11,4 +11,9 @@ export class ElectronBundledResources implements IBundledResources {
       : app.getAppPath();
     return path.join(base, relativePath);
   }
+
+  public resolveExtraResource(relativePath: string): string {
+    const base = app.isPackaged ? process.resourcesPath : app.getAppPath();
+    return path.join(base, relativePath);
+  }
 }

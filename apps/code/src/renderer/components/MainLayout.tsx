@@ -33,6 +33,7 @@ import { useCommandMenuStore } from "@stores/commandMenuStore";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useShortcutsSheetStore } from "@stores/shortcutsSheetStore";
 import { useCallback, useEffect } from "react";
+import { useNewTaskDeepLink } from "../hooks/useNewTaskDeepLink";
 import { useTaskDeepLink } from "../hooks/useTaskDeepLink";
 import { GlobalEventHandlers } from "./GlobalEventHandlers";
 
@@ -72,6 +73,7 @@ export function MainLayout() {
   useUsageLimitDetection(billingEnabled);
   useIntegrations();
   useTaskDeepLink();
+  useNewTaskDeepLink();
   useInboxDeepLink();
 
   useEffect(() => {

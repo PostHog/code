@@ -3,6 +3,9 @@
   "version": "0.0.0-dev",
   "description": "PostHog Code - desktop task manager",
   "main": ".vite/build/bootstrap.js",
+  "bin": {
+    "posthog-code": "./bin/posthog-code.mjs"
+  },
   "versionHash": "dynamic",
   "engines": {
     "node": ">=22.0.0",
