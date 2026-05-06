@@ -162,13 +162,15 @@ export interface GitHubPr {
 
 export function parsePrUrl(prUrl: string | null | undefined): GitHubPr | null {
   if (!prUrl) return null;
-  let parsed: ReturnType<typeof gitUrlParse>;
+  let parsed: gitUrlParse.GitUrl;
   try {
     parsed = gitUrlParse(prUrl.trim());
   } catch {
     return null;
   }
-  if (parsed.source !== "github.com") return null;
+  if (parsed.source.toLowerCase() !== "github.com" || !parsed.full_name) {
+    return null;
+  }
   const [owner, repo, kind, num] = parsed.full_name.split("/").filter(Boolean);
   if (!owner || !repo || kind !== "pull") return null;
   const number = Number(num);
@@ -180,13 +182,13 @@ export function parseGitHubUrl(
   url: string | null | undefined,
 ): GitHubRepo | null {
   if (!url) return null;
-  let parsed: ReturnType<typeof gitUrlParse>;
+  let parsed: gitUrlParse.GitUrl;
   try {
     parsed = gitUrlParse(url.trim());
   } catch {
     return null;
   }
-  if (parsed.source !== "github.com") return null;
+  if (parsed.source.toLowerCase() !== "github.com") return null;
   if (!parsed.owner || !parsed.name || parsed.owner.includes("/")) return null;
   return {
     organization: parsed.owner,
