@@ -11,7 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import type { SignalReportStatus, SignalReportTask, Task } from "@shared/types";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 type Relationship = SignalReportTask["relationship"];
 
@@ -291,6 +291,7 @@ export function ReportTaskLogs({
   const expandedBar = expanded
     ? (bars.find((b) => b.relationship === expanded && b.task) ?? null)
     : null;
+
   const totalBarsHeight = BAR_HEIGHT * bars.length;
 
   return (
@@ -323,10 +324,11 @@ export function ReportTaskLogs({
           top: expandedBar ? "15%" : `calc(100% - ${totalBarsHeight}px)`,
           transition: "top 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         }}
-        className="pointer-events-none absolute right-0 bottom-0 left-0 flex flex-col border-t border-t-(--gray-6) bg-(--color-background)"
+        className="pointer-events-none absolute right-0 bottom-0 left-0 flex min-h-0 flex-col border-t border-t-(--gray-6) bg-(--color-background)"
       >
-        {/* Stacked header bars — one per task relationship. */}
-        <div className="pointer-events-auto shrink-0">
+        {/* Pipeline order: fixed bar positions; each task type gets its TaskLogsPanel
+            directly beneath its own header (not a shared pane under both bars). */}
+        <div className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden">
           {bars.map((bar, index) => {
             const {
               relationship,
@@ -346,7 +348,7 @@ export function ReportTaskLogs({
             const hideStatusLabel = showRunAction && !task;
 
             const rowClassName = [
-              "flex w-full items-center gap-2 bg-transparent px-2 @md:px-3 @lg:px-4 @xl:px-5 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 py-2 text-left transition-colors",
+              "flex w-full shrink-0 items-center gap-2 bg-transparent px-2 @md:px-3 @lg:px-4 @xl:px-5 @2xl:px-6 @3xl:px-8 @4xl:px-10 @5xl:px-12 py-2 text-left transition-colors",
               index > 0 ? "border-gray-5 border-t" : "",
               isInteractive
                 ? "cursor-pointer hover:bg-gray-2"
@@ -436,7 +438,6 @@ export function ReportTaskLogs({
               showRunAction ? (
                 // biome-ignore lint/a11y/useSemanticElements: a <button> can't contain the nested run-action <button>
                 <div
-                  key={relationship}
                   role="button"
                   tabIndex={0}
                   onClick={toggleExpand}
@@ -454,7 +455,6 @@ export function ReportTaskLogs({
                 </div>
               ) : (
                 <button
-                  key={relationship}
                   type="button"
                   onClick={toggleExpand}
                   className={rowClassName}
@@ -464,40 +464,36 @@ export function ReportTaskLogs({
                 </button>
               )
             ) : (
-              <div
-                key={relationship}
-                className={rowClassName}
-                style={{ height: BAR_HEIGHT }}
-              >
+              <div className={rowClassName} style={{ height: BAR_HEIGHT }}>
                 {rowInner}
               </div>
             );
 
-            return tooltip ? (
-              <Tooltip key={relationship} content={tooltip}>
-                {row}
-              </Tooltip>
+            const rowWrapped = tooltip ? (
+              <Tooltip content={tooltip}>{row}</Tooltip>
             ) : (
               row
             );
-          })}
-        </div>
 
-        {/* Expanded logs body — only rendered for the selected task. */}
-        <div
-          style={{
-            pointerEvents: expandedBar ? "auto" : "none",
-          }}
-          className="min-h-0 flex-1 overflow-hidden"
-        >
-          {expandedBar?.task && (
-            <TaskLogsPanel
-              key={expandedBar.task.id}
-              taskId={expandedBar.task.id}
-              task={expandedBar.task}
-              hideInput={reportStatus !== "ready"}
-            />
-          )}
+            const logPanel =
+              isExpanded && task ? (
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  <TaskLogsPanel
+                    key={`report-logs:${relationship}:${task.id}`}
+                    taskId={task.id}
+                    task={task}
+                    hideInput={reportStatus !== "ready"}
+                  />
+                </div>
+              ) : null;
+
+            return (
+              <Fragment key={relationship}>
+                {rowWrapped}
+                {logPanel}
+              </Fragment>
+            );
+          })}
         </div>
       </div>
     </>

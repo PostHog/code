@@ -15,12 +15,19 @@ import { WorkspaceSetupPrompt } from "@features/task-detail/components/Workspace
 import { useBranchMismatchDialog } from "@features/workspace/hooks/useBranchMismatchDialog";
 import {
   useCreateWorkspace,
+  useWorkspace,
   useWorkspaceLoaded,
+  workspaceApi,
 } from "@features/workspace/hooks/useWorkspace";
 import { Box, Flex } from "@radix-ui/themes";
+import { useTRPC } from "@renderer/trpc/client";
 import type { Task } from "@shared/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { logger } from "@utils/logger";
 import { getTaskRepository } from "@utils/repository";
 import { useCallback, useEffect } from "react";
+
+const bootstrapCloudLog = logger.scope("task-logs-panel-bootstrap");
 
 interface TaskLogsPanelProps {
   taskId: string;
@@ -30,7 +37,10 @@ interface TaskLogsPanelProps {
 }
 
 export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
+  const trpcReact = useTRPC();
+  const queryClient = useQueryClient();
   const isWorkspaceLoaded = useWorkspaceLoaded();
+  const persistedWorkspace = useWorkspace(taskId);
   const { isPending: isCreatingWorkspace } = useCreateWorkspace();
   const repoKey = getTaskRepository(task);
   const { folders } = useFolders();
@@ -93,6 +103,50 @@ export function TaskLogsPanel({ taskId, task, hideInput }: TaskLogsPanelProps) {
   useEffect(() => {
     requestFocus(taskId);
   }, [taskId, requestFocus]);
+
+  useEffect(() => {
+    if (!isWorkspaceLoaded) return;
+    if (persistedWorkspace) return;
+    if (task.latest_run?.environment !== "cloud") return;
+    if (isSuspended) return;
+    if (isProvisioning) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await workspaceApi.create({
+          taskId,
+          mainRepoPath: "",
+          folderId: "",
+          folderPath: "",
+          mode: "cloud",
+        });
+      } catch (error) {
+        bootstrapCloudLog.warn("Cloud workspace bootstrap failed", {
+          taskId,
+          error,
+        });
+      }
+      if (!cancelled) {
+        void queryClient.invalidateQueries(
+          trpcReact.workspace.getAll.pathFilter(),
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isProvisioning,
+    isSuspended,
+    isWorkspaceLoaded,
+    persistedWorkspace,
+    queryClient,
+    task.latest_run?.environment,
+    taskId,
+    trpcReact,
+  ]);
 
   const handleRestoreWorktree = useCallback(async () => {
     await restoreTask(taskId);
