@@ -9,15 +9,21 @@ const log = logger.scope("task-link-service");
 
 export const TaskLinkEvent = {
   OpenTask: "openTask",
+  CreateTask: "createTask",
 } as const;
 
 export interface TaskLinkEvents {
   [TaskLinkEvent.OpenTask]: { taskId: string; taskRunId?: string };
+  [TaskLinkEvent.CreateTask]: { prompt?: string };
 }
 
 export interface PendingDeepLink {
   taskId: string;
   taskRunId?: string;
+}
+
+export interface PendingNewTaskDeepLink {
+  prompt?: string;
 }
 
 @injectable()
@@ -27,6 +33,7 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
    * This handles the case where the app is launched via deep link.
    */
   private pendingDeepLink: PendingDeepLink | null = null;
+  private pendingNewTaskDeepLink: PendingNewTaskDeepLink | null = null;
 
   constructor(
     @inject(MAIN_TOKENS.DeepLinkService)
@@ -38,6 +45,9 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
 
     this.deepLinkService.registerHandler("task", (path) =>
       this.handleTaskLink(path),
+    );
+    this.deepLinkService.registerHandler("new", (_path, searchParams) =>
+      this.handleNewTaskLink(searchParams),
     );
   }
 
@@ -80,6 +90,34 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
     return true;
   }
 
+  private handleNewTaskLink(searchParams: URLSearchParams): boolean {
+    // posthog-code://new?prompt=...
+    const rawPrompt = searchParams.get("prompt");
+    const prompt = rawPrompt?.trim() ? rawPrompt : undefined;
+
+    const hasListeners = this.listenerCount(TaskLinkEvent.CreateTask) > 0;
+
+    if (hasListeners) {
+      log.info(
+        `Emitting create task event: hasPrompt=${prompt !== undefined}, promptLength=${prompt?.length ?? 0}`,
+      );
+      this.emit(TaskLinkEvent.CreateTask, { prompt });
+    } else {
+      log.info(
+        `Queueing create task link (renderer not ready): hasPrompt=${prompt !== undefined}`,
+      );
+      this.pendingNewTaskDeepLink = { prompt };
+    }
+
+    log.info("Deep link focusing window for new task");
+    if (this.mainWindow.isMinimized()) {
+      this.mainWindow.restore();
+    }
+    this.mainWindow.focus();
+
+    return true;
+  }
+
   /**
    * Get and clear any pending deep link.
    * Called by renderer on mount to handle deep links that arrived before it was ready.
@@ -90,6 +128,17 @@ export class TaskLinkService extends TypedEventEmitter<TaskLinkEvents> {
     if (pending) {
       log.info(
         `Consumed pending task link: taskId=${pending.taskId}, taskRunId=${pending.taskRunId ?? "none"}`,
+      );
+    }
+    return pending;
+  }
+
+  public consumePendingNewTaskDeepLink(): PendingNewTaskDeepLink | null {
+    const pending = this.pendingNewTaskDeepLink;
+    this.pendingNewTaskDeepLink = null;
+    if (pending) {
+      log.info(
+        `Consumed pending new task link: hasPrompt=${pending.prompt !== undefined}`,
       );
     }
     return pending;

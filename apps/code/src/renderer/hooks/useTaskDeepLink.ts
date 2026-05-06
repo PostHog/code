@@ -28,12 +28,16 @@ const taskKeys = {
 export function useTaskDeepLink() {
   const trpcReact = useTRPC();
   const navigateToTask = useNavigationStore((state) => state.navigateToTask);
+  const navigateToTaskInput = useNavigationStore(
+    (state) => state.navigateToTaskInput,
+  );
   const { markAsViewed } = useTaskViewed();
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStateValue(
     (state) => state.status === "authenticated",
   );
   const hasFetchedPending = useRef(false);
+  const hasFetchedPendingNewTask = useRef(false);
 
   const handleOpenTask = useCallback(
     async (taskId: string, taskRunId?: string) => {
@@ -87,6 +91,16 @@ export function useTaskDeepLink() {
     [navigateToTask, markAsViewed, queryClient],
   );
 
+  const handleCreateTask = useCallback(
+    (prompt: string | undefined) => {
+      log.info(
+        `Opening new task input from deep link: hasPrompt=${prompt !== undefined}`,
+      );
+      navigateToTaskInput({ initialPrompt: prompt });
+    },
+    [navigateToTaskInput],
+  );
+
   // Check for pending deep link on mount (for cold start via deep link)
   useEffect(() => {
     if (!isAuthenticated || hasFetchedPending.current) return;
@@ -109,6 +123,28 @@ export function useTaskDeepLink() {
     fetchPending();
   }, [isAuthenticated, handleOpenTask]);
 
+  // Check for pending new-task deep link on mount
+  useEffect(() => {
+    if (!isAuthenticated || hasFetchedPendingNewTask.current) return;
+
+    const fetchPending = async () => {
+      hasFetchedPendingNewTask.current = true;
+      try {
+        const pending = await trpcClient.deepLink.getPendingNewTaskLink.query();
+        if (pending) {
+          log.info(
+            `Found pending new-task deep link: hasPrompt=${pending.prompt !== undefined}`,
+          );
+          handleCreateTask(pending.prompt);
+        }
+      } catch (error) {
+        log.error("Failed to check for pending new-task deep link:", error);
+      }
+    };
+
+    fetchPending();
+  }, [isAuthenticated, handleCreateTask]);
+
   // Subscribe to deep link events (for warm start via deep link)
   useSubscription(
     trpcReact.deepLink.onOpenTask.subscriptionOptions(undefined, {
@@ -118,6 +154,17 @@ export function useTaskDeepLink() {
         );
         if (!data?.taskId) return;
         handleOpenTask(data.taskId, data.taskRunId);
+      },
+    }),
+  );
+
+  useSubscription(
+    trpcReact.deepLink.onCreateTask.subscriptionOptions(undefined, {
+      onData: (data) => {
+        log.info(
+          `Received new-task deep link event: hasPrompt=${data?.prompt !== undefined}`,
+        );
+        handleCreateTask(data?.prompt);
       },
     }),
   );

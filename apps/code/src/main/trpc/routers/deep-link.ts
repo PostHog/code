@@ -7,6 +7,7 @@ import {
 } from "../../services/inbox-link/service";
 import {
   type PendingDeepLink,
+  type PendingNewTaskDeepLink,
   TaskLinkEvent,
   type TaskLinkService,
 } from "../../services/task-link/service";
@@ -42,6 +43,30 @@ export const deepLinkRouter = router({
     const service = getTaskLinkService();
     return service.consumePendingDeepLink();
   }),
+
+  /**
+   * Subscribe to new-task deep link events.
+   * Emits an optional prompt when posthog-code://new?prompt=... is opened.
+   */
+  onCreateTask: publicProcedure.subscription(async function* (opts) {
+    const service = getTaskLinkService();
+    const iterable = service.toIterable(TaskLinkEvent.CreateTask, {
+      signal: opts.signal,
+    });
+    for await (const data of iterable) {
+      yield data;
+    }
+  }),
+
+  /**
+   * Get any pending new-task deep link that arrived before renderer was ready.
+   */
+  getPendingNewTaskLink: publicProcedure.query(
+    (): PendingNewTaskDeepLink | null => {
+      const service = getTaskLinkService();
+      return service.consumePendingNewTaskDeepLink();
+    },
+  ),
 
   /**
    * Subscribe to inbox report deep link events.
