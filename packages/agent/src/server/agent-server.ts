@@ -12,6 +12,7 @@ import {
   PROTOCOL_VERSION,
 } from "@agentclientprotocol/sdk";
 import { type ServerType, serve } from "@hono/node-server";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { getCurrentBranch } from "@posthog/git/queries";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -54,8 +55,10 @@ import {
   normalizeCloudPromptContent,
   promptBlocksToText,
 } from "./cloud-prompt";
+import { isLoopbackAddress, runGh } from "./gh-exec";
 import { type JwtPayload, JwtValidationError, validateJwt } from "./jwt";
 import {
+  ghRequestSchema,
   handoffLocalGitStateSchema,
   jsonRpcRequestSchema,
   validateCommandParams,
@@ -485,6 +488,43 @@ export class AgentServer {
       }
     });
 
+    // Sandbox-local exec for `gh`. Codex agents run in an isolated child process
+    // whose environment is captured at spawn time, so refreshing GH_TOKEN in the
+    // agent server doesn't reach them. Their gh-wrapper script calls this route
+    // to run gh against the agent server's freshly-refreshed env. Loopback-only;
+    // intentionally not JWT-protected so the wrapper has nothing to forward.
+    app.post("/gh", async (c) => {
+      const remote = getConnInfo(c).remote.address;
+      if (!isLoopbackAddress(remote)) {
+        this.logger.warn("Rejected non-loopback /gh request", { remote });
+        return c.json({ error: "Forbidden" }, 403);
+      }
+
+      const rawBody = await c.req.json().catch(() => null);
+      const parsed = ghRequestSchema.safeParse(rawBody);
+      if (!parsed.success) {
+        return c.json({ error: parsed.error.message }, 400);
+      }
+
+      const { args, cwd, timeoutMs } = parsed.data;
+      try {
+        const result = await runGh(args, {
+          cwd: cwd ?? this.config.repositoryPath ?? process.cwd(),
+          timeoutMs: timeoutMs ?? 60_000,
+          logger: this.logger,
+        });
+        return c.json(result);
+      } catch (error) {
+        this.logger.error("Failed to run gh", error);
+        return c.json(
+          {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+          500,
+        );
+      }
+    });
+
     app.notFound((c) => {
       return c.json({ error: "Not found" }, 404);
     });
@@ -727,6 +767,15 @@ export class AgentServer {
           POSTHOG_METHODS.REFRESH_SESSION,
           { mcpServers },
         );
+      }
+
+      case "posthog/set_token":
+      case "set_token": {
+        const token = params.token as string;
+        process.env.GH_TOKEN = token;
+        process.env.GITHUB_TOKEN = token;
+        this.logger.info("GH token refreshed");
+        return { updated: true };
       }
 
       case POSTHOG_NOTIFICATIONS.PERMISSION_RESPONSE:

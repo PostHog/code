@@ -452,6 +452,88 @@ describe("AgentServer HTTP Mode", () => {
     }, 20000);
   });
 
+  describe("set_token command", () => {
+    // Build an AgentServer that is NOT stored in the outer `server` ref so the
+    // afterEach hook doesn't try to clean up its (fake) session and cascade
+    // cleanup failures into the test output.
+    const buildBareServer = () => {
+      const bare = new AgentServer({
+        port,
+        jwtPublicKey: TEST_PUBLIC_KEY,
+        repositoryPath: repo.path,
+        apiUrl: "http://localhost:8000",
+        apiKey: "test-api-key",
+        projectId: 1,
+        mode: "interactive",
+        taskId: "test-task-id",
+        runId: "test-run-id",
+      }) as unknown as {
+        session: unknown;
+        executeCommand(
+          method: string,
+          params: Record<string, unknown>,
+        ): Promise<unknown>;
+      };
+      // Pass executeCommand's "no active session" guard.
+      bare.session = {};
+      return bare;
+    };
+
+    it.each([
+      { method: "set_token", token: "ghp_refreshed" },
+      { method: "posthog/set_token", token: "ghp_aliased" },
+    ])(
+      "updates GH_TOKEN and GITHUB_TOKEN via $method",
+      async ({ method, token }) => {
+        const previousGh = process.env.GH_TOKEN;
+        const previousGithub = process.env.GITHUB_TOKEN;
+        delete process.env.GH_TOKEN;
+        delete process.env.GITHUB_TOKEN;
+
+        try {
+          const result = await buildBareServer().executeCommand(method, {
+            token,
+          });
+
+          expect(result).toEqual({ updated: true });
+          expect(process.env.GH_TOKEN).toBe(token);
+          expect(process.env.GITHUB_TOKEN).toBe(token);
+        } finally {
+          if (previousGh === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = previousGh;
+          if (previousGithub === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = previousGithub;
+        }
+      },
+    );
+  });
+
+  describe("POST /gh", () => {
+    // Each case rejects with 400 (validation), proving 1) the body schema is
+    // enforced and 2) the route doesn't require a JWT — a 401 would mean the
+    // route is gated, which would defeat the wrapper-script use case.
+    it.each([
+      { name: "malformed JSON", body: "not-json" },
+      { name: "missing args", body: JSON.stringify({ cwd: "/tmp" }) },
+      { name: "empty args array", body: JSON.stringify({ args: [] }) },
+      { name: "empty body (no JWT required)", body: JSON.stringify({}) },
+    ])(
+      "rejects $name with 400",
+      async ({ body }) => {
+        await createServer().start();
+
+        const response = await fetch(`http://localhost:${port}/gh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+
+        expect(response.status).toBe(400);
+      },
+      20000,
+    );
+  });
+
   describe("session lifecycle", () => {
     it("emits _posthog/run_started after session initialization", async () => {
       await createServer().start();
