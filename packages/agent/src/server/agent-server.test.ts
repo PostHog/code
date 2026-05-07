@@ -303,12 +303,41 @@ describe("AgentServer HTTP Mode", () => {
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
-        await createServer().start();
+        const testServer = createServer() as unknown as {
+          app: {
+            fetch: (request: Request) => Promise<Response> | Response;
+          };
+          session: unknown;
+        };
+        testServer.session = {
+          payload: {
+            run_id: "test-run-id",
+            task_id: "test-task-id",
+            team_id: 1,
+            user_id: 1,
+            distinct_id: "test-distinct-id",
+            mode: "interactive",
+          },
+          acpSessionId: "session-1",
+          acpConnection: { cleanup: vi.fn().mockResolvedValue(undefined) },
+          clientConnection: {},
+          sseController: null,
+          deviceInfo: { type: "cloud" },
+          logWriter: {
+            appendRawLine: vi.fn(),
+            flush: vi.fn().mockResolvedValue(undefined),
+          },
+          permissionMode: "default",
+          hasDesktopConnected: false,
+        };
+
         const token = createToken();
 
-        const response = await fetch(`http://localhost:${port}/events`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await testServer.app.fetch(
+          new Request(`http://localhost:${port}/events`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        );
 
         expect(response.status).toBe(200);
         expect(response.body).not.toBeNull();
@@ -341,6 +370,7 @@ describe("AgentServer HTTP Mode", () => {
         expect(streamText).not.toContain('"type":"keepalive"');
       } finally {
         await reader?.cancel();
+        server = undefined;
         setIntervalSpy.mockRestore();
       }
     }, 30000);
