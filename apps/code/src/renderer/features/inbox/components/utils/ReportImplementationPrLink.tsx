@@ -7,7 +7,7 @@ export type ImplementationPrLinkSize = "sm" | "md";
 
 interface ReportImplementationPrLinkProps {
   prUrl: string;
-  /** `sm`: inbox list row. `md`: implementation task panel bar. */
+  /** `sm`: inbox list row. `md`: report detail header or implementation task bar. */
   size?: ImplementationPrLinkSize;
   /**
    * When true, skips the tRPC/GitHub status fetch and renders the badge in the

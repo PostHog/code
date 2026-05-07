@@ -1,9 +1,15 @@
 import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
 import type { PermissionMode } from "@posthog/agent/execution-mode";
+import {
+  DISMISSAL_REASON_OPTIONS,
+  type DismissalReason,
+  LEGACY_DISMISSAL_REASONS,
+} from "@shared/dismissalReasons";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
   AvailableSuggestedReviewersResponse,
+  DismissalArtefact,
   PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
@@ -262,7 +268,13 @@ type AnyArtefact =
   | PriorityJudgmentArtefact
   | ActionabilityJudgmentArtefact
   | SignalFindingArtefact
-  | SuggestedReviewersArtefact;
+  | SuggestedReviewersArtefact
+  | DismissalArtefact;
+
+const DISMISSAL_REASONS = new Set<DismissalReason>([
+  ...DISMISSAL_REASON_OPTIONS.map((o) => o.value),
+  ...LEGACY_DISMISSAL_REASONS,
+]);
 
 const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);
 
@@ -367,6 +379,35 @@ function normalizeSignalFindingArtefact(
   };
 }
 
+function normalizeDismissalArtefact(
+  value: Record<string, unknown>,
+): DismissalArtefact | null {
+  const id = optionalString(value.id);
+  if (!id) return null;
+
+  const contentValue = isObjectRecord(value.content) ? value.content : null;
+  if (!contentValue) return null;
+
+  const rawReason = optionalString(contentValue.reason);
+  const reason =
+    rawReason && DISMISSAL_REASONS.has(rawReason as DismissalReason)
+      ? (rawReason as DismissalReason)
+      : null;
+
+  return {
+    id,
+    type: "dismissal",
+    created_at: optionalString(value.created_at) ?? new Date(0).toISOString(),
+    content: {
+      reason,
+      note: optionalString(contentValue.note) ?? "",
+      user_id:
+        typeof contentValue.user_id === "number" ? contentValue.user_id : null,
+      user_uuid: optionalString(contentValue.user_uuid),
+    },
+  };
+}
+
 function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
   if (!isObjectRecord(value)) {
     return null;
@@ -381,6 +422,9 @@ function normalizeSignalReportArtefact(value: unknown): AnyArtefact | null {
   }
   if (dispatchType === "priority_judgment") {
     return normalizePriorityJudgmentArtefact(value);
+  }
+  if (dispatchType === "dismissal") {
+    return normalizeDismissalArtefact(value);
   }
 
   const id = optionalString(value.id);
@@ -2026,6 +2070,9 @@ export class PostHogAPIClient {
       snooze_for?: number;
       reset_weight?: boolean;
       error?: string;
+      /** Optional dismissal feedback persisted as a `dismissal` artefact. Only honored when state == "suppressed". */
+      dismissal_reason?: DismissalReason;
+      dismissal_note?: string;
     },
   ): Promise<SignalReport> {
     const teamId = await this.getTeamId();
