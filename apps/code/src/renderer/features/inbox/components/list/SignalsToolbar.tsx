@@ -1,16 +1,24 @@
-import { Button } from "@components/ui/Button";
+import { Button, type ButtonProps } from "@components/ui/Button";
+import { Tooltip as ActionTooltip } from "@components/ui/Tooltip";
 import { useInboxBulkActions } from "@features/inbox/hooks/useInboxBulkActions";
 import { useInboxSignalsFilterStore } from "@features/inbox/stores/inboxSignalsFilterStore";
 import { INBOX_REFETCH_INTERVAL_MS } from "@features/inbox/utils/inboxConstants";
 import {
   ArrowClockwiseIcon,
+  DotsThree,
   EyeSlashIcon,
   GearSixIcon,
   MagnifyingGlass,
-  Pause,
+  PauseIcon,
   ThumbsDownIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@posthog/quill";
 import {
   AlertDialog,
   Box,
@@ -23,6 +31,7 @@ import {
 } from "@radix-ui/themes";
 import { IS_DEV } from "@shared/constants/environment";
 import type { SignalReport } from "@shared/types";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { FilterSortMenu } from "./FilterSortMenu";
 import { SuggestedReviewerFilterMenu } from "./SuggestedReviewerFilterMenu";
@@ -79,6 +88,68 @@ function formatPauseRemaining(pausedUntil: string): string {
 
 const inboxLivePollingTooltip = `Inbox is focused – syncing reports every ${Math.round(INBOX_REFETCH_INTERVAL_MS / 1000)}s…`;
 
+function bulkMenuItemTooltip(
+  primary: string,
+  disabled: boolean,
+  disabledReason: string | null | undefined,
+): ReactNode {
+  const reason =
+    disabled && disabledReason != null && disabledReason !== ""
+      ? disabledReason.trim().replace(/\.$/, "")
+      : null;
+  if (reason) {
+    return (
+      <Flex direction="column" gap="2" className="max-w-[280px]">
+        <Text as="span" className="text-(--gray-12) text-[13px]">
+          {primary}
+        </Text>
+        <Text as="span" color="gray" className="text-[13px] leading-[1.45]">
+          Disabled because {reason}.
+        </Text>
+      </Flex>
+    );
+  }
+  return primary;
+}
+
+type InboxBulkActionButtonProps = Pick<
+  ButtonProps,
+  "tooltipContent" | "disabledReason" | "disabled" | "onClick"
+> & {
+  color: NonNullable<ButtonProps["color"]>;
+  loading: boolean;
+  icon: ReactNode;
+  label: string;
+};
+
+function InboxBulkActionButton({
+  color,
+  loading,
+  icon,
+  label,
+  tooltipContent,
+  disabledReason,
+  disabled,
+  onClick,
+}: InboxBulkActionButtonProps) {
+  return (
+    <Button
+      type="button"
+      size="1"
+      variant="soft"
+      color={color}
+      className="text-[12px]"
+      tooltipContent={tooltipContent}
+      disabledReason={disabledReason}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {loading ? <Spinner size="1" /> : icon}
+      {label}
+    </Button>
+  );
+}
+
 export function SignalsToolbar({
   totalCount,
   filteredCount,
@@ -100,6 +171,7 @@ export function SignalsToolbar({
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
 
   const {
     selectedCount,
@@ -141,6 +213,16 @@ export function SignalsToolbar({
       : snoozeDisabledReason !== null && suppressDisabledReason !== null
         ? `${suppressDisabledReason} · ${snoozeDisabledReason}`
         : null;
+
+  const reingestMenuPrimary =
+    selectedCount > 1
+      ? "Reingest selected reports to gather more context"
+      : "Reingest this report to gather more context";
+
+  const deleteMenuPrimary =
+    selectedCount > 1
+      ? "Delete selected reports and their signals"
+      : "Delete this report and its signals";
 
   const handleBulkSuppress = async () => {
     await suppressSelected();
@@ -281,92 +363,164 @@ export function SignalsToolbar({
             </label>
           </Tooltip>
           <Flex gap="2" align="center" wrap="wrap">
+            <DropdownMenu
+              open={moreActionsOpen}
+              onOpenChange={setMoreActionsOpen}
+            >
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label="More report actions"
+                    className={`flex h-6 min-w-6 items-center justify-center gap-1 rounded-sm px-1.5 transition-colors hover:bg-gray-3 hover:text-gray-12 ${
+                      moreActionsOpen
+                        ? "bg-gray-3 text-gray-12"
+                        : "text-gray-10"
+                    }`}
+                  >
+                    <DotsThree size={14} weight="bold" />
+                  </button>
+                }
+              />
+              <DropdownMenuContent
+                align="end"
+                className="min-w-[180px] overflow-visible"
+              >
+                {IS_DEV ? (
+                  reingestDisabledReason !== null || isReingesting ? (
+                    <ActionTooltip
+                      side="right"
+                      content={bulkMenuItemTooltip(
+                        reingestMenuPrimary,
+                        true,
+                        reingestDisabledReason,
+                      )}
+                    >
+                      <span className="inline-flex w-full cursor-not-allowed text-gray-10 opacity-50">
+                        <DropdownMenuItem
+                          className="pointer-events-none w-full"
+                          disabled
+                        >
+                          <span className="flex items-center gap-2">
+                            {isReingesting ? (
+                              <Spinner size="1" />
+                            ) : (
+                              <ArrowClockwiseIcon size={14} />
+                            )}
+                            Reingest
+                          </span>
+                        </DropdownMenuItem>
+                      </span>
+                    </ActionTooltip>
+                  ) : (
+                    <ActionTooltip
+                      side="right"
+                      content={bulkMenuItemTooltip(
+                        reingestMenuPrimary,
+                        false,
+                        null,
+                      )}
+                    >
+                      <DropdownMenuItem
+                        className="w-full"
+                        onClick={() => {
+                          void handleReingest();
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <ArrowClockwiseIcon size={14} />
+                          Reingest
+                        </span>
+                      </DropdownMenuItem>
+                    </ActionTooltip>
+                  )
+                ) : null}
+                {deleteDisabledReason !== null || isDeleting ? (
+                  <ActionTooltip
+                    side="right"
+                    content={bulkMenuItemTooltip(
+                      deleteMenuPrimary,
+                      true,
+                      deleteDisabledReason,
+                    )}
+                  >
+                    <span className="inline-flex w-full cursor-not-allowed text-(--red-11) opacity-50">
+                      <DropdownMenuItem
+                        className="pointer-events-none w-full"
+                        disabled
+                        variant="destructive"
+                      >
+                        <span className="flex items-center gap-2">
+                          {isDeleting ? (
+                            <Spinner size="1" />
+                          ) : (
+                            <TrashIcon size={14} />
+                          )}
+                          Delete
+                        </span>
+                      </DropdownMenuItem>
+                    </span>
+                  </ActionTooltip>
+                ) : (
+                  <ActionTooltip
+                    side="right"
+                    content={bulkMenuItemTooltip(
+                      deleteMenuPrimary,
+                      false,
+                      null,
+                    )}
+                  >
+                    <DropdownMenuItem
+                      variant="destructive"
+                      className="w-full text-(--red-11) [&_svg]:text-(--red-11)"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <TrashIcon size={14} />
+                        Delete
+                      </span>
+                    </DropdownMenuItem>
+                  </ActionTooltip>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {multiSelectBulkActions ? (
               <>
-                <Button
-                  size="1"
-                  variant="soft"
+                <InboxBulkActionButton
                   color="gray"
-                  className="text-[12px]"
+                  loading={isSnoozing}
+                  icon={<PauseIcon size={12} />}
+                  label="Snooze"
                   tooltipContent="Wait for selected reports to gather more context"
                   disabledReason={snoozeDisabledReason}
                   disabled={snoozeDisabledReason !== null || isSnoozing}
                   onClick={() => void handleSnooze()}
-                >
-                  {isSnoozing ? <Spinner size="1" /> : <Pause size={12} />}
-                  Snooze
-                </Button>
-                <Button
-                  size="1"
-                  variant="soft"
+                />
+                <InboxBulkActionButton
                   color="gray"
-                  className="text-[12px]"
+                  loading={isSuppressing}
+                  icon={<EyeSlashIcon size={12} />}
+                  label="Suppress"
                   tooltipContent="Suppress selected reports — no confirmation dialog"
                   disabledReason={suppressDisabledReason}
                   disabled={suppressDisabledReason !== null || isSuppressing}
                   onClick={() => void handleBulkSuppress()}
-                >
-                  {isSuppressing ? (
-                    <Spinner size="1" />
-                  ) : (
-                    <EyeSlashIcon size={12} />
-                  )}
-                  Suppress
-                </Button>
+                />
               </>
             ) : (
-              <Button
-                size="1"
-                variant="soft"
+              <InboxBulkActionButton
                 color="gray"
-                className="text-[12px]"
-                tooltipContent="Snooze or permanently dismiss — pick a reason"
+                loading={isDismissMutationPending}
+                icon={<ThumbsDownIcon size={12} />}
+                label="Dismiss"
+                tooltipContent="Snooze or permanently dismiss"
                 disabledReason={singleDismissDisabledReason}
                 disabled={
                   singleDismissDisabledReason !== null ||
                   isDismissMutationPending
                 }
                 onClick={() => onOpenDismissDialog?.()}
-              >
-                {isDismissMutationPending ? (
-                  <Spinner size="1" />
-                ) : (
-                  <ThumbsDownIcon size={12} />
-                )}
-                Dismiss
-              </Button>
-            )}
-            <Button
-              size="1"
-              variant="soft"
-              color="red"
-              className="text-[12px]"
-              tooltipContent="Delete this report and its signals"
-              disabledReason={deleteDisabledReason}
-              disabled={deleteDisabledReason !== null || isDeleting}
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              {isDeleting ? <Spinner size="1" /> : <TrashIcon size={12} />}
-              Delete
-            </Button>
-            {IS_DEV && (
-              <Button
-                size="1"
-                variant="soft"
-                color="blue"
-                className="text-[12px]"
-                tooltipContent="DEV-ONLY: Reingest this report to gather more context"
-                disabledReason={reingestDisabledReason}
-                disabled={reingestDisabledReason !== null || isReingesting}
-                onClick={() => void handleReingest()}
-              >
-                {isReingesting ? (
-                  <Spinner size="1" />
-                ) : (
-                  <ArrowClockwiseIcon size={12} />
-                )}
-                Reingest
-              </Button>
+              />
             )}
           </Flex>
         </Flex>
