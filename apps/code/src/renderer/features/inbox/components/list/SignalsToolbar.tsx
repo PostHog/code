@@ -172,23 +172,26 @@ function BulkOverflowMenuItem({
   onSelect,
 }: BulkOverflowMenuItemProps) {
   const tooltip = bulkMenuItemTooltip(menuPrimary, disabled, disabledReason);
-  const disabledWrapperClass = destructive
-    ? "inline-flex w-full cursor-not-allowed text-(--red-11) opacity-50"
-    : "inline-flex w-full cursor-not-allowed text-gray-10 opacity-50";
+  const content = (
+    <span className="flex items-center gap-2">
+      {loading ? <Spinner size="1" /> : icon}
+      {label}
+    </span>
+  );
+  const variant = destructive ? "destructive" : undefined;
 
   if (disabled) {
     return (
       <ActionTooltip side="right" content={tooltip}>
-        <span className={disabledWrapperClass}>
+        <span
+          className={`inline-flex w-full cursor-not-allowed opacity-50 ${destructive ? "text-(--red-11)" : "text-gray-10"}`}
+        >
           <DropdownMenuItem
             className="pointer-events-none w-full"
             disabled
-            variant={destructive ? "destructive" : undefined}
+            variant={variant}
           >
-            <span className="flex items-center gap-2">
-              {loading ? <Spinner size="1" /> : icon}
-              {label}
-            </span>
+            {content}
           </DropdownMenuItem>
         </span>
       </ActionTooltip>
@@ -198,7 +201,7 @@ function BulkOverflowMenuItem({
   return (
     <ActionTooltip side="right" content={tooltip}>
       <DropdownMenuItem
-        variant={destructive ? "destructive" : undefined}
+        variant={variant}
         className={
           destructive
             ? "w-full text-(--red-11) [&_svg]:text-(--red-11)"
@@ -208,10 +211,7 @@ function BulkOverflowMenuItem({
           onSelect?.();
         }}
       >
-        <span className="flex items-center gap-2">
-          {icon}
-          {label}
-        </span>
+        {content}
       </DropdownMenuItem>
     </ActionTooltip>
   );
@@ -296,10 +296,6 @@ export function SignalsToolbar({
     if (ok) {
       setShowDeleteConfirm(false);
     }
-  };
-
-  const handleSnooze = async () => {
-    await snoozeSelected();
   };
 
   const visibleReportIds = reports.map((report) => report.id);
@@ -478,7 +474,7 @@ export function SignalsToolbar({
                   tooltipContent="Wait for selected reports to gather more context"
                   disabledReason={snoozeDisabledReason}
                   disabled={snoozeDisabledReason !== null || isSnoozing}
-                  onClick={() => void handleSnooze()}
+                  onClick={() => void snoozeSelected()}
                 />
                 <InboxBulkActionButton
                   color="gray"

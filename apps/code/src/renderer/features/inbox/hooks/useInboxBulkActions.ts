@@ -199,7 +199,7 @@ export function useInboxBulkActions(
             ...(input.dismissal
               ? {
                   dismissal_reason: input.dismissal.reason,
-                  dismissal_note: input.dismissal.note,
+                  dismissal_note: input.dismissal.note.slice(0, 4000),
                 }
               : {}),
           }),

@@ -43,3 +43,15 @@ export const LEGACY_DISMISSAL_REASONS = [
 export type DismissalReason =
   | DismissalReasonOptionValue
   | (typeof LEGACY_DISMISSAL_REASONS)[number];
+
+/** Whether the given reason snoozes the report (temporarily) instead of permanently dismissing it. */
+export function isDismissalReasonSnooze(
+  value: DismissalReasonOptionValue,
+): boolean {
+  const option = DISMISSAL_REASON_OPTIONS.find((o) => o.value === value);
+  return (
+    option != null &&
+    "snoozesInsteadOfDismiss" in option &&
+    option.snoozesInsteadOfDismiss === true
+  );
+}

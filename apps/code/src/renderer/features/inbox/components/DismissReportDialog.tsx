@@ -9,7 +9,7 @@ import {
   type DismissalReasonOptionValue,
 } from "@shared/dismissalReasons";
 import type { SignalReport } from "@shared/types";
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface DismissReportDialogResult {
   reason: DismissalReasonOptionValue;
@@ -73,12 +73,9 @@ export function DismissReportDialog({
           <RadioGroup.Root
             size="1"
             value={reason ?? ""}
-            onValueChange={(value) => {
-              const match = DISMISSAL_REASON_OPTIONS.find(
-                (o) => o.value === value,
-              );
-              setReason(match != null ? match.value : null);
-            }}
+            onValueChange={(value) =>
+              setReason(value as DismissalReasonOptionValue)
+            }
           >
             <Flex direction="column" gap="2">
               {DISMISSAL_REASON_OPTIONS.map((option) => {
@@ -88,40 +85,34 @@ export function DismissReportDialog({
                 const disabled =
                   snoozesInsteadOfDismiss && alreadyFixedDisabled;
 
-                return (
-                  <Fragment key={option.value}>
-                    {snoozesInsteadOfDismiss ? (
-                      <ExplainedPauseLabel
-                        label={option.label}
-                        value={option.value}
-                        disabled={disabled}
-                        disabledReason={
-                          disabled ? snoozeDisabledReason : undefined
-                        }
-                      />
-                    ) : (
-                      <ExplainedSuppressLabel
-                        label={option.label}
-                        value={option.value}
-                      />
-                    )}
-                  </Fragment>
+                return snoozesInsteadOfDismiss ? (
+                  <ExplainedPauseLabel
+                    key={option.value}
+                    label={option.label}
+                    value={option.value}
+                    disabled={disabled}
+                    disabledReason={disabled ? snoozeDisabledReason : undefined}
+                  />
+                ) : (
+                  <ExplainedSuppressLabel
+                    key={option.value}
+                    label={option.label}
+                    value={option.value}
+                  />
                 );
               })}
             </Flex>
           </RadioGroup.Root>
 
-          <Flex direction="column" gap="1">
-            <TextArea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Optional: add detail"
-              size="1"
-              rows={3}
-              maxLength={4000}
-              disabled={isSubmitting}
-            />
-          </Flex>
+          <TextArea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Optional: add detail"
+            size="1"
+            rows={3}
+            maxLength={4000}
+            disabled={isSubmitting}
+          />
 
           <Flex gap="2" justify="end">
             <Dialog.Close>

@@ -37,6 +37,7 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { Box, Flex, ScrollArea } from "@radix-ui/themes";
+import { isDismissalReasonSnooze } from "@shared/dismissalReasons";
 import type { SignalReport, SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
@@ -233,10 +234,9 @@ export function InboxSignalsTab() {
     async (result: DismissReportDialogResult) => {
       const dismissedId = dismissReport?.id;
       if (dismissedId == null) return;
-      const ok =
-        result.reason === "already_fixed"
-          ? await dismissBulkActions.snoozeSelected()
-          : await dismissBulkActions.suppressSelected(result);
+      const ok = isDismissalReasonSnooze(result.reason)
+        ? await dismissBulkActions.snoozeSelected()
+        : await dismissBulkActions.suppressSelected(result);
       if (ok) {
         setDismissReport(null);
         const sel = useInboxReportSelectionStore.getState().selectedReportIds;
@@ -262,10 +262,7 @@ export function InboxSignalsTab() {
 
   const dismissMutationPending =
     dismissReport != null &&
-    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing) &&
-    ((selectedReport != null && dismissReport.id === selectedReport.id) ||
-      (selectedReportIds.length === 1 &&
-        selectedReportIds[0] === dismissReport.id));
+    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing);
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
