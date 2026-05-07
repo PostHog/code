@@ -1,4 +1,3 @@
-import { ReportImplementationPrLink } from "@features/inbox/components/utils/ReportImplementationPrLink";
 import { TaskLogsPanel } from "@features/task-detail/components/TaskLogsPanel";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import {
@@ -30,7 +29,10 @@ interface ReportTaskData {
   startedAt: string;
 }
 
-function useReportTasks(reportId: string, reportStatus: SignalReportStatus) {
+export function useReportTasks(
+  reportId: string,
+  reportStatus: SignalReportStatus,
+) {
   const isActive =
     reportStatus === "candidate" ||
     reportStatus === "in_progress" ||
@@ -400,9 +402,6 @@ export function ReportTaskLogs({
                       summary.label
                     )}
                   </Text>
-                )}
-                {bar.prUrl && (
-                  <ReportImplementationPrLink prUrl={bar.prUrl} size="md" />
                 )}
                 {showRunAction && (
                   <Button

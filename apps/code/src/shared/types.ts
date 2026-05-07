@@ -365,14 +365,18 @@ export interface SuggestedReviewersArtefact {
   created_at: string;
 }
 
+import type {
+  DismissalReason,
+  DismissalReasonOptionValue,
+} from "./dismissalReasons";
+
 /** Why a user dismissed (suppressed) a report. Stored as the `reason` field of a dismissal artefact's content. */
-export type DismissalReason =
-  | "already_fixed"
-  | "analysis_wrong"
-  | "wontfix_intentional"
-  | "wontfix_irrelevant"
-  | "wrong_reviewer"
-  | "other";
+export type { DismissalReason, DismissalReasonOptionValue };
+
+export {
+  DISMISSAL_REASON_OPTIONS,
+  LEGACY_DISMISSAL_REASONS,
+} from "./dismissalReasons";
 
 /** Artefact with `type: "dismissal"` — captures the user's rationale when suppressing a report. */
 export interface DismissalArtefact {

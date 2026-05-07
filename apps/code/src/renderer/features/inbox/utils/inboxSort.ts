@@ -15,7 +15,7 @@ export function inboxStatusLabel(status: SignalReportStatus): string {
     case "failed":
       return "Failed";
     case "suppressed":
-      return "Suppressed";
+      return "Dismissed";
     case "deleted":
       return "Deleted";
     default:

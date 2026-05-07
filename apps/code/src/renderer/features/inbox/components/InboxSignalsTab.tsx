@@ -5,6 +5,11 @@ import {
   WelcomePane,
 } from "@features/inbox/components/InboxEmptyStates";
 import { InboxSourcesDialog } from "@features/inbox/components/InboxSourcesDialog";
+import {
+  inboxBulkSnoozeDisabledReason,
+  inboxBulkSuppressDisabledReason,
+  useInboxBulkActions,
+} from "@features/inbox/hooks/useInboxBulkActions";
 import { useInboxDeepLinkListSync } from "@features/inbox/hooks/useInboxDeepLinkListSync";
 import {
   useInboxAvailableSuggestedReviewers,
@@ -32,10 +37,14 @@ import {
   useRepositoryIntegration,
 } from "@hooks/useIntegrations";
 import { Box, Flex, ScrollArea } from "@radix-ui/themes";
-import type { SignalReportsQueryParams } from "@shared/types";
+import type { SignalReport, SignalReportsQueryParams } from "@shared/types";
 import { useNavigationStore } from "@stores/navigationStore";
 import { useRendererWindowFocusStore } from "@stores/rendererWindowFocusStore";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DismissReportDialog,
+  type DismissReportDialogResult,
+} from "./DismissReportDialog";
 import { MultiSelectStack } from "./detail/MultiSelectStack";
 import { ReportDetailPane } from "./detail/ReportDetailPane";
 import { GitHubConnectionBanner } from "./list/GitHubConnectionBanner";
@@ -209,10 +218,59 @@ export function InboxSignalsTab() {
   );
   const clearSelection = useInboxReportSelectionStore((s) => s.clearSelection);
 
+  const [dismissReport, setDismissReport] = useState<SignalReport | null>(null);
+
+  const dismissBulkActions = useInboxBulkActions(
+    allReports,
+    dismissReport ? [dismissReport.id] : [],
+  );
+
+  const handleDismissDialogOpenChange = useCallback((open: boolean) => {
+    if (!open) setDismissReport(null);
+  }, []);
+
+  const handleDismissConfirm = useCallback(
+    async (result: DismissReportDialogResult) => {
+      const dismissedId = dismissReport?.id;
+      if (dismissedId == null) return;
+      const ok =
+        result.reason === "already_fixed"
+          ? await dismissBulkActions.snoozeSelected()
+          : await dismissBulkActions.suppressSelected(result);
+      if (ok) {
+        setDismissReport(null);
+        const sel = useInboxReportSelectionStore.getState().selectedReportIds;
+        if (sel.length === 1 && sel[0] === dismissedId) {
+          clearSelection();
+        }
+      }
+    },
+    [dismissBulkActions, dismissReport?.id, clearSelection],
+  );
+
   const { selectedReport } = useInboxDeepLinkListSync({
     reports,
     inboxPollingActive,
   });
+
+  const detailDismissMutationPending =
+    dismissReport != null &&
+    selectedReport != null &&
+    dismissReport.id === selectedReport.id &&
+    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing);
+
+  const openDismissDialogFromToolbar = useCallback(() => {
+    if (selectedReportIds.length !== 1) return;
+    const id = selectedReportIds[0];
+    const report = allReports.find((r) => r.id === id);
+    if (report) setDismissReport(report);
+  }, [selectedReportIds, allReports]);
+
+  const toolbarDismissMutationPending =
+    dismissReport != null &&
+    selectedReportIds.length === 1 &&
+    selectedReportIds[0] === dismissReport.id &&
+    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing);
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
@@ -549,6 +607,8 @@ export function InboxSignalsTab() {
                     effectiveBulkIds={selectedReportIds}
                     onToggleSelectAll={handleToggleSelectAll}
                     onConfigureSources={() => setSourcesDialogOpen(true)}
+                    onOpenDismissDialog={openDismissDialogFromToolbar}
+                    isDismissMutationPending={toolbarDismissMutationPending}
                   />
                 </Box>
                 <RecommendedSetupTasks
@@ -600,6 +660,12 @@ export function InboxSignalsTab() {
               <ReportDetailPane
                 report={selectedReport}
                 onClose={clearSelection}
+                onRequestDismissReport={() => setDismissReport(selectedReport)}
+                suppressDisabledReason={inboxBulkSuppressDisabledReason(
+                  allReports,
+                  [selectedReport.id],
+                )}
+                isDismissMutationPending={detailDismissMutationPending}
               />
             ) : selectedDiscoveredTask ? (
               <DiscoveredTaskDetailPane
@@ -654,6 +720,22 @@ export function InboxSignalsTab() {
         hasSignalSources={hasSignalSources}
         hasGithubIntegration={hasGithubIntegration}
       />
+
+      {dismissReport != null ? (
+        <DismissReportDialog
+          key={dismissReport.id}
+          open
+          onOpenChange={handleDismissDialogOpenChange}
+          report={dismissReport}
+          isSubmitting={
+            dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing
+          }
+          snoozeDisabledReason={inboxBulkSnoozeDisabledReason(allReports, [
+            dismissReport.id,
+          ])}
+          onConfirm={(result) => void handleDismissConfirm(result)}
+        />
+      ) : null}
     </>
   );
 }

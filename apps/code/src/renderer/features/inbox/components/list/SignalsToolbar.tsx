@@ -7,7 +7,8 @@ import {
   EyeSlashIcon,
   GearSixIcon,
   MagnifyingGlass,
-  PauseIcon,
+  Pause,
+  ThumbsDownIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import {
@@ -21,9 +22,8 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IS_DEV } from "@shared/constants/environment";
-import type { DismissalReason, SignalReport } from "@shared/types";
+import type { SignalReport } from "@shared/types";
 import { useState } from "react";
-import { SuppressDialog } from "../SuppressDialog";
 import { FilterSortMenu } from "./FilterSortMenu";
 import { SuggestedReviewerFilterMenu } from "./SuggestedReviewerFilterMenu";
 
@@ -45,6 +45,10 @@ interface SignalsToolbarProps {
   onToggleSelectAll?: (checked: boolean) => void;
   /** Called when the "Configure sources" button is clicked. */
   onConfigureSources?: () => void;
+  /** Opens the shared dismiss report dialog (0–1 selected toolbar flow). */
+  onOpenDismissDialog?: () => void;
+  /** True while the shared dismiss dialog mutation is in-flight for this toolbar context. */
+  isDismissMutationPending?: boolean;
 }
 
 function formatPauseRemaining(pausedUntil: string): string {
@@ -90,10 +94,11 @@ export function SignalsToolbar({
   effectiveBulkIds = [],
   onToggleSelectAll,
   onConfigureSources,
+  onOpenDismissDialog,
+  isDismissMutationPending = false,
 }: SignalsToolbarProps) {
   const searchQuery = useInboxSignalsFilterStore((s) => s.searchQuery);
   const setSearchQuery = useInboxSignalsFilterStore((s) => s.setSearchQuery);
-  const [showSuppressConfirm, setShowSuppressConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const {
@@ -106,8 +111,8 @@ export function SignalsToolbar({
     isSnoozing,
     isDeleting,
     isReingesting,
-    suppressSelected,
     snoozeSelected,
+    suppressSelected,
     deleteSelected,
     reingestSelected,
   } = useInboxBulkActions(reports, effectiveBulkIds);
@@ -128,14 +133,17 @@ export function SignalsToolbar({
   const pipelineHint =
     pipelineHintParts.length > 0 ? pipelineHintParts.join(" · ") : null;
 
-  const handleConfirmSuppress = async (dismissal: {
-    reason: DismissalReason;
-    note: string;
-  }) => {
-    const ok = await suppressSelected(dismissal);
-    if (ok) {
-      setShowSuppressConfirm(false);
-    }
+  const multiSelectBulkActions = selectedCount > 1;
+
+  const singleDismissDisabledReason =
+    selectedCount === 0
+      ? snoozeDisabledReason
+      : snoozeDisabledReason !== null && suppressDisabledReason !== null
+        ? `${suppressDisabledReason} · ${snoozeDisabledReason}`
+        : null;
+
+  const handleBulkSuppress = async () => {
+    await suppressSelected();
   };
 
   const handleConfirmDelete = async () => {
@@ -273,36 +281,61 @@ export function SignalsToolbar({
             </label>
           </Tooltip>
           <Flex gap="2" align="center" wrap="wrap">
-            <Button
-              size="1"
-              variant="soft"
-              color="gray"
-              className="text-[12px]"
-              tooltipContent="Wait for this report to gather more context"
-              disabledReason={snoozeDisabledReason}
-              disabled={snoozeDisabledReason !== null || isSnoozing}
-              onClick={() => void handleSnooze()}
-            >
-              {isSnoozing ? <Spinner size="1" /> : <PauseIcon size={12} />}
-              Snooze
-            </Button>
-            <Button
-              size="1"
-              variant="soft"
-              color="red"
-              className="text-[12px]"
-              tooltipContent="Suppress this report to ignore all future signals matched to it"
-              disabledReason={suppressDisabledReason}
-              disabled={suppressDisabledReason !== null || isSuppressing}
-              onClick={() => setShowSuppressConfirm(true)}
-            >
-              {isSuppressing ? (
-                <Spinner size="1" />
-              ) : (
-                <EyeSlashIcon size={12} />
-              )}
-              Suppress
-            </Button>
+            {multiSelectBulkActions ? (
+              <>
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="gray"
+                  className="text-[12px]"
+                  tooltipContent="Wait for selected reports to gather more context"
+                  disabledReason={snoozeDisabledReason}
+                  disabled={snoozeDisabledReason !== null || isSnoozing}
+                  onClick={() => void handleSnooze()}
+                >
+                  {isSnoozing ? <Spinner size="1" /> : <Pause size={12} />}
+                  Snooze
+                </Button>
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="gray"
+                  className="text-[12px]"
+                  tooltipContent="Suppress selected reports — no confirmation dialog"
+                  disabledReason={suppressDisabledReason}
+                  disabled={suppressDisabledReason !== null || isSuppressing}
+                  onClick={() => void handleBulkSuppress()}
+                >
+                  {isSuppressing ? (
+                    <Spinner size="1" />
+                  ) : (
+                    <EyeSlashIcon size={12} />
+                  )}
+                  Suppress
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="1"
+                variant="soft"
+                color="gray"
+                className="text-[12px]"
+                tooltipContent="Snooze or permanently dismiss — pick a reason"
+                disabledReason={singleDismissDisabledReason}
+                disabled={
+                  singleDismissDisabledReason !== null ||
+                  isDismissMutationPending
+                }
+                onClick={() => onOpenDismissDialog?.()}
+              >
+                {isDismissMutationPending ? (
+                  <Spinner size="1" />
+                ) : (
+                  <ThumbsDownIcon size={12} />
+                )}
+                Dismiss
+              </Button>
+            )}
             <Button
               size="1"
               variant="soft"
@@ -338,14 +371,6 @@ export function SignalsToolbar({
           </Flex>
         </Flex>
       </Flex>
-
-      <SuppressDialog
-        open={showSuppressConfirm}
-        onOpenChange={setShowSuppressConfirm}
-        reportCount={selectedCount}
-        isSubmitting={isSuppressing}
-        onConfirm={(result) => void handleConfirmSuppress(result)}
-      />
 
       <AlertDialog.Root
         open={showDeleteConfirm}

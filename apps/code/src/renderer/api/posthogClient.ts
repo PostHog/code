@@ -1,11 +1,15 @@
 import { isSupportedReasoningEffort } from "@posthog/agent/adapters/reasoning-effort";
 import type { PermissionMode } from "@posthog/agent/execution-mode";
+import {
+  DISMISSAL_REASON_OPTIONS,
+  type DismissalReason,
+  LEGACY_DISMISSAL_REASONS,
+} from "@shared/dismissalReasons";
 import type {
   ActionabilityJudgmentArtefact,
   AvailableSuggestedReviewer,
   AvailableSuggestedReviewersResponse,
   DismissalArtefact,
-  DismissalReason,
   PriorityJudgmentArtefact,
   SandboxEnvironment,
   SandboxEnvironmentInput,
@@ -268,12 +272,8 @@ type AnyArtefact =
   | DismissalArtefact;
 
 const DISMISSAL_REASONS = new Set<DismissalReason>([
-  "already_fixed",
-  "analysis_wrong",
-  "wontfix_intentional",
-  "wontfix_irrelevant",
-  "wrong_reviewer",
-  "other",
+  ...DISMISSAL_REASON_OPTIONS.map((o) => o.value),
+  ...LEGACY_DISMISSAL_REASONS,
 ]);
 
 const PRIORITY_VALUES = new Set(["P0", "P1", "P2", "P3", "P4"]);

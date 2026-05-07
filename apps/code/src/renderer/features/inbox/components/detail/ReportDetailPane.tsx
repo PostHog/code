@@ -1,6 +1,5 @@
 import { Badge } from "@components/ui/Badge";
 import { Button } from "@components/ui/Button";
-import { useInboxBulkActions } from "@features/inbox/hooks/useInboxBulkActions";
 import {
   useInboxReportArtefacts,
   useInboxReportSignals,
@@ -13,8 +12,8 @@ import {
   CaretDownIcon,
   CaretRightIcon,
   EyeIcon,
-  EyeSlashIcon,
   LinkSimpleIcon,
+  ThumbsDownIcon,
   WarningIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -32,7 +31,6 @@ import { getDeeplinkProtocol } from "@shared/deeplink";
 import type {
   ActionabilityJudgmentArtefact,
   ActionabilityJudgmentContent,
-  DismissalReason,
   PriorityJudgmentArtefact,
   SignalFindingArtefact,
   SignalReport,
@@ -45,12 +43,12 @@ import { useNavigationStore } from "@stores/navigationStore";
 import { useQuery } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { SuppressDialog } from "../SuppressDialog";
+import { ReportImplementationPrLink } from "../utils/ReportImplementationPrLink";
 import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabilityBadge";
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
-import { ReportTaskLogs } from "./ReportTaskLogs";
+import { getTaskPrUrl, ReportTaskLogs, useReportTasks } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 
 function isSuggestedReviewerRowMe(
@@ -145,9 +143,18 @@ function DetailRow({
 interface ReportDetailPaneProps {
   report: SignalReport;
   onClose: () => void;
+  onRequestDismissReport: () => void;
+  suppressDisabledReason: string | null;
+  isDismissMutationPending?: boolean;
 }
 
-export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
+export function ReportDetailPane({
+  report,
+  onClose,
+  onRequestDismissReport,
+  suppressDisabledReason,
+  isDismissMutationPending = false,
+}: ReportDetailPaneProps) {
   const { data: me } = useMeQuery();
 
   // ── Report data ─────────────────────────────────────────────────────────
@@ -225,6 +232,16 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
   );
   const effectiveCloudRepository = reportRepository ?? detectedFallbackRepo;
 
+  const { data: reportTasksData } = useReportTasks(report.id, report.status);
+  const implementationTaskFromHook =
+    reportTasksData?.find((t) => t.relationship === "implementation")?.task ??
+    null;
+  const implementationPrFromTask = implementationTaskFromHook
+    ? getTaskPrUrl(implementationTaskFromHook)
+    : null;
+  const headerImplementationPrUrl =
+    implementationPrFromTask ?? report.implementation_pr_url ?? null;
+
   /** True when the report is waiting on user input before implementation can proceed.
    * Covers the `pending_input` status and the `ready + requires_human_input` combination
    * (the actionability badge shows "Needs input" in that case). */
@@ -240,21 +257,6 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
     (report.status === "ready" &&
       report.actionability === "immediately_actionable" &&
       report.already_addressed !== true);
-
-  // ── Suppress action ─────────────────────────────────────────────────────
-  const [suppressDialogOpen, setSuppressDialogOpen] = useState(false);
-  const { suppressDisabledReason, isSuppressing, suppressSelected } =
-    useInboxBulkActions([report], [report.id]);
-  const handleConfirmSuppress = useCallback(
-    async (result: { reason: DismissalReason; note: string }) => {
-      const ok = await suppressSelected(result);
-      if (ok) {
-        setSuppressDialogOpen(false);
-        onClose();
-      }
-    },
-    [suppressSelected, onClose],
-  );
 
   const handleCreateImplementationTask = useCallback(() => {
     if (!canCreateImplementationPr) return;
@@ -292,18 +294,30 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
           </Text>
         </Flex>
         <Flex align="center" gap="2" className="shrink-0">
+          {headerImplementationPrUrl ? (
+            <ReportImplementationPrLink
+              prUrl={headerImplementationPrUrl}
+              size="md"
+            />
+          ) : null}
           <Button
             size="1"
             variant="soft"
-            color="red"
+            color="gray"
             className="text-[12px]"
-            tooltipContent="Suppress this report and tell PostHog why"
+            tooltipContent="This report is not useful to me"
             disabledReason={suppressDisabledReason}
-            disabled={suppressDisabledReason !== null || isSuppressing}
-            onClick={() => setSuppressDialogOpen(true)}
+            disabled={
+              suppressDisabledReason !== null || isDismissMutationPending
+            }
+            onClick={() => onRequestDismissReport()}
           >
-            {isSuppressing ? <Spinner size="1" /> : <EyeSlashIcon size={12} />}
-            Suppress
+            {isDismissMutationPending ? (
+              <Spinner size="1" />
+            ) : (
+              <ThumbsDownIcon size={12} />
+            )}
+            Dismiss
           </Button>
           <Tooltip content="Copy link to this report">
             <button
@@ -580,14 +594,6 @@ export function ReportDetailPane({ report, onClose }: ReportDetailPaneProps) {
         onCreateImplementationTask={
           canCreateImplementationPr ? handleCreateImplementationTask : undefined
         }
-      />
-
-      <SuppressDialog
-        open={suppressDialogOpen}
-        onOpenChange={setSuppressDialogOpen}
-        reportCount={1}
-        isSubmitting={isSuppressing}
-        onConfirm={(result) => void handleConfirmSuppress(result)}
       />
     </>
   );

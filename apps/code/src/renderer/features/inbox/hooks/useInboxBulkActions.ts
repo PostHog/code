@@ -20,13 +20,11 @@ interface BulkActionResult {
 
 const inboxQueryKey = ["inbox", "signal-reports"] as const;
 
+/** Only these reports may be dismissed (suppressed) from the inbox. */
 const suppressibleStatuses = new Set<SignalReport["status"]>([
-  "potential",
-  "candidate",
-  "in_progress",
+  "failed",
   "pending_input",
   "ready",
-  "failed",
 ]);
 
 const snoozableStatuses = new Set<SignalReport["status"]>([
@@ -49,9 +47,13 @@ const SNOOZE_ALLOWED_STATUS_PHRASE = (
   .map((status) => inboxStatusLabel(status))
   .join(" or ");
 
-/** Statuses that block suppression; labels match `inboxStatusLabel`. */
-const SUPPRESS_BLOCKED_STATUS_PHRASE = (
-  ["suppressed", "deleted"] as const satisfies readonly SignalReport["status"][]
+/** Matches labels in the inbox list/filter (`inboxStatusLabel`). */
+const SUPPRESS_ALLOWED_STATUS_PHRASE = (
+  [
+    "failed",
+    "pending_input",
+    "ready",
+  ] as const satisfies readonly SignalReport["status"][]
 )
   .map((status) => inboxStatusLabel(status))
   .join(" or ");
@@ -74,7 +76,7 @@ function formatBulkActionSummary(
   const pluralized = successCount === 1 ? "report" : "reports";
   const formulated =
     action === "suppress"
-      ? `${pluralized} suppressed`
+      ? `${pluralized} dismissed`
       : action === "snooze"
         ? `${pluralized} snoozed`
         : action === "delete"
@@ -115,7 +117,7 @@ function getSuppressDisabledReason(
   if (ok) {
     return null;
   }
-  return `every selected report must not already be ${SUPPRESS_BLOCKED_STATUS_PHRASE}`;
+  return `every selected report must be ${SUPPRESS_ALLOWED_STATUS_PHRASE} to suppress`;
 }
 
 function getSelectedReportEligibility(
@@ -143,6 +145,24 @@ function getSelectedReportEligibility(
     deleteDisabledReason: selectedCount === 0 ? DISABLED_NO_SELECTION : null,
     reingestDisabledReason: selectedCount === 0 ? DISABLED_NO_SELECTION : null,
   };
+}
+
+/** Snooze disabled reason when `selectedIds` are treated as the bulk selection (matches toolbar logic). */
+export function inboxBulkSnoozeDisabledReason(
+  reports: SignalReport[],
+  selectedIds: string[],
+): string | null {
+  return getSelectedReportEligibility(reports, selectedIds)
+    .snoozeDisabledReason;
+}
+
+/** Suppress/dismiss disabled reason when `selectedIds` are treated as the bulk selection. */
+export function inboxBulkSuppressDisabledReason(
+  reports: SignalReport[],
+  selectedIds: string[],
+): string | null {
+  return getSelectedReportEligibility(reports, selectedIds)
+    .suppressDisabledReason;
 }
 
 export function useInboxBulkActions(
@@ -207,7 +227,7 @@ export function useInboxBulkActions(
         toast.success(formatBulkActionSummary("suppress", result));
       },
       onError: (error) => {
-        toast.error(error.message || "Failed to suppress reports");
+        toast.error(error.message || "Failed to dismiss reports");
       },
     },
   );
