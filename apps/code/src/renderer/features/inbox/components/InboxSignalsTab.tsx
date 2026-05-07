@@ -253,12 +253,6 @@ export function InboxSignalsTab() {
     inboxPollingActive,
   });
 
-  const detailDismissMutationPending =
-    dismissReport != null &&
-    selectedReport != null &&
-    dismissReport.id === selectedReport.id &&
-    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing);
-
   const openDismissDialogFromToolbar = useCallback(() => {
     if (selectedReportIds.length !== 1) return;
     const id = selectedReportIds[0];
@@ -266,11 +260,12 @@ export function InboxSignalsTab() {
     if (report) setDismissReport(report);
   }, [selectedReportIds, allReports]);
 
-  const toolbarDismissMutationPending =
+  const dismissMutationPending =
     dismissReport != null &&
-    selectedReportIds.length === 1 &&
-    selectedReportIds[0] === dismissReport.id &&
-    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing);
+    (dismissBulkActions.isSuppressing || dismissBulkActions.isSnoozing) &&
+    ((selectedReport != null && dismissReport.id === selectedReport.id) ||
+      (selectedReportIds.length === 1 &&
+        selectedReportIds[0] === dismissReport.id));
 
   // Stable refs so callbacks don't need re-registration on every render
   const selectedReportIdsRef = useRef(selectedReportIds);
@@ -608,7 +603,7 @@ export function InboxSignalsTab() {
                     onToggleSelectAll={handleToggleSelectAll}
                     onConfigureSources={() => setSourcesDialogOpen(true)}
                     onOpenDismissDialog={openDismissDialogFromToolbar}
-                    isDismissMutationPending={toolbarDismissMutationPending}
+                    isDismissMutationPending={dismissMutationPending}
                   />
                 </Box>
                 <RecommendedSetupTasks
@@ -665,7 +660,7 @@ export function InboxSignalsTab() {
                   allReports,
                   [selectedReport.id],
                 )}
-                isDismissMutationPending={detailDismissMutationPending}
+                isDismissMutationPending={dismissMutationPending}
               />
             ) : selectedDiscoveredTask ? (
               <DiscoveredTaskDetailPane

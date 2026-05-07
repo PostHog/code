@@ -4,6 +4,10 @@ import {
   useInboxReportArtefacts,
   useInboxReportSignals,
 } from "@features/inbox/hooks/useInboxReports";
+import {
+  getTaskPrUrl,
+  useReportTasks,
+} from "@features/inbox/hooks/useReportTasks";
 import { useAuthenticatedQuery } from "@hooks/useAuthenticatedQuery";
 import { useDetectedCloudRepository } from "@hooks/useDetectedCloudRepository";
 import { useMeQuery } from "@hooks/useMeQuery";
@@ -48,7 +52,7 @@ import { SignalReportActionabilityBadge } from "../utils/SignalReportActionabili
 import { SignalReportPriorityBadge } from "../utils/SignalReportPriorityBadge";
 import { SignalReportStatusBadge } from "../utils/SignalReportStatusBadge";
 import { SignalReportSummaryMarkdown } from "../utils/SignalReportSummaryMarkdown";
-import { getTaskPrUrl, ReportTaskLogs, useReportTasks } from "./ReportTaskLogs";
+import { ReportTaskLogs } from "./ReportTaskLogs";
 import { SignalCard } from "./SignalCard";
 
 function isSuggestedReviewerRowMe(

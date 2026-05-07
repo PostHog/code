@@ -73,9 +73,12 @@ export function DismissReportDialog({
           <RadioGroup.Root
             size="1"
             value={reason ?? ""}
-            onValueChange={(value) =>
-              setReason(value as DismissalReasonOptionValue)
-            }
+            onValueChange={(value) => {
+              const match = DISMISSAL_REASON_OPTIONS.find(
+                (o) => o.value === value,
+              );
+              setReason(match != null ? match.value : null);
+            }}
           >
             <Flex direction="column" gap="2">
               {DISMISSAL_REASON_OPTIONS.map((option) => {

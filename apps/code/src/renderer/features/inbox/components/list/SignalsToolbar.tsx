@@ -150,6 +150,73 @@ function InboxBulkActionButton({
   );
 }
 
+interface BulkOverflowMenuItemProps {
+  menuPrimary: string;
+  disabled: boolean;
+  disabledReason: string | null | undefined;
+  destructive?: boolean;
+  loading: boolean;
+  icon: ReactNode;
+  label: string;
+  onSelect?: () => void;
+}
+
+function BulkOverflowMenuItem({
+  menuPrimary,
+  disabled,
+  disabledReason,
+  destructive = false,
+  loading,
+  icon,
+  label,
+  onSelect,
+}: BulkOverflowMenuItemProps) {
+  const tooltip = bulkMenuItemTooltip(menuPrimary, disabled, disabledReason);
+  const disabledWrapperClass = destructive
+    ? "inline-flex w-full cursor-not-allowed text-(--red-11) opacity-50"
+    : "inline-flex w-full cursor-not-allowed text-gray-10 opacity-50";
+
+  if (disabled) {
+    return (
+      <ActionTooltip side="right" content={tooltip}>
+        <span className={disabledWrapperClass}>
+          <DropdownMenuItem
+            className="pointer-events-none w-full"
+            disabled
+            variant={destructive ? "destructive" : undefined}
+          >
+            <span className="flex items-center gap-2">
+              {loading ? <Spinner size="1" /> : icon}
+              {label}
+            </span>
+          </DropdownMenuItem>
+        </span>
+      </ActionTooltip>
+    );
+  }
+
+  return (
+    <ActionTooltip side="right" content={tooltip}>
+      <DropdownMenuItem
+        variant={destructive ? "destructive" : undefined}
+        className={
+          destructive
+            ? "w-full text-(--red-11) [&_svg]:text-(--red-11)"
+            : "w-full"
+        }
+        onClick={() => {
+          onSelect?.();
+        }}
+      >
+        <span className="flex items-center gap-2">
+          {icon}
+          {label}
+        </span>
+      </DropdownMenuItem>
+    </ActionTooltip>
+  );
+}
+
 export function SignalsToolbar({
   totalCount,
   filteredCount,
@@ -224,10 +291,6 @@ export function SignalsToolbar({
       ? "Delete selected reports and their signals"
       : "Delete this report and its signals";
 
-  const handleBulkSuppress = async () => {
-    await suppressSelected();
-  };
-
   const handleConfirmDelete = async () => {
     const ok = await deleteSelected();
     if (ok) {
@@ -237,10 +300,6 @@ export function SignalsToolbar({
 
   const handleSnooze = async () => {
     await snoozeSelected();
-  };
-
-  const handleReingest = async () => {
-    await reingestSelected();
   };
 
   const visibleReportIds = reports.map((report) => report.id);
@@ -387,101 +446,26 @@ export function SignalsToolbar({
                 className="min-w-[180px] overflow-visible"
               >
                 {IS_DEV ? (
-                  reingestDisabledReason !== null || isReingesting ? (
-                    <ActionTooltip
-                      side="right"
-                      content={bulkMenuItemTooltip(
-                        reingestMenuPrimary,
-                        true,
-                        reingestDisabledReason,
-                      )}
-                    >
-                      <span className="inline-flex w-full cursor-not-allowed text-gray-10 opacity-50">
-                        <DropdownMenuItem
-                          className="pointer-events-none w-full"
-                          disabled
-                        >
-                          <span className="flex items-center gap-2">
-                            {isReingesting ? (
-                              <Spinner size="1" />
-                            ) : (
-                              <ArrowClockwiseIcon size={14} />
-                            )}
-                            Reingest
-                          </span>
-                        </DropdownMenuItem>
-                      </span>
-                    </ActionTooltip>
-                  ) : (
-                    <ActionTooltip
-                      side="right"
-                      content={bulkMenuItemTooltip(
-                        reingestMenuPrimary,
-                        false,
-                        null,
-                      )}
-                    >
-                      <DropdownMenuItem
-                        className="w-full"
-                        onClick={() => {
-                          void handleReingest();
-                        }}
-                      >
-                        <span className="flex items-center gap-2">
-                          <ArrowClockwiseIcon size={14} />
-                          Reingest
-                        </span>
-                      </DropdownMenuItem>
-                    </ActionTooltip>
-                  )
+                  <BulkOverflowMenuItem
+                    menuPrimary={reingestMenuPrimary}
+                    disabled={reingestDisabledReason !== null || isReingesting}
+                    disabledReason={reingestDisabledReason}
+                    loading={isReingesting}
+                    icon={<ArrowClockwiseIcon size={14} />}
+                    label="Reingest"
+                    onSelect={() => void reingestSelected()}
+                  />
                 ) : null}
-                {deleteDisabledReason !== null || isDeleting ? (
-                  <ActionTooltip
-                    side="right"
-                    content={bulkMenuItemTooltip(
-                      deleteMenuPrimary,
-                      true,
-                      deleteDisabledReason,
-                    )}
-                  >
-                    <span className="inline-flex w-full cursor-not-allowed text-(--red-11) opacity-50">
-                      <DropdownMenuItem
-                        className="pointer-events-none w-full"
-                        disabled
-                        variant="destructive"
-                      >
-                        <span className="flex items-center gap-2">
-                          {isDeleting ? (
-                            <Spinner size="1" />
-                          ) : (
-                            <TrashIcon size={14} />
-                          )}
-                          Delete
-                        </span>
-                      </DropdownMenuItem>
-                    </span>
-                  </ActionTooltip>
-                ) : (
-                  <ActionTooltip
-                    side="right"
-                    content={bulkMenuItemTooltip(
-                      deleteMenuPrimary,
-                      false,
-                      null,
-                    )}
-                  >
-                    <DropdownMenuItem
-                      variant="destructive"
-                      className="w-full text-(--red-11) [&_svg]:text-(--red-11)"
-                      onClick={() => setShowDeleteConfirm(true)}
-                    >
-                      <span className="flex items-center gap-2">
-                        <TrashIcon size={14} />
-                        Delete
-                      </span>
-                    </DropdownMenuItem>
-                  </ActionTooltip>
-                )}
+                <BulkOverflowMenuItem
+                  menuPrimary={deleteMenuPrimary}
+                  disabled={deleteDisabledReason !== null || isDeleting}
+                  disabledReason={deleteDisabledReason}
+                  destructive
+                  loading={isDeleting}
+                  icon={<TrashIcon size={14} />}
+                  label="Delete"
+                  onSelect={() => setShowDeleteConfirm(true)}
+                />
               </DropdownMenuContent>
             </DropdownMenu>
             {multiSelectBulkActions ? (
@@ -504,7 +488,7 @@ export function SignalsToolbar({
                   tooltipContent="Suppress selected reports — no confirmation dialog"
                   disabledReason={suppressDisabledReason}
                   disabled={suppressDisabledReason !== null || isSuppressing}
-                  onClick={() => void handleBulkSuppress()}
+                  onClick={() => void suppressSelected()}
                 />
               </>
             ) : (

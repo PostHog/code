@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DismissalReason } from "./dismissalReasons";
 import type { StoredLogEntry } from "./types/session-events";
 
 // Execution mode schema and type - shared between main and renderer
@@ -364,19 +365,6 @@ export interface SuggestedReviewersArtefact {
   content: SuggestedReviewer[];
   created_at: string;
 }
-
-import type {
-  DismissalReason,
-  DismissalReasonOptionValue,
-} from "./dismissalReasons";
-
-/** Why a user dismissed (suppressed) a report. Stored as the `reason` field of a dismissal artefact's content. */
-export type { DismissalReason, DismissalReasonOptionValue };
-
-export {
-  DISMISSAL_REASON_OPTIONS,
-  LEGACY_DISMISSAL_REASONS,
-} from "./dismissalReasons";
 
 /** Artefact with `type: "dismissal"` — captures the user's rationale when suppressing a report. */
 export interface DismissalArtefact {

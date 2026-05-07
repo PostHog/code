@@ -1,7 +1,8 @@
 import { useInboxReportSelectionStore } from "@features/inbox/stores/inboxReportSelectionStore";
 import { inboxStatusLabel } from "@features/inbox/utils/inboxSort";
 import { useAuthenticatedMutation } from "@hooks/useAuthenticatedMutation";
-import type { DismissalReason, SignalReport } from "@shared/types";
+import type { DismissalReason } from "@shared/dismissalReasons";
+import type { SignalReport } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";

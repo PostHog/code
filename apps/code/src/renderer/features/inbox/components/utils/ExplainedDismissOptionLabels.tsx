@@ -73,7 +73,7 @@ export function ExplainedSuppressLabel({
   );
 }
 
-export interface ExplainedLabelProps {
+interface ExplainedLabelProps {
   tooltipContent: ReactNode;
   /** Matches `RadioGroup.Item` `id` / label `htmlFor`. */
   inputId: string;
@@ -87,7 +87,7 @@ export interface ExplainedLabelProps {
  * Tooltip + radio row: hover (or keyboard focus on the label copy) explains the option.
  * The radio sits outside the tooltip trigger so dialog autofocus does not open the tooltip.
  */
-export function ExplainedLabel({
+function ExplainedLabel({
   tooltipContent,
   inputId,
   optionLabel,
