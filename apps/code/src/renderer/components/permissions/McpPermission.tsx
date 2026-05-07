@@ -1,9 +1,10 @@
 import { ActionSelector } from "@components/ActionSelector";
 import { parseMcpToolKey } from "@features/mcp-apps/utils/mcp-app-host-utils";
 import {
+  formatPosthogExecBody,
   getPostHogExecDisplay,
   isPostHogExecTool,
-} from "@features/mcp-apps/utils/posthog-exec-display";
+} from "@features/posthog-mcp/utils/posthog-exec-display";
 import { formatInput } from "@features/sessions/components/session-update/toolCallUtils";
 import { Box, Code } from "@radix-ui/themes";
 import { DefaultPermission } from "./DefaultPermission";
@@ -37,7 +38,9 @@ export function McpPermission({
     : null;
   const serverName = posthogDisplay ? "posthog" : defaultServerName;
   const toolName = posthogDisplay?.label ?? defaultToolName;
-  const fullInput = formatInput(toolCall.rawInput);
+  const fullInput = posthogDisplay
+    ? formatPosthogExecBody(posthogDisplay.input)
+    : formatInput(toolCall.rawInput);
 
   return (
     <ActionSelector
