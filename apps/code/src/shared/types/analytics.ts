@@ -340,6 +340,16 @@ export interface SetupWizardFailedProperties {
   error_message?: string;
 }
 
+// Subscription / billing events
+export interface SubscriptionStartedProperties {
+  plan_key: string;
+  previous_plan_key?: string;
+}
+
+export interface SubscriptionCancelledProperties {
+  plan_key: string;
+}
+
 // Event names as constants
 export const ANALYTICS_EVENTS = {
   // App lifecycle
@@ -426,6 +436,10 @@ export const ANALYTICS_EVENTS = {
 
   // Inbox events
   INBOX_INTEREST_REGISTERED: "Inbox interest registered",
+
+  // Subscription events
+  SUBSCRIPTION_STARTED: "Subscription started",
+  SUBSCRIPTION_CANCELLED: "Subscription cancelled",
 } as const;
 
 // Event property mapping
@@ -507,4 +521,8 @@ export type EventPropertyMap = {
 
   // Inbox events
   [ANALYTICS_EVENTS.INBOX_INTEREST_REGISTERED]: never;
+
+  // Subscription events
+  [ANALYTICS_EVENTS.SUBSCRIPTION_STARTED]: SubscriptionStartedProperties;
+  [ANALYTICS_EVENTS.SUBSCRIPTION_CANCELLED]: SubscriptionCancelledProperties;
 };
