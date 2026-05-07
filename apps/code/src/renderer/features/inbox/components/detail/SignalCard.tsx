@@ -65,6 +65,9 @@ function signalCardSourceLine(signal: {
   if (source_product === "linear" && source_type === "issue") {
     return "Linear · Issue";
   }
+  if (source_product === "pganalyze" && source_type === "issue") {
+    return "pganalyze · Issue";
+  }
 
   const productLabel = source_product.replace(/_/g, " ");
   const typeLabel = source_type.replace(/_/g, " ");
