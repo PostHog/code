@@ -1604,6 +1604,18 @@ For git operations while detached:
           error: err,
         });
       });
+
+    // The user-initiated PR-creation flow links the current branch to the
+    // workspace atomically (see GitService.createPr). PRs created via bash —
+    // e.g. an agent running a `/commit-and-pr` skill — never go through that
+    // flow, so `workspace.linkedBranch` would otherwise stay unset and
+    // PR-aware UI (the unified PR badge, branch mismatch warning, diff
+    // source) would have no anchor. Emit AgentFileActivity here too so
+    // WorkspaceService.handleAgentFileActivity links the current feature
+    // branch the moment we observe a PR for it.
+    this.emitAgentFileActivityForCurrentBranch(taskRunId, session, {
+      reason: "pr-detected",
+    });
   }
 
   /**
@@ -1626,6 +1638,22 @@ For git operations while detached:
     if (!session) return;
     if (!AgentService.FILE_MODIFYING_TOOLS.has(toolName)) return;
 
+    this.emitAgentFileActivityForCurrentBranch(taskRunId, session, {
+      reason: "file-edit",
+      toolName,
+    });
+  }
+
+  /**
+   * Resolve the current branch in the session's repo and emit AgentFileActivity
+   * so WorkspaceService can link the branch to the task. Best-effort — branch
+   * resolution failures are logged but never thrown.
+   */
+  private emitAgentFileActivityForCurrentBranch(
+    taskRunId: string,
+    session: ManagedSession,
+    context: { reason: "file-edit" | "pr-detected"; toolName?: string },
+  ): void {
     getCurrentBranch(session.repoPath)
       .then((branchName) => {
         this.emit(AgentServiceEvent.AgentFileActivity, {
@@ -1634,10 +1662,10 @@ For git operations while detached:
         });
       })
       .catch((err) => {
-        log.error("Failed to emit agent file activity event", {
+        log.warn("Failed to emit agent file activity event", {
           taskRunId,
           taskId: session.taskId,
-          toolName,
+          ...context,
           error: err,
         });
       });
