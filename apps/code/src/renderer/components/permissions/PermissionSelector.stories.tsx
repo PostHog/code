@@ -501,6 +501,39 @@ export const McpPostHogExec: Story = {
   },
 };
 
+const posthogExecInfoInput = { command: "info execute-sql" };
+export const McpPostHogExecInfo: Story = {
+  args: {
+    toolCall: buildMcpToolCallData("mcp__posthog__exec", posthogExecInfoInput),
+    options: buildPermissionOptions("mcp__posthog__exec", posthogExecInfoInput),
+  },
+};
+
+const posthogExecToolsInput = { command: "tools" };
+export const McpPostHogExecTools: Story = {
+  args: {
+    toolCall: buildMcpToolCallData("mcp__posthog__exec", posthogExecToolsInput),
+    options: buildPermissionOptions(
+      "mcp__posthog__exec",
+      posthogExecToolsInput,
+    ),
+  },
+};
+
+const posthogExecSearchInput = { command: "search query-" };
+export const McpPostHogExecSearch: Story = {
+  args: {
+    toolCall: buildMcpToolCallData(
+      "mcp__posthog__exec",
+      posthogExecSearchInput,
+    ),
+    options: buildPermissionOptions(
+      "mcp__posthog__exec",
+      posthogExecSearchInput,
+    ),
+  },
+};
+
 const githubIssueInput = {
   owner: "PostHog",
   repo: "posthog",
