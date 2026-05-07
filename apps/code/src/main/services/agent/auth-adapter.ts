@@ -11,6 +11,7 @@ import { logger } from "../../utils/logger";
 import type { AuthService } from "../auth/service";
 import type { AuthProxyService } from "../auth-proxy/service";
 import type { McpProxyService } from "../mcp-proxy/service";
+import type { PostHogCodeInternalMcpService } from "../posthog-code-internal-mcp/service";
 import type { Credentials } from "./schemas";
 
 const log = logger.scope("agent-auth-adapter");
@@ -63,6 +64,8 @@ export class AgentAuthAdapter {
     private readonly authProxy: AuthProxyService,
     @inject(MAIN_TOKENS.McpProxyService)
     private readonly mcpProxy: McpProxyService,
+    @inject(MAIN_TOKENS.PostHogCodeInternalMcpService)
+    private readonly internalMcp: PostHogCodeInternalMcpService,
   ) {}
 
   createPosthogConfig(credentials: Credentials): AgentPosthogConfig {
@@ -101,6 +104,19 @@ export class AgentAuthAdapter {
         { name: "x-posthog-mcp-version", value: "2" },
       ],
     });
+
+    try {
+      servers.push({
+        name: "posthog-code-internal",
+        type: "http",
+        url: this.internalMcp.getUrl(),
+        headers: [this.internalMcp.getAuthHeader()],
+      });
+    } catch (err) {
+      // Service should always be running by the time the agent starts a task,
+      // but don't take down the whole MCP config if it isn't.
+      log.warn("posthog-code-internal MCP not available", { error: err });
+    }
 
     const installations = await this.fetchMcpInstallations(credentials);
 

@@ -14,6 +14,7 @@ import { useAuthSession } from "@features/auth/hooks/useAuthSession";
 import { useIsOrgAdmin } from "@features/auth/hooks/useOrgRole";
 import { OnboardingFlow } from "@features/onboarding/components/OnboardingFlow";
 import { useOnboardingStore } from "@features/onboarding/stores/onboardingStore";
+import { initializeSettingsStore } from "@features/settings/stores/settingsStore";
 import { Flex, Spinner, Text } from "@radix-ui/themes";
 import { initializeConnectivityToast } from "@renderer/features/connectivity/connectivityToast";
 import { initializeConnectivityStore } from "@renderer/stores/connectivityStore";
@@ -67,6 +68,11 @@ function App() {
   // Initialize update store
   useEffect(() => {
     return initializeUpdateStore();
+  }, []);
+
+  // Sync settings store when the internal MCP server writes custom instructions
+  useEffect(() => {
+    return initializeSettingsStore();
   }, []);
 
   // Dev-only inbox demo command for local QA from the renderer console.

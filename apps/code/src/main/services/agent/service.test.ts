@@ -190,6 +190,9 @@ function createMockDependencies() {
       appDataPath: "/mock/userData",
       logsPath: "/mock/logs",
     },
+    internalMcp: {
+      on: vi.fn(),
+    },
   };
 }
 
@@ -220,6 +223,7 @@ describe("AgentService", () => {
       deps.bundledResources as never,
       deps.appMeta as never,
       deps.storagePaths as never,
+      deps.internalMcp as never,
     );
   });
 
