@@ -183,17 +183,27 @@ export function TaskInput({
 
   // Stay optimistic while the integration list resolves to avoid flicker.
   const cloudAvailable = isLoadingRepos || hasGithubIntegration;
-  const workspaceMode: WorkspaceMode =
-    !cloudAvailable && lastUsedWorkspaceMode === "cloud"
-      ? lastUsedLocalWorkspaceMode
-      : lastUsedWorkspaceMode || "local";
+  const [workspaceMode, setWorkspaceModeState] = useState<WorkspaceMode>(() => {
+    if (initialCloudRepository) return "cloud";
+    if (!cloudAvailable && lastUsedWorkspaceMode === "cloud") {
+      return lastUsedLocalWorkspaceMode;
+    }
+    return lastUsedWorkspaceMode || "local";
+  });
 
   const setWorkspaceMode = (mode: WorkspaceMode) => {
+    setWorkspaceModeState(mode);
     setLastUsedWorkspaceMode(mode);
     if (mode !== "cloud") {
       setLastUsedLocalWorkspaceMode(mode);
     }
   };
+
+  useEffect(() => {
+    if (workspaceMode === "cloud" && !cloudAvailable) {
+      setWorkspaceModeState(lastUsedLocalWorkspaceMode);
+    }
+  }, [workspaceMode, cloudAvailable, lastUsedLocalWorkspaceMode]);
   const {
     repositories: visibleCloudRepositories,
     isPending: cloudRepositoriesLoading,
@@ -291,9 +301,9 @@ export function TaskInput({
 
   useEffect(() => {
     if (!initialCloudRepository) return;
-    setLastUsedWorkspaceMode("cloud");
+    setWorkspaceModeState("cloud");
     setSelectedRepository(initialCloudRepository.toLowerCase());
-  }, [initialCloudRepository, setLastUsedWorkspaceMode]);
+  }, [initialCloudRepository]);
 
   const handleRefreshRepositories = useCallback(() => {
     void refreshRepositories().catch((error) => {

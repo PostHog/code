@@ -38,9 +38,14 @@ import { useState } from "react";
 const REPO_PREVIEW_COUNT = 3;
 
 function githubInstallationSettingsUrl(integration: UserGitHubIntegration) {
-  const accountType = integration.account?.type?.toLowerCase();
+  const accountType = integration.account?.type;
   const accountName = integration.account?.name;
-  if (accountType === "organization" && accountName) {
+  if (
+    typeof accountType === "string" &&
+    accountType.toLowerCase() === "organization" &&
+    typeof accountName === "string" &&
+    accountName
+  ) {
     return `https://github.com/organizations/${accountName}/settings/installations/${integration.installation_id}`;
   }
   return `https://github.com/settings/installations/${integration.installation_id}`;
@@ -168,7 +173,10 @@ function GitHubIntegrationRow({
     },
   });
 
-  const accountName = integration.account?.name?.trim() || "GitHub account";
+  const rawAccountName = integration.account?.name;
+  const accountName =
+    (typeof rawAccountName === "string" && rawAccountName.trim()) ||
+    "GitHub account";
   const repoCount = repos.length;
   const canExpand = repoCount > 0;
   const settingsUrl = githubInstallationSettingsUrl(integration);
