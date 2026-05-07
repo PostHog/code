@@ -1,5 +1,6 @@
 import { isOtherOption } from "@components/action-selector/constants";
 import { PermissionSelector } from "@components/permissions/PermissionSelector";
+import { showOfflineToast } from "@features/connectivity/connectivityToast";
 import {
   PromptInput,
   type EditorHandle as PromptInputHandle,
@@ -18,6 +19,7 @@ import type { Plan } from "@features/sessions/types";
 import { useSettingsStore } from "@features/settings/stores/settingsStore";
 import { useIsWorkspaceCloudRun } from "@features/workspace/hooks/useWorkspace";
 import { useAutoFocusOnTyping } from "@hooks/useAutoFocusOnTyping";
+import { useConnectivity } from "@hooks/useConnectivity";
 import { Pause, Spinner, Warning } from "@phosphor-icons/react";
 import { Box, Button, ContextMenu, Flex, Text } from "@radix-ui/themes";
 import { toast } from "@renderer/utils/toast";
@@ -245,6 +247,18 @@ export function SessionView({
       }
     },
     [onSendPrompt],
+  );
+
+  const { isOnline } = useConnectivity();
+  const handleBeforeSubmit = useCallback(
+    (text: string, clearEditor: () => void): boolean => {
+      if (!isOnline) {
+        showOfflineToast();
+        return false;
+      }
+      return onBeforeSubmit ? onBeforeSubmit(text, clearEditor) : true;
+    },
+    [isOnline, onBeforeSubmit],
   );
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
@@ -645,7 +659,7 @@ export function SessionView({
                               />
                             ) : null
                           }
-                          onBeforeSubmit={onBeforeSubmit}
+                          onBeforeSubmit={handleBeforeSubmit}
                           onSubmit={handleSubmit}
                           onBashCommand={onBashCommand}
                           onCancel={onCancelPrompt}
