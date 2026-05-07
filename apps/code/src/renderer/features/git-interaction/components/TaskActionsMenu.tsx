@@ -48,6 +48,18 @@ interface TaskActionsMenuProps {
   isCloud: boolean;
 }
 
+// Work-shipping slots flip to disabled solely to signal "nothing to do" (no
+// changes, branch up to date, no commits to publish). Next to a PR badge that
+// noise isn't useful, so we drop them when a PR exists. Other disabled
+// actions stay visible so their `disabledReason` tooltip can still explain
+// why they're unavailable.
+const NO_WORK_SLOTS = new Set<GitMenuActionId>([
+  "commit",
+  "push",
+  "sync",
+  "publish",
+]);
+
 /**
  * Unified actions control shown in the task header. Combines:
  *   - Git interaction (commit/push/create-PR/branch) for local tasks
@@ -74,11 +86,15 @@ export function TaskActionsMenu({ taskId, isCloud }: TaskActionsMenuProps) {
   } = useGitInteraction(taskId, isCloud ? undefined : localRepoPath);
 
   // PR URL resolution — pick the right source based on task kind.
-  // For local tasks, prefer the explicitly linked-branch lookup but fall back
-  // to whatever `getPrStatus` found on the current branch. The fallback
-  // catches PRs created outside the in-app flow (e.g. agents/skills running
-  // `gh pr create` via bash) where `workspace.linkedBranch` may not be set
-  // yet.
+  // For local tasks, prefer the linked-branch lookup. The agent-side
+  // AgentFileActivity emit is the primary path for keeping `linkedBranch` in
+  // sync with PRs created via bash (see AgentService.detectAndAttachPrUrl);
+  // until that link lands we fall back to whatever `getPrStatus` found on
+  // `localRepoPath`'s current branch. Coverage is partial — when the user is
+  // focused on the worktree, `localRepoPath` is the main repo and
+  // `gitState.prUrl` won't see the worktree's feature-branch PR — but the
+  // primary path closes that gap once the next bash tool call observes the
+  // PR URL.
   const cloudPrUrl = useCloudPrUrl(taskId);
   const linkedPrUrl = useLinkedBranchPrUrl(taskId);
   const prUrl = isCloud ? cloudPrUrl : (linkedPrUrl ?? gitState.prUrl ?? null);
@@ -95,23 +111,12 @@ export function TaskActionsMenu({ taskId, isCloud }: TaskActionsMenuProps) {
   if (isCloud && !pr) return null;
 
   // When a PR exists the badge handles "view PR" and "create PR" is moot.
-  // The work-shipping slots (commit and the push/sync/publish trio) only get
-  // disabled to signal "nothing to do" (no changes, branch up to date, no
-  // commits to publish) — that's noise next to a PR badge, so drop them.
-  // Other disabled actions stay so their `disabledReason` tooltip can still
-  // explain why they're unavailable.
-  const noWorkSlots = new Set<GitMenuActionId>([
-    "commit",
-    "push",
-    "sync",
-    "publish",
-  ]);
   const gitItems = isCloud
     ? []
     : gitState.actions.filter((a) => {
         if (!pr) return true;
         if (a.id === "view-pr" || a.id === "create-pr") return false;
-        if (!a.enabled && noWorkSlots.has(a.id)) return false;
+        if (!a.enabled && NO_WORK_SLOTS.has(a.id)) return false;
         return true;
       });
 
