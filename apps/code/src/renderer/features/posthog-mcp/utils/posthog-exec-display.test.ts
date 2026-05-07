@@ -212,7 +212,7 @@ describe("formatPosthogExecBody", () => {
   });
 
   it("pretty-prints JSON array payloads", () => {
-    expect(formatPosthogExecBody('[1,2]')).toBe("[\n  1,\n  2\n]");
+    expect(formatPosthogExecBody("[1,2]")).toBe("[\n  1,\n  2\n]");
   });
 
   it("returns non-JSON strings unchanged (e.g. search regex)", () => {
