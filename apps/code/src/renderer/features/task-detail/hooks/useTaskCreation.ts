@@ -94,7 +94,7 @@ function prepareTaskInput(
     sandboxEnvironmentId: options.sandboxEnvironmentId,
     cloudPrAuthorshipMode:
       options.signalReportId && options.workspaceMode === "cloud"
-        ? "user"
+        ? "bot"
         : undefined,
     cloudRunSource:
       options.signalReportId && options.workspaceMode === "cloud"

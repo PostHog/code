@@ -233,11 +233,9 @@ export class TaskCreationSaga extends Saga<
       task = await this.step({
         name: "cloud_run",
         execute: async () => {
-          const hasUserGitHubIntegration =
-            !!input.githubUserIntegrationId || !!task.github_user_integration;
           const prAuthorshipMode =
             input.cloudPrAuthorshipMode ??
-            (hasUserGitHubIntegration ? "user" : "bot");
+            (input.cloudRunSource === "signal_report" ? "bot" : "user");
 
           const transport =
             (input.content || input.filePaths?.length) &&
